@@ -276,8 +276,7 @@ def train( dataset
         print(f'Time taken for 1 epoch {time.time() - start} sec\n')
 
 
-def evaluate( inp
-            , targ
+def evaluate( dataset
             , encoder
             , decoder
             , inp_lang
@@ -285,35 +284,39 @@ def evaluate( inp
             , max_length_inp
             , max_length_targ
             , units
-            , n_layers):
-    BATCH_SIZE = inp.shape[0]
+            , n_layers
+            , batch_size
+            , steps_per_epoch
+            , n_test_samples):
+    BATCH_SIZE = batch_size
     enc_hidden = []
     for _ in range(n_layers):
         enc_hidden.append(tf.zeros((BATCH_SIZE, units)))
-    enc_output, enc_hidden = encoder(inp, enc_hidden)
+    f1 = .0
+    for (inp, targ) in dataset.take(steps_per_epoch):
+        enc_output, enc_hidden = encoder(inp, enc_hidden)
 
-    dec_hidden = enc_hidden
+        dec_hidden = enc_hidden
 
-    dec_input = tf.expand_dims([targ_lang.word_index['<start>']] * BATCH_SIZE, 1)
-    result_preds = np.zeros(targ.shape)
+        dec_input = tf.expand_dims([targ_lang.word_index['<start>']] * BATCH_SIZE, 1)
+        result_preds = np.zeros(targ.shape)
 
-    for t in range(1, targ.shape[1]):
-        predictions, dec_hidden, _ = decoder(dec_input, dec_hidden, enc_output)
-        predicted_ids = tf.argmax(predictions, axis=1).numpy()
-        result_preds[:, t] = predicted_ids
-        dec_input = tf.expand_dims(predicted_ids, 1)
-    f1 = 0
-    end_index = targ_lang.word_index['<end>']
-    for s in range(targ.shape[0]):
-        indices = np.where(result_preds[s] == end_index)
-        index = np.where(targ[s] == end_index)[0][0]
-        if len(indices[0]) != 0:
-            index = np.maximum(index, indices[0][0])
-        predicted = result_preds[s, 1:index+1].astype(np.int)
-        expected = targ[s, 1:index+1].astype(np.int)
-        f1 += f1_score(expected, predicted, average='macro')
+        for t in range(1, targ.shape[1]):
+            predictions, dec_hidden, _ = decoder(dec_input, dec_hidden, enc_output)
+            predicted_ids = tf.argmax(predictions, axis=1).numpy()
+            result_preds[:, t] = predicted_ids
+            dec_input = tf.expand_dims(predicted_ids, 1)
+        end_index = targ_lang.word_index['<end>']
+        for s in range(targ.shape[0]):
+            indices = np.where(result_preds[s] == end_index)
+            index = np.where(targ[s] == end_index)[0][0]
+            if len(indices[0]) != 0:
+                index = np.maximum(index, indices[0][0])
+            predicted = result_preds[s, 1:index+1].astype(np.int)
+            expected = tf.cast(targ[s, 1:index+1], tf.int32)
+            f1 += f1_score(expected, predicted, average='macro')
 
-    print(f"Average f1 score over validation dataset : {f1 / targ.shape[0]}")
+    print(f"Average f1 score over validation dataset : {f1 / n_test_samples}")
 
 
 def translate( sentence
@@ -379,6 +382,7 @@ def _main():
     BUFFER_SIZE = len(input_tensor_train)
     BATCH_SIZE = 64
     steps_per_epoch = len(input_tensor_train) // BATCH_SIZE
+    steps_per_epoch_test = len(input_tensor_val) // BATCH_SIZE
     embedding_dim = 256
     units = 1024
     n_layers = 1
@@ -391,6 +395,7 @@ def _main():
 
     # create a test dataset
     test_data = tf.data.Dataset.from_tensor_slices((input_tensor_val, target_tensor_val))
+    test_data = test_data.batch(BATCH_SIZE, drop_remainder=True)
 
     example_input_batch, example_target_batch = next(iter(train_data))
     print(f"batch shape: {example_input_batch.shape}")
@@ -424,18 +429,20 @@ def _main():
                                     , encoder=encoder
                                     , decoder=decoder)
 
-    input()
+    evaluate( test_data
+            , encoder
+            , decoder
+            , inp_lang
+            , targ_lang
+            , max_length_inp
+            , max_length_targ
+            , units
+            , n_layers
+            , BATCH_SIZE
+            , steps_per_epoch_test
+            , BATCH_SIZE * steps_per_epoch_test)
 
-    evaluate(input_tensor_val
-             , target_tensor_val
-             , encoder
-             , decoder
-             , inp_lang
-             , targ_lang
-             , max_length_inp
-             , max_length_targ
-             , units
-             , n_layers)
+    input()
 
     EPOCHS = 40
     train( train_data
