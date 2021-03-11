@@ -52,14 +52,12 @@ def create_dataset(path, num_examples):
 
 
 def tokenize(lang):
-    lang_tokenizer = tf.keras.preprocessing.text.Tokenizer(
-      filters='')
+    lang_tokenizer = tf.keras.preprocessing.text.Tokenizer(filters='')
     lang_tokenizer.fit_on_texts(lang)
 
     tensor = lang_tokenizer.texts_to_sequences(lang)
 
-    tensor = tf.keras.preprocessing.sequence.pad_sequences(tensor,
-                                                           padding='post')
+    tensor = tf.keras.preprocessing.sequence.pad_sequences(tensor, padding='post')
 
     return tensor, lang_tokenizer
 
@@ -106,6 +104,7 @@ class DecoderNA(tf.keras.Model):
     """ Decoder no attention
         - computes the predictions from hidden encoder state
     """
+
     def __init__(self, vocab_size, embedding_dim, n_layers, dec_units, batch_sz):
         super(DecoderNA, self).__init__()
         self.batch_sz = batch_sz
@@ -160,6 +159,7 @@ class Decoder(tf.keras.Model):
     """ Decoder no attention
         - computes the predictions from hidden encoder state
     """
+
     def __init__(self, vocab_size, embedding_dim, n_layers, dec_units, batch_sz):
         super(Decoder, self).__init__()
         self.batch_sz = batch_sz
@@ -222,7 +222,7 @@ class TrainStepWrapper:
             for t in range(1, targ.shape[1]):
                 predictions, dec_hidden, _ = decoder(dec_input, dec_hidden, enc_output)
 
-                loss += loss_function( predictions
+                loss += loss_function(predictions
                                      , targ[:, t]
                                      , loss_object)
                 # teacher forcing
@@ -250,10 +250,10 @@ def train( dataset
     for epoch in range(n_epochs):
         start = time.time()
 
-        enc_hidden = encoder.initialize_hidden_state()
         total_loss = 0
 
         for (batch, (inp, targ)) in enumerate(dataset.take(steps_per_epoch)):
+            enc_hidden = encoder.initialize_hidden_state()
             batch_loss = tsw.train_step( inp
                                        , targ
                                        , enc_hidden
@@ -276,6 +276,21 @@ def train( dataset
         print(f'Time taken for 1 epoch {time.time() - start} sec\n')
 
 
+def ix_to_str(ix, targ_lang):
+    result = ""
+    first = True
+    for x in ix:
+        if x == 0:
+            continue
+        predicted_word = targ_lang.index_word[x]
+        if first:
+            first = False
+        else:
+            result += ' '
+        result += predicted_word
+    return result
+
+
 def evaluate( dataset
             , encoder
             , decoder
@@ -286,14 +301,14 @@ def evaluate( dataset
             , units
             , n_layers
             , batch_size
-            , steps_per_epoch
-            , n_test_samples):
+            , steps_per_epoch):
     BATCH_SIZE = batch_size
-    enc_hidden = []
-    for _ in range(n_layers):
-        enc_hidden.append(tf.zeros((BATCH_SIZE, units)))
     f1 = .0
+    count = 0
     for (inp, targ) in dataset.take(steps_per_epoch):
+        enc_hidden = []
+        for _ in range(n_layers):
+            enc_hidden.append(tf.zeros((BATCH_SIZE, units)))
         enc_output, enc_hidden = encoder(inp, enc_hidden)
 
         dec_hidden = enc_hidden
@@ -312,11 +327,14 @@ def evaluate( dataset
             index = np.where(targ[s] == end_index)[0][0]
             if len(indices[0]) != 0:
                 index = np.maximum(index, indices[0][0])
-            predicted = result_preds[s, 1:index+1].astype(np.int)
-            expected = tf.cast(targ[s, 1:index+1], tf.int32)
-            f1 += f1_score(expected, predicted, average='macro')
+            predicted = result_preds[s, 1:index + 1].astype(np.int)
+            expected = tf.cast(targ[s, 1:index + 1], tf.int32).numpy()
 
-    print(f"Average f1 score over validation dataset : {f1 / n_test_samples}")
+            f1_actual = f1_score(expected, predicted, average='macro')
+            f1 += f1_actual
+            count += 1
+
+    print(f"Average f1 score over validation dataset : {f1 / count}")
 
 
 def translate( sentence
@@ -330,9 +348,9 @@ def translate( sentence
     sentence = preprocess_sentence(sentence)
     inputs = [inp_lang.word_index[i] for i in sentence.split(' ')]
     inputs = tf.keras.preprocessing.sequence.pad_sequences(
-             [inputs],
-             maxlen=max_length_inp,
-             padding='post')
+                [inputs],
+                maxlen=max_length_inp,
+                padding='post')
     inputs = tf.convert_to_tensor(inputs)
     result = ''
     hidden = [tf.zeros((1, units))]
@@ -421,50 +439,50 @@ def _main():
 
     optimizer = tf.keras.optimizers.Adam()
     loss_object = tf.keras.losses.SparseCategoricalCrossentropy(
-                  from_logits=True, reduction='none')
+        from_logits=True, reduction='none')
 
     checkpoint_dir = './training_checkpoints'
     checkpoint_prefix = os.path.join(checkpoint_dir, 'ckpt')
-    checkpoint = tf.train.Checkpoint( optimizer=optimizer
-                                    , encoder=encoder
-                                    , decoder=decoder)
+    checkpoint = tf.train.Checkpoint(optimizer=optimizer
+                                     , encoder=encoder
+                                     , decoder=decoder)
 
-    evaluate( test_data
-            , encoder
-            , decoder
-            , inp_lang
-            , targ_lang
-            , max_length_inp
-            , max_length_targ
-            , units
-            , n_layers
-            , BATCH_SIZE
-            , steps_per_epoch_test
-            , BATCH_SIZE * steps_per_epoch_test)
-
-    input()
-
-    EPOCHS = 40
-    train( train_data
-         , encoder
-         , decoder
-         , loss_object
-         , optimizer
-         , EPOCHS
-         , BATCH_SIZE
-         , steps_per_epoch
-         , targ_lang
-         , checkpoint
-         , checkpoint_prefix)
-
-    translate(u'hace mucho frio aqui.'
+    evaluate(test_data
              , encoder
              , decoder
              , inp_lang
              , targ_lang
              , max_length_inp
              , max_length_targ
-             , units)
+             , units
+             , n_layers
+             , BATCH_SIZE
+             , steps_per_epoch_test
+             , BATCH_SIZE * steps_per_epoch_test)
+
+    input()
+
+    EPOCHS = 40
+    train(train_data
+          , encoder
+          , decoder
+          , loss_object
+          , optimizer
+          , EPOCHS
+          , BATCH_SIZE
+          , steps_per_epoch
+          , targ_lang
+          , checkpoint
+          , checkpoint_prefix)
+
+    translate(u'hace mucho frio aqui.'
+              , encoder
+              , decoder
+              , inp_lang
+              , targ_lang
+              , max_length_inp
+              , max_length_targ
+              , units)
 
 
 if __name__ == "__main__":
