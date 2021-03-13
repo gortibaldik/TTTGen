@@ -271,14 +271,18 @@ def table2id():
 
             # fill data_array with indices of items from the input_file
             data_array = np.zeros([len(input_content), filter_size], dtype=np.short)
+            cnt = -1
             for row, line in enumerate(input_content):
                 items = line.strip().split(' ')
                 if filter and (not deleted_indices[name][row]):
                     continue
                 if len(items) > filter_size:
                     raise RuntimeError(f"Invalid input file : {input_file}")
+                cnt += 1
                 for column, item in enumerate(items):
-                    data_array[row, column] = vocabf(item)
+                    data_array[cnt, column] = vocabf(item)
+
+            data_array = data_array[:cnt+1]
 
             # save the array with indices
             with open(output_files[id], 'wb') as f:
