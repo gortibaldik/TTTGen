@@ -87,3 +87,80 @@ class FieldGatingLSTMCell(tf.keras.layers.Layer):
         out, state = h, (h, c)
 
         return out, state
+
+
+class DualAttention(tf.keras.layers.Layer):
+    def __init__( self
+                , hidden_size
+                , input_size
+                , field_size):
+        super(DualAttention, self).__init__()
+        self.field_embs_TimeIndependent = None
+        self.enc_outs_TimeIndependent = None
+        self.enc_outs = None
+        # field embeddings Time Independent Layer
+        self.field_embs_TIL = tf.keras.layers.Dense(
+            input_shape=[None, field_size],
+            units=hidden_size,
+            activation='tanh'
+        )
+        # encoder outputs Time Independent Layer
+        self.enc_outs_TIL = tf.keras.layers.Dense(
+            input_shape=[None, input_size],
+            units=hidden_size,
+            activation='tanh'
+        )
+        self.state_fields_L = tf.keras.layers.Dense(
+            input_shape=[None, input_size],
+            units=hidden_size,
+            activation='tanh'
+        )
+        self.state_enc_outs_L = tf.keras.layers.Dense(
+            input_shape=[None, input_size],
+            units=hidden_size,
+            activation='tanh'
+        )
+        self.out_gate_L = tf.keras.layers.Dense(
+            input_shape=[None, 2*input_size], # [hidden_state, attention_vector]
+            units=hidden_size,
+            activation='tanh'
+        )
+
+    def call( self, x):
+        state_tanh_f = self.state_fields_L(x)
+        state_tanh_x = self.state_enc_outs_L(x)
+
+        # `*` is element-wise multiplication
+        score_enc_outs = state_tanh_x * self.enc_outs_TimeIndependent
+        score_fields = state_tanh_f * self.field_embs_TimeIndependent
+
+        # nothing written in the paper about summing along the last dimension
+        # although their code does it
+        score_enc_outs = tf.reduce_sum(score_enc_outs, axis=2)
+        alphas = tf.nn.softmax(score_enc_outs, axis=0)
+
+        score_fields = tf.reduce_sum(score_fields, axis=2)
+        betas = tf.nn.softmax(score_fields, axis=0)
+
+        alphas_mul_betas = alphas * betas
+        gammas = tf.divide(alphas_mul_betas, (1e-6 + tf.reduce_sum(alphas_mul_betas, axis=0, keepdims=True)))
+
+        context = tf.reduce_sum(self.enc_outs * tf.expand_dims(gammas, 2), axis = 0)
+
+        out = self.out_gate_L(tf.concat([context, x], -1))
+        return out, gammas
+
+    def calc_timestep_consts(self, encoder_outputs, field_embeddings):
+        """
+         During processing of single batch, there are variables which are
+         constant for each time-step, initializing them beforehand means
+         (hopefuly) some reductions on training time
+        """
+        # transforming the inputs from batch-major to time-major
+        self.enc_outs = tf.transpose(encoder_outputs, [1,0,2])
+        field_embeddings = tf.transpose(field_embeddings, [1,0,2])
+
+        self.field_embs_TimeIndependent = self.field_embs_TIL(field_embeddings)
+        print(f"self.field_embs_TimeIndependent.shape : {self.field_embs_TimeIndependent.shape}")
+        self.enc_outs_TimeIndependent = self.enc_outs_TIL(self.enc_outs)
+        print(f"self.enc_outs_TimeIndependent.shape : {self.enc_outs_TimeIndependent.shape}")
