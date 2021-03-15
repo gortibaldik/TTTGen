@@ -216,7 +216,7 @@ def table2id():
     fsums2id = ['processed_data/train/train.summary.id',
                 'processed_data/test/test.summary.id',
                 'processed_data/valid/valid.summary.id']
-    vocab = Vocab()
+    vocab = Vocab("original_data/word_vocab.txt", "original_data/field_vocab.txt")
 
     def str_to_ids(input_files, output_files, vocabf, filter_size : int, filter : bool = False):
         for id, (input_file, name) in enumerate(input_files):
