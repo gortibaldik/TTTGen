@@ -14,6 +14,7 @@
 ### Basic info on RNNs
 - introduction to RNNs : https://www.deeplearningbook.org/contents/rnn.html#pf4
 - introduction to LSTM : http://colah.github.io/posts/2015-08-Understanding-LSTMs/
+- implementation of LSTM in pytorch : https://theaisummer.com/understanding-lstm/
 
 ### Neural Machine Translation With Attention
 - introduction to everything around RNNs used for neural machine translation : https://github.com/lmthang/thesis
@@ -21,6 +22,9 @@
 - tutorial in new API : https://www.tensorflow.org/tutorials/text/nmt_with_attention
 - tutorial introducing `tfa.seq2seq.BeamSearchDecoder` : https://www.tensorflow.org/addons/tutorials/networks_seq2seq_nmt
 - tutorial in old API, which is much more verbose and contains many additional materials : https://github.com/tensorflow/nmt#background-on-the-attention-mechanism
+
+### Defining custom RNN cells
+- https://www.tensorflow.org/guide/keras/rnn#rnn_layers_and_rnn_cells
 
 ### Hyperparameter tuning in Seq2Seq models
 - Massive Exploration of Neural Machine Translation Architectures :  https://arxiv.org/pdf/1703.03906.pdf
