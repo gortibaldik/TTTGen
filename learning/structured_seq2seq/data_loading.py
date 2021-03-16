@@ -41,6 +41,7 @@ def load_dataset(model_set, batch_size):
     fields = np.load(field_path)
     poses = np.load(pos_path)
     rposes = np.load(rpos_path)
+    steps_per_epoch = summaries.shape[0] // batch_size
     for d in [summaries, texts, fields, poses, rposes]:
         print(d.shape)
     BUFFER_SIZE = len(summaries)
@@ -53,7 +54,7 @@ def load_dataset(model_set, batch_size):
          tf.convert_to_tensor(rposes))
     ).shuffle(BUFFER_SIZE)
     data = data.batch(batch_size, drop_remainder=True)
-    return data
+    return data, steps_per_epoch
 
 
 if __name__ == "__main__":

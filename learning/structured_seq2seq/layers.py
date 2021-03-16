@@ -172,6 +172,4 @@ class DualAttention(tf.keras.layers.Layer):
         field_embeddings = tf.transpose(field_embeddings, [1,0,2])
 
         self.field_embs_TimeIndependent = self.field_embs_TIL(field_embeddings)
-        print(f"self.field_embs_TimeIndependent.shape : {self.field_embs_TimeIndependent.shape}")
         self.enc_outs_TimeIndependent = self.enc_outs_TIL(self.enc_outs)
-        print(f"self.enc_outs_TimeIndependent.shape : {self.enc_outs_TimeIndependent.shape}")

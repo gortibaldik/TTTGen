@@ -71,7 +71,6 @@ class Decoder(tf.keras.Model):
     def call( self
             , input):
         emb = self.embedding(input)
-        print(f"emb.shape : {emb.shape}")
         seq_output, self.hidden_state, self.carry_state = self.rnn(
             emb,
             initial_state=(self.hidden_state, self.carry_state)
