@@ -2,3 +2,5 @@ original_data/
 processed_data/
 processed_data_backup/
 results/
+field_vocab.txt
+word_vocab.txt

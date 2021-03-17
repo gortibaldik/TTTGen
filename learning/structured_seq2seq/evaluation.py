@@ -1,5 +1,7 @@
 from data_loading import ModelSet
 from vocab import Vocab
+import data_loading
+import os
 import tensorflow as tf
 import numpy as np
 import time
@@ -36,7 +38,8 @@ def evaluate( dataset : tf.data.Dataset
     # the original table
 
     # load the original table :
-    original_table = open(model_set.value[5], 'r').read().strip().split('\n')
+    ot_path = os.path.join(data_loading.MODEL_SET_DATA_DIR, model_set.value[5])
+    original_table = open(ot_path, 'r').read().strip().split('\n')
     original_table = [list(t.strip().split(' ')) for t in original_table]
 
     print("Computing predictions")
