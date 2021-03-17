@@ -223,13 +223,22 @@ def table2id():
                 'processed_data/valid/valid.summary.id']
     vocab = Vocab("original_data/field_vocab.txt", "original_data/word_vocab.txt")
 
-    def str_to_ids(input_files, output_files, vocabf, filter_size : int, filter : bool = False):
+    def str_to_ids( input_files
+                  , output_files
+                    , vocabf
+                    , filter_size : int
+                    , filter : bool = False
+                    , add_end_token : bool = False):
         for id, (input_file, name) in enumerate(input_files):
             with open(input_file, 'r') as f:
                 input_content = f.read().strip().split('\n')
 
             # fill data_array with indices of items from the input_file
-            data_array = np.zeros([len(input_content), filter_size], dtype=np.short)
+            data_array = np.zeros(
+                [len(input_content), filter_size + (0 if not add_end_token
+                                        else 1)],
+                dtype=np.short
+            )
             cnt = -1
             for row, line in enumerate(input_content):
                 items = line.strip().split(' ')
@@ -240,6 +249,8 @@ def table2id():
                 cnt += 1
                 for column, item in enumerate(items):
                     data_array[cnt, column] = vocabf(item)
+                if add_end_token:
+                    data_array[cnt, len(items)] = vocabf(Vocab.END_TOKEN)
 
             data_array = data_array[:cnt+1]
 
@@ -249,7 +260,7 @@ def table2id():
 
     str_to_ids(zip(fvals, train_test_valid), fvals2id, vocab.word2id, FILTER_TABLE_SIZE)
     str_to_ids(zip(flabs, train_test_valid), flabs2id, vocab.key2id, FILTER_TABLE_SIZE)
-    str_to_ids(zip(fsums, train_test_valid), fsums2id, vocab.word2id, FILTER_SUMMARY_SIZE, filter=True)
+    str_to_ids(zip(fsums, train_test_valid), fsums2id, vocab.word2id, FILTER_SUMMARY_SIZE, filter=True, add_end_token=True)
 
 
 def traverse_summaries():
