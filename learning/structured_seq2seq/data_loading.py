@@ -34,13 +34,21 @@ class ModelSet(Enum):
              MODEL_SET_DATA_DIR + '/valid/valid.box.lab']
 
 
-def load_dataset(model_set, batch_size):
+def load_dataset(model_set, batch_size, shuffle : bool = True, num_examples = None):
     summary_path, text_path, field_path, pos_path, rpos_path, vals_path, labs_path = model_set.value
     summaries = np.load(summary_path)
     texts = np.load(text_path)
     fields = np.load(field_path)
     poses = np.load(pos_path)
     rposes = np.load(rpos_path)
+
+    if num_examples is not None:
+        summaries = summaries[:num_examples]
+        texts = texts[:num_examples]
+        fields = fields[:num_examples]
+        poses = poses[:num_examples]
+        rposes = rposes[:num_examples]
+
     steps_per_epoch = summaries.shape[0] // batch_size
     for d in [summaries, texts, fields, poses, rposes]:
         print(d.shape)
@@ -52,7 +60,9 @@ def load_dataset(model_set, batch_size):
          tf.convert_to_tensor(fields),
          tf.convert_to_tensor(poses),
          tf.convert_to_tensor(rposes))
-    ).shuffle(BUFFER_SIZE)
+    )
+    if shuffle:
+        data = data.shuffle(BUFFER_SIZE)
     data = data.batch(batch_size, drop_remainder=True)
     return data, steps_per_epoch
 
