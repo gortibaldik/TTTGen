@@ -1,12 +1,16 @@
 class Vocab(object):
     """vocabulary for words and field types"""
+    PAD = 'PAD'
+    START_TOKEN = 'START_TOKEN'
+    END_TOKEN = 'END_TOKEN'
+    UNK_TOKEN = 'UNK_TOKEN'
 
     def __init__(self, field_vocab_path, word_vocab_path):
         vocab = dict()
-        vocab['PAD'] = 0
-        vocab['START_TOKEN'] = 1
-        vocab['END_TOKEN'] = 2
-        vocab['UNK_TOKEN'] = 3
+        vocab[Vocab.PAD] = 0
+        vocab[Vocab.START_TOKEN] = 1
+        vocab[Vocab.END_TOKEN] = 2
+        vocab[Vocab.UNK_TOKEN] = 3
         cnt = 4
         with open(word_vocab_path, "r") as v:
             for line in v:
@@ -17,10 +21,10 @@ class Vocab(object):
         self._id2word = {value: key for key, value in vocab.items()}
 
         key_map = dict()
-        key_map['PAD'] = 0
-        key_map['START_TOKEN'] = 1
-        key_map['END_TOKEN'] = 2
-        key_map['UNK_TOKEN'] = 3
+        key_map[Vocab.PAD] = 0
+        key_map[Vocab.START_TOKEN] = 1
+        key_map[Vocab.END_TOKEN] = 2
+        key_map[Vocab.UNK_TOKEN] = 3
         cnt = 4
         with open(field_vocab_path, "r") as v:
             for line in v:
