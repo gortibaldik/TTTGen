@@ -146,6 +146,9 @@ def reverse_pos():
 
 
 def check_generated_box():
+    """
+    Checks only the size of the boxes, not the content!
+    """
     ftrain = ["processed_data/train/train.box.val",
               "processed_data/train/train.box.lab",
               "processed_data/train/train.box.pos",
@@ -186,10 +189,12 @@ def check_generated_box():
 def split_summary_for_rouge():
     bpfile = ["original_data/test.summary", "original_data/valid.summary"]
     bwfile = ["processed_data/test/test_split_for_rouge/", "processed_data/valid/valid_split_for_rouge/"]
-    for i, fi in enumerate(bpfile):
+    for i, (fi, set_name) in enumerate(zip(bpfile, ["test", "valid"])):
         fread = open(fi, 'r')
         k = 0
-        for line in fread:
+        for line_num, line in enumerate(fread):
+            if not deleted_indices[set_name][line_num]:
+                continue
             with open(bwfile[i] + 'gold_summary_' + str(k), 'w') as sw:
                 sw.write(line.strip() + '\n')
             k += 1
@@ -216,7 +221,7 @@ def table2id():
     fsums2id = ['processed_data/train/train.summary.id',
                 'processed_data/test/test.summary.id',
                 'processed_data/valid/valid.summary.id']
-    vocab = Vocab("original_data/word_vocab.txt", "original_data/field_vocab.txt")
+    vocab = Vocab("original_data/field_vocab.txt", "original_data/word_vocab.txt")
 
     def str_to_ids(input_files, output_files, vocabf, filter_size : int, filter : bool = False):
         for id, (input_file, name) in enumerate(input_files):
@@ -245,17 +250,6 @@ def table2id():
     str_to_ids(zip(fvals, train_test_valid), fvals2id, vocab.word2id, FILTER_TABLE_SIZE)
     str_to_ids(zip(flabs, train_test_valid), flabs2id, vocab.key2id, FILTER_TABLE_SIZE)
     str_to_ids(zip(fsums, train_test_valid), fsums2id, vocab.word2id, FILTER_SUMMARY_SIZE, filter=True)
-    # for k, (ff, name) in enumerate(zip(fsums, ["train", "test", "valid"])):
-    #     print(f"{ff} <> {name}")
-    #     fi = open(ff, 'r')
-    #     fo = open(fsums2id[k], 'w')
-    #     for id, line in enumerate(fi):
-    #         if not deleted_indices[name][id]:
-    #             continue
-    #         items = line.strip().split()
-    #         fo.write(" ".join([str(vocab.word2id(word)) for word in items]) + '\n')
-    #     fi.close()
-    #     fo.close()
 
 
 def traverse_summaries():
@@ -287,7 +281,7 @@ def preprocess():
     """
     print("traversing the summaries to fill up deleted_indices")
     traverse_summaries()
-    print("extracting token, field type and position info from original data ...")
+    print("extracting token, field type and position info from original data ... \nAnd updating deleted_indices")
     time_start = time.time()
     split_infobox()
     reverse_pos()

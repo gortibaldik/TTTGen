@@ -11,6 +11,9 @@
 - analysis of `tf.function` : [part1](https://pgaleone.eu/tensorflow/tf.function/2019/03/21/dissecting-tf-function-part-1/), [part2](https://pgaleone.eu/tensorflow/tf.function/2019/04/03/dissecting-tf-function-part-2/)
 - discussion about the issue I faced (training multiple independent models using the same `tf.function`) [stack_overflow](https://stackoverflow.com/questions/60704587/training-multiple-models-defined-from-the-same-class-in-tensorflow-2-0-fails-whe)
 
+### Using `tf.checkpoint`
+- https://www.tensorflow.org/guide/checkpoint#loading_mechanics
+
 ### Basic info on RNNs
 - introduction to RNNs : https://www.deeplearningbook.org/contents/rnn.html#pf4
 - introduction to LSTM : http://colah.github.io/posts/2015-08-Understanding-LSTMs/
