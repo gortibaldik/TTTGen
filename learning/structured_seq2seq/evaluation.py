@@ -106,7 +106,7 @@ def evaluate( dataset : tf.data.Dataset
             start_batch = time.time()
             print(f"---- Batch {num} completed in {start_batch - old_start}")
 
-    print(f"---- Net generation completed in {time.time() - start}")
+    print(f"---- Net generation completed in {time.time() - start}", flush=True)
     write_predictions(predictions_path, predicted_summaries)
     write_predictions(predictions_with_attention_copy_path, predicted_summaries_copy_attention)
 
@@ -115,6 +115,6 @@ def evaluate( dataset : tf.data.Dataset
         with open(gold_path_prefix + str(ix), 'r', encoding='utf8') as f:
             gold_set.append([f.read().strip().split(' ')])
 
-    print("---- Evaluating")
+    print("---- Evaluating", flush=True)
     bleu = corpus_bleu(gold_set, predictions_for_bleu)
-    print(f"---- BLEU score : {bleu}")
+    print(f"---- BLEU score : {bleu}", flush=True)

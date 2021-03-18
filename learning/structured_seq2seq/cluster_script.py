@@ -3,8 +3,8 @@ from model import Encoder, Decoder
 from training import train
 from evaluation import evaluate
 
-import data_loading
 import tensorflow as tf
+import data_loading
 import os
 import argparse
 
@@ -76,18 +76,19 @@ if __name__ == "__main__":
     learning_rate = 0.0003
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
     loss_object = tf.keras.losses.SparseCategoricalCrossentropy(
-        from_logits=False, reduction='none')
-    print("Model created!")
+            from_logits=False, reduction=tf.keras.losses.Reduction.NONE
+    )
+    print("Model created!", flush=True)
 
     # create checkpoints
     checkpoint_dir = os.path.join(task_dir, "training_checkpoints")
     checkpoint_prefix = os.path.join(checkpoint_dir, 'ckpt')
-    checkpoint = tf.train.Checkpoint(optimizer=optimizer
-                                     , encoder=encoder
-                                     , decoder=decoder)
-    print("Checkpoints created!")
+    checkpoint = tf.train.Checkpoint( optimizer=optimizer
+                                    , encoder=encoder
+                                    , decoder=decoder)
+    print("Checkpoints created!", flush=True)
 
-    print("Starting training!")
+    print("Starting training!", flush=True)
     n_improvements = 10
     for i in range(n_improvements):
         n_epochs = 5
@@ -102,7 +103,7 @@ if __name__ == "__main__":
              , vocab.word2id(Vocab.START_TOKEN)
              , checkpoint
              , checkpoint_prefix)
-        print(f"Evaluation after improving for {n_epochs + i*n_epochs}")
+        print(f"Evaluation after improving for {n_epochs + i*n_epochs}", flush=True)
         evaluate( val_data
                 , data_loading.ModelSet.val
                 , val_steps_per_epoch
@@ -113,3 +114,4 @@ if __name__ == "__main__":
                 , os.path.join(prefix, "predictions_with_attention" + str(i) + ".txt")
                 , encoder
                 , decoder)
+

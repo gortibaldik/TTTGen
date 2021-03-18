@@ -51,7 +51,7 @@ def load_dataset(model_set, batch_size, shuffle : bool = True, num_examples = No
 
     steps_per_epoch = summaries.shape[0] // batch_size
     for d in [summaries, texts, fields, poses, rposes]:
-        print(d.shape)
+        print(d.shape, flush=True)
     BUFFER_SIZE = len(summaries)
 
     data = tf.data.Dataset.from_tensor_slices(

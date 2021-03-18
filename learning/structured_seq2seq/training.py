@@ -78,8 +78,8 @@ def train( dataset
             total_loss += batch_loss
 
             if num % 100 == 0:
-                print(f'Epoch {epoch + 1} Batch {num} Loss {batch_loss.numpy():.4f}')
+                print(f'Epoch {epoch + 1} Batch {num} Loss {batch_loss.numpy():.4f}', flush=True)
 
         # saving the model every epoch
         checkpoint.save(file_prefix=checkpoint_prefix)
-        print(f"Epoch {epoch + 1} duration : {time.time() - start}")
+        print(f"Epoch {epoch + 1} duration : {time.time() - start}", flush=True)
