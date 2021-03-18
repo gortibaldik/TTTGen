@@ -12,7 +12,7 @@ class Vocab(object):
         vocab[Vocab.END_TOKEN] = 2
         vocab[Vocab.UNK_TOKEN] = 3
         cnt = 4
-        with open(word_vocab_path, "r") as v:
+        with open(word_vocab_path, "r", encoding='utf8') as v:
             for line in v:
                 word = line.strip().split()[0]
                 vocab[word] = cnt
@@ -26,7 +26,7 @@ class Vocab(object):
         key_map[Vocab.END_TOKEN] = 2
         key_map[Vocab.UNK_TOKEN] = 3
         cnt = 4
-        with open(field_vocab_path, "r") as v:
+        with open(field_vocab_path, "r", encoding='utf8') as v:
             for line in v:
                 key = line.strip().split()[0]
                 key_map[key] = cnt

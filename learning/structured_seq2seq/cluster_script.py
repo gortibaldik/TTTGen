@@ -18,6 +18,18 @@ if __name__ == "__main__":
         type=str,
         help='directory with all the data needed for training and validation'
     )
+    parser.add_argument(
+        '--training_examples',
+        default=None,
+        type=int,
+        help='number of training examples to train on, default is None'
+    )
+    parser.add_argument(
+        '--validation_examples',
+        default=None,
+        type=int,
+        help='number of validation examples'
+    )
     args = parser.parse_args()
     task_dir = args.task_dir
     prefix = os.path.join(task_dir, "processed_data")
@@ -25,16 +37,24 @@ if __name__ == "__main__":
     data_loading.MODEL_SET_DATA_DIR = prefix
     fields_path = os.path.join(prefix,"field_vocab.txt")
     words_path = os.path.join(prefix, "word_vocab.txt")
+    print(f"Creating vocab from files: {fields_path}, {words_path}")
     vocab = Vocab(fields_path, words_path)
     batch_size = 32
-    num_examples = 5000
-
-    data, steps_per_epoch = data_loading.load_dataset( data_loading.ModelSet.val
+    training_examples = args.training_examples
+    validation_examples = args.validation_examples
+    # create training dataset
+    data, steps_per_epoch = data_loading.load_dataset( data_loading.ModelSet.train
                                                      , batch_size=batch_size
-                                                     , shuffle=False
-                                                     , num_examples=num_examples)
+                                                     , shuffle=True
+                                                     , num_examples=training_examples)
+    # create validation dataset
+    val_data, val_steps_per_epoch = data_loading.load_dataset( data_loading.ModelSet.val
+                                                             , batch_size=batch_size
+                                                             , shuffle=False
+                                                             , num_examples=validation_examples)
+    gold_path_prefix = os.path.join(task_dir, "processed_data", "valid", "valid_split_for_rouge", "gold_summary_")
+    print("Training and Validation dataset loaded!")
 
-    print("Training dataset loaded!")
     words_emb_dim = 400
     fields_emb_dim = 50
     pos_emb_dim = 5
@@ -65,12 +85,9 @@ if __name__ == "__main__":
     checkpoint = tf.train.Checkpoint(optimizer=optimizer
                                      , encoder=encoder
                                      , decoder=decoder)
+    print("Checkpoints created!")
 
-    val_data, val_steps_per_epoch = data_loading.load_dataset( data_loading.ModelSet.val
-                                                             , batch_size=batch_size
-                                                             , shuffle=False
-                                                             , num_examples=num_examples)
-
+    print("Starting training!")
     n_improvements = 10
     for i in range(n_improvements):
         n_epochs = 5
@@ -85,8 +102,7 @@ if __name__ == "__main__":
              , vocab.word2id(Vocab.START_TOKEN)
              , checkpoint
              , checkpoint_prefix)
-
-        gold_path_prefix = os.path.join(task_dir, "processed_data", "valid", "valid_split_for_rouge" , "gold_summary_")
+        print(f"Evaluation after improving for {n_epochs + i*n_epochs}")
         evaluate( val_data
                 , data_loading.ModelSet.val
                 , val_steps_per_epoch

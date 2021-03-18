@@ -82,4 +82,4 @@ def train( dataset
 
         # saving the model every epoch
         checkpoint.save(file_prefix=checkpoint_prefix)
-        print(f"Epoch {epoch} duration : {time.time() - start}")
+        print(f"Epoch {epoch + 1} duration : {time.time() - start}")

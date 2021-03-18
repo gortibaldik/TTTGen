@@ -39,10 +39,10 @@ def evaluate( dataset : tf.data.Dataset
 
     # load the original table :
     ot_path = os.path.join(data_loading.MODEL_SET_DATA_DIR, model_set.value[5])
-    original_table = open(ot_path, 'r').read().strip().split('\n')
+    original_table = open(ot_path, 'r', encoding='utf8').read().strip().split('\n')
     original_table = [list(t.strip().split(' ')) for t in original_table]
 
-    print("Computing predictions")
+    print("---- Computing predictions")
     start = time.time()
     start_batch = time.time()
 
@@ -104,19 +104,17 @@ def evaluate( dataset : tf.data.Dataset
         if num % 100 == 0:
             old_start = start_batch
             start_batch = time.time()
-            print(f"Batch {num} completed in {start_batch - old_start}")
+            print(f"---- Batch {num} completed in {start_batch - old_start}")
 
-    print(f"Net generation completed in {start - time.time()}")
+    print(f"---- Net generation completed in {time.time() - start}")
     write_predictions(predictions_path, predicted_summaries)
     write_predictions(predictions_with_attention_copy_path, predicted_summaries_copy_attention)
 
     gold_set = []
     for ix in range(len(predictions_for_bleu)):
-        with open(gold_path_prefix + str(ix), 'r') as f:
+        with open(gold_path_prefix + str(ix), 'r', encoding='utf8') as f:
             gold_set.append([f.read().strip().split(' ')])
 
-    print(f"gold_set[0] : {gold_set[0]}")
-    print(f"gold_set[1] : {gold_set[1]}")
-    print("Evaluating")
+    print("---- Evaluating")
     bleu = corpus_bleu(gold_set, predictions_for_bleu)
-    print(f"BLEU score : {bleu}")
+    print(f"---- BLEU score : {bleu}")
