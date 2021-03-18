@@ -45,3 +45,5 @@
 
 ### Datasets
 - the main dataset I'm working with : WIKIBIO dataset : [dataset](https://github.com/DavidGrangier/wikipedia-biography-dataset), [paper introducing it](https://arxiv.org/abs/1603.07771)
+- rotowire dataset which would become the main dataset of my thesis: [dataset](https://github.com/harvardnlp/boxscore-data), [paper introducing it](https://arxiv.org/pdf/1707.08052.pdf)
+- sportsett basketball dataset which should be the ultimate replacement of the rotowire dataset according to the authors of the rotowire dataset: [dataset](https://github.com/nlgcat/sport_sett_basketball), [paper introducing it](https://intellang.github.io/papers/5-IntelLanG_2020_paper_5.pdf)
