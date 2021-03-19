@@ -13,7 +13,10 @@ class Vocab(object):
         vocab[Vocab.UNK_TOKEN] = 3
         cnt = 4
         with open(word_vocab_path, "r", encoding='utf8') as v:
-            for line in v:
+            print(f"vocab creation : Opened {word_vocab_path}", flush=True)
+            lines = v.read().strip().split('\n')
+            print(f"vocab creation : Going to read {len(lines)} records from {word_vocab_path}", flush=True)
+            for line in lines:
                 word = line.strip().split()[0]
                 vocab[word] = cnt
                 cnt += 1
@@ -27,12 +30,16 @@ class Vocab(object):
         key_map[Vocab.UNK_TOKEN] = 3
         cnt = 4
         with open(field_vocab_path, "r", encoding='utf8') as v:
-            for line in v:
+            print(f"vocab creation : Opened {field_vocab_path}", flush=True)
+            lines = v.read().strip().split('\n')
+            print(f"vocab creation : Going to read {len(lines)} records from {field_vocab_path}", flush=True)
+            for line in lines:
                 key = line.strip().split()[0]
                 key_map[key] = cnt
                 cnt += 1
         self._key2id = key_map
         self._id2key = {value: key for key, value in key_map.items()}
+        print("vocab creation : FINISHED", flush=True)
 
     def get_words_size(self):
         return len(self._word2id)

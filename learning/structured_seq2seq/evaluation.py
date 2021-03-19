@@ -42,7 +42,7 @@ def evaluate( dataset : tf.data.Dataset
     original_table = open(ot_path, 'r', encoding='utf8').read().strip().split('\n')
     original_table = [list(t.strip().split(' ')) for t in original_table]
 
-    print("---- Computing predictions")
+    print("---- Computing predictions", flush=True)
     start = time.time()
     start_batch = time.time()
 
@@ -78,8 +78,10 @@ def evaluate( dataset : tf.data.Dataset
         for s in range(result_preds.shape[0]):
             indices = np.where(result_preds[s] == vocab_index_end)
             index = np.where(summaries[s] == vocab_index_end)[0][0]
+            # if net generated an end of sentence token,
+            # then take everything till that token
             if len(indices[0]) != 0:
-                index = np.maximum(index, indices[0][0])
+                index = indices[0][0]
 
             predicted = result_preds[s, 1:index + 1].astype(np.int)
             predicted_summaries.append(
@@ -104,7 +106,7 @@ def evaluate( dataset : tf.data.Dataset
         if num % 100 == 0:
             old_start = start_batch
             start_batch = time.time()
-            print(f"---- Batch {num} completed in {start_batch - old_start}")
+            print(f"---- Batch {num} completed in {start_batch - old_start}", flush=True)
 
     print(f"---- Net generation completed in {time.time() - start}", flush=True)
     write_predictions(predictions_path, predicted_summaries)
@@ -118,3 +120,4 @@ def evaluate( dataset : tf.data.Dataset
     print("---- Evaluating", flush=True)
     bleu = corpus_bleu(gold_set, predictions_for_bleu)
     print(f"---- BLEU score : {bleu}", flush=True)
+

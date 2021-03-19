@@ -64,6 +64,7 @@ def train( dataset
     tsw = TrainStepWrapper()
     for epoch in range(n_epochs):
         start = time.time()
+        print(f"-- started {epoch + 1}. epoch", flush=True)
 
         total_loss = 0
 

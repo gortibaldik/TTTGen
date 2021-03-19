@@ -33,12 +33,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
     task_dir = args.task_dir
     prefix = os.path.join(task_dir, "processed_data")
-    print(prefix)
+    print(prefix, flush=True)
     data_loading.MODEL_SET_DATA_DIR = prefix
     fields_path = os.path.join(prefix,"field_vocab.txt")
     words_path = os.path.join(prefix, "word_vocab.txt")
-    print(f"Creating vocab from files: {fields_path}, {words_path}")
+    print(f"Creating vocab from files: {fields_path}, {words_path}", flush=True)
     vocab = Vocab(fields_path, words_path)
+    print(f"Vocab created!")
     batch_size = 32
     training_examples = args.training_examples
     validation_examples = args.validation_examples
@@ -53,7 +54,7 @@ if __name__ == "__main__":
                                                              , shuffle=False
                                                              , num_examples=validation_examples)
     gold_path_prefix = os.path.join(task_dir, "processed_data", "valid", "valid_split_for_rouge", "gold_summary_")
-    print("Training and Validation dataset loaded!")
+    print("Training and Validation dataset loaded!", flush=True)
 
     words_emb_dim = 400
     fields_emb_dim = 50

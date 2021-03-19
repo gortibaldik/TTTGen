@@ -78,3 +78,4 @@ class Decoder(tf.keras.Model):
         attention_vector, attention_weights = self.attention(self.hidden_state)
         output = self.fc(attention_vector)
         return output, attention_weights
+
