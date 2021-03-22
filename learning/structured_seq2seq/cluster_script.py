@@ -44,12 +44,12 @@ if __name__ == "__main__":
     training_examples = args.training_examples
     validation_examples = args.validation_examples
     # create training dataset
-    data_loading.load_dataset( data_loading.ModelSet.train
-                             , batch_size=batch_size
-                             , shuffle=True
-                             , num_examples=training_examples)
+    data, steps_per_epoch = data_loading.load_dataset( data_loading.ModelSet.train
+                                                     , batch_size=batch_size
+                                                     , shuffle=True
+                                                     , num_examples=training_examples)
     # create validation dataset
-    val_data, val_steps_per_epoch = data_loading.load_dataset(data_loading.ModelSet.val
+    val_data, val_steps_per_epoch = data_loading.load_dataset( data_loading.ModelSet.val
                                                              , batch_size=batch_size
                                                              , shuffle=False
                                                              , num_examples=validation_examples)
@@ -77,7 +77,8 @@ if __name__ == "__main__":
     learning_rate = 0.0003
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
     loss_object = tf.keras.losses.SparseCategoricalCrossentropy(
-            from_logits=False, reduction=tf.keras.losses.Reduction.NONE
+            from_logits=False,
+            reduction=tf.keras.losses.Reduction.NONE
     )
     print("Model created!", flush=True)
 
