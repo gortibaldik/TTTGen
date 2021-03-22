@@ -44,13 +44,15 @@ if __name__ == "__main__":
     training_examples = args.training_examples
     validation_examples = args.validation_examples
     # create training dataset
-    data, steps_per_epoch = data_loading.load_tf_record_dataset( "train"
-                                                               , batch_size=batch_size
-                                                               , shuffle=True)
+    data_loading.load_dataset( data_loading.ModelSet.train
+                             , batch_size=batch_size
+                             , shuffle=True
+                             , num_examples=training_examples)
     # create validation dataset
-    val_data, val_steps_per_epoch = data_loading.load_tf_record_dataset( "valid"
-                                                                       , batch_size=batch_size
-                                                                       , shuffle=False)
+    val_data, val_steps_per_epoch = data_loading.load_dataset(data_loading.ModelSet.val
+                                                             , batch_size=batch_size
+                                                             , shuffle=False
+                                                             , num_examples=validation_examples)
     gold_path_prefix = os.path.join(task_dir, "processed_data", "valid", "valid_split_for_rouge", "gold_summary_")
     print("Training and Validation dataset loaded!", flush=True)
 
