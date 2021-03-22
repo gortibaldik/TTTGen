@@ -53,3 +53,7 @@ Percent of summary less or equal to 125 : 99.97940476333498
 ```
 
 - based on the stats, the length 75 was selected for filtering
+
+### Troubles with running scripts on the cluster
+- tensorflow binaries should be ran with the same versions of `CUDA` and `CUDNN` as they were compiled with
+- therefore if the default version of `CUDNN` for used version of `CUDA` is different, we need to set `LD_LIBRARY_PATH` to the correct directories (in our case it is `/lnet/aic/opt/cuda/cuda-10.1/cudnn/7.6/lib64`)
