@@ -58,3 +58,9 @@
 - discussion about the issue I faced (training multiple independent models using the same `tf.function`) [stack_overflow](https://stackoverflow.com/questions/60704587/training-multiple-models-defined-from-the-same-class-in-tensorflow-2-0-fails-whe)
 - [custom RNN cells](https://www.tensorflow.org/guide/keras/rnn#rnn_layers_and_rnn_cells)
 
+--------------
+
+### `tensorflow` performance analysis
+- forwarding ports from cluster to localhost: [stack overflow](https://stackoverflow.com/questions/37987839/how-can-i-run-tensorboard-on-a-remote-server)
+- `tensorflow` guide on profiling custom training loops: https://www.tensorflow.org/guide/profiler
+
