@@ -21,6 +21,7 @@
 - Massive Exploration of Neural Machine Translation Architectures :  https://arxiv.org/pdf/1703.03906.pdf
 
 ### existing Seq2Seq neural frameworks
+- openNMT, looks like the best solution using tensorflow : https://github.com/OpenNMT/OpenNMT-tf
 - neural monkey : https://github.com/ufal/neuralmonkey
 - tf-seq2seq, which has quite nicely elaborated documentation : https://github.com/google/seq2seq
 - deep-shallow, written in pytorch, fairseq : https://github.com/jungokasai/deep-shallow
