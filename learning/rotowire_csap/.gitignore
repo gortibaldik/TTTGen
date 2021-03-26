@@ -2,5 +2,6 @@
 boxscore-data/
 rotowire/
 
-# ignore tmp json files
+# ignore tmp files
 **.json
+**.txt
