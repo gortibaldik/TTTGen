@@ -210,6 +210,8 @@ class MatchStat:
                 , word_dict : OccurrenceDict
                 , entity_dict):
         dct = EnumDict(match_dict)
+        if not self._is_summary_valid(dct):
+            return
         home_city, vis_city = [ dct[key] for key in [MatchStatEntries.home_city, MatchStatEntries.vis_city]]
         self.box_score = BoxScore(dct[MatchStatEntries.box_score], home_city, vis_city, entity_dict)
         self.home_line = LineScore(dct[MatchStatEntries.home_line], home_city, vis_city, entity_dict)
@@ -218,6 +220,15 @@ class MatchStat:
         self.vis_name = dct[MatchStatEntries.vis_name]
         self.records = self.box_score.records + self.home_line.records + self.vis_line.records
         self.summary = Summary(dct[MatchStatEntries.summary], word_dict)
+
+    def _is_summary_valid(self, dct):
+        if "Lorem" in dct[MatchStatEntries.summary]:
+            for attr in ["box_score", "home_line", "vis_line", "home_name", "vis_name", "records", "summary"]:
+                super().__setattr__(attr, None)
+            self.invalid = True
+            return False
+        self.invalid = False
+        return True
 
 
 def _main():
