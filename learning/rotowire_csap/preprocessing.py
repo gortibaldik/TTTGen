@@ -46,7 +46,8 @@ class BoxScore:
                 , box_score_dict
                 , home_city
                 , away_city
-                , entity_dict):
+                , entity_dict
+                , word_dict):
         """
         Creates the records from the BoxScore
         BoxScore contains information about all the players, their stats, which team they're part of
@@ -56,7 +57,11 @@ class BoxScore:
         self._records = []
 
         for player_number in self.get_player_numbers(dct):
-            self._records += self.extract_player_info(player_number, dct, home_city, away_city, entity_dict)
+            self._records += self.extract_player_info( player_number
+                                                     , dct, home_city
+                                                     , away_city
+                                                     , entity_dict
+                                                     , word_dict)
 
     @staticmethod
     def get_player_numbers(dct : EnumDict):
@@ -67,7 +72,8 @@ class BoxScore:
                            , dct : EnumDict
                            , home_city : str
                            , away_city : str
-                           , entity_dict : OccurrenceDict):
+                           , entity_dict : OccurrenceDict
+                           , word_dict : OccurrenceDict):
         records = []
         player_name = dct[BoxScoreEntries.player_name][player_number]
         entity_dict.add(player_name)
@@ -79,6 +85,8 @@ class BoxScore:
         dct.mapmap(BoxScoreEntries.team_city, player_number, transform_name)
 
         for key in dct.keys():
+            value = dct[BoxScoreEntries(key)][player_number]
+            word_dict.add(value)
             records.append(
                 Record(
                     key,
@@ -99,15 +107,17 @@ class LineScore:
                 , line_score_dict
                 , home_city
                 , away_city
-                , entity_dict):
+                , entity_dict
+                , word_dict):
         dct = EnumDict(line_score_dict)
-        self._records = self.create_records(dct, home_city, away_city, entity_dict)
+        self._records = self.create_records(dct, home_city, away_city, entity_dict, word_dict)
 
     @staticmethod
     def create_records( dct
                       , home_city
                       , away_city
-                      , entity_dict):
+                      , entity_dict
+                      , word_dict):
         home_away = set_home_away(home_city, away_city, dct[LineScoreEntries.city])
 
         # transform Los Angeles to LA -> done after setting home_away, because
@@ -118,11 +128,13 @@ class LineScore:
         entity_dict.add(entity_name)
         records = []
         for key in dct.keys():
+            value = dct[LineScoreEntries(key)]
+            word_dict.add(value)
             records.append(
                 Record(
                     key,
                     entity_name,
-                    dct[LineScoreEntries(key)],
+                    value,
                     home_away
                 )
             )
@@ -203,19 +215,23 @@ class Summary:
     def __str__(self):
         return " ".join(self._list_of_words)
 
+    def __len__(self):
+        return self._list_of_words.__len__()
+
 
 class MatchStat:
     def __init__( self
                 , match_dict
                 , word_dict : OccurrenceDict
-                , entity_dict):
+                , entity_dict
+                , cell_dict):
         dct = EnumDict(match_dict)
         if not self._is_summary_valid(dct):
             return
         home_city, vis_city = [ dct[key] for key in [MatchStatEntries.home_city, MatchStatEntries.vis_city]]
-        self.box_score = BoxScore(dct[MatchStatEntries.box_score], home_city, vis_city, entity_dict)
-        self.home_line = LineScore(dct[MatchStatEntries.home_line], home_city, vis_city, entity_dict)
-        self.vis_line = LineScore(dct[MatchStatEntries.vis_line], home_city, vis_city, entity_dict)
+        self.box_score = BoxScore(dct[MatchStatEntries.box_score], home_city, vis_city, entity_dict, cell_dict)
+        self.home_line = LineScore(dct[MatchStatEntries.home_line], home_city, vis_city, entity_dict, cell_dict)
+        self.vis_line = LineScore(dct[MatchStatEntries.vis_line], home_city, vis_city, entity_dict, cell_dict)
         self.home_name = dct[MatchStatEntries.home_name]
         self.vis_name = dct[MatchStatEntries.vis_name]
         self.records = self.box_score.records + self.home_line.records + self.vis_line.records
@@ -231,27 +247,81 @@ class MatchStat:
         return True
 
 
-def _main():
-    paths = ["rotowire/train.json"]  # ,"rotowire/valid.json", "rotowire/test.json"]
+def get_all_types():
+    type_dict = OccurrenceDict()
+
+    for type in BoxScoreEntries:
+        type_dict.add(type.value)
+    for type in LineScoreEntries:
+        type_dict.add(type.value)
+    return type_dict
+
+
+def create_dataset_from_json(json_file_path):
+    """
+    - traverse all the elements of the json,
+    - extract all the match statistics and summaries
+    - create dictionaries
+    """
     matches = []
-    sum_box_length = 0
-    sum_line_length = 0
     word_dict = OccurrenceDict()
     entity_dict = OccurrenceDict()
+    cell_dict = OccurrenceDict()
+    type_dict = get_all_types()
 
+    total_summary_length = 0
+    max_summary_length = None
+    min_summary_length = None
+
+    total_table_length = 0
+    max_table_length = None
+    min_table_length = None
+
+    with open(json_file_path, 'r', encoding='utf8') as f:
+        for match in json.load(f, object_pairs_hook=OrderedDict):
+            matches.append(MatchStat(match, word_dict, entity_dict, cell_dict))
+            if matches[-1].invalid:
+                continue
+
+            # collect summary statistics
+            sum_length = len(matches[-1].summary)
+            total_summary_length += sum_length
+            if min_summary_length is None or sum_length < min_summary_length:
+                min_summary_length = sum_length
+            if max_summary_length is None or sum_length > max_summary_length:
+                max_summary_length = sum_length
+
+            # collect table statistics
+            table_length = len(matches[-1].records)
+            total_table_length += table_length
+            if min_table_length is None or table_length < min_table_length:
+                min_table_length = table_length
+            if max_table_length is None or table_length > max_table_length:
+                max_table_length = table_length
+
+    # print summary statistics
+    print(f"number of different tokens in summaries: {len(word_dict.keys())}")
+    print(f"max summary length : {max_summary_length}")
+    print(f"min summary length : {min_summary_length}")
+    print(f"average summary length : {total_summary_length / len(matches)}")
+    print("---")
+
+    # print record statistics
+    print(f"max number of records : {max_table_length}")
+    print(f"min number of records : {min_table_length}")
+    print(f"average records length : {total_table_length / len(matches)}")
+    print("---")
+
+    # print other vocab statistics
+    print(f"number of different entities in table : {len(entity_dict.keys())}")
+    print(f"number of different tokens in cell values : {len(cell_dict.keys())}")
+    print(f"number of different types of table cells : {len(type_dict.keys())}")
+
+
+def _main():
+    paths = ["rotowire/train.json"]  # , "rotowire/valid.json", "rotowire/test.json"]
     for path in paths:
-        with open(path, 'r', encoding='utf8') as f:
-            for match in json.load(f, object_pairs_hook=OrderedDict):
-                matches.append(MatchStat(match, word_dict, entity_dict))
-                sum_box_length += len(matches[-1].box_score.records)
-                sum_line_length += len(matches[-1].vis_line.records)
-                sum_line_length += len(matches[-1].home_line.records)
-
-    word_keys = word_dict.keys()
-    entity_keys = entity_dict.keys()
-    print(f"number of different tokens in summaries: {len(word_keys)}")
-    word_dict.sort()
-    print(f"number of different entities in table : {len(entity_keys)}")
+        create_dataset_from_json(path)
 
 
 if __name__ == "__main__":

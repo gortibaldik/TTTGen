@@ -39,6 +39,9 @@ class OccurrenceDict:
         def update_occurrences(self):
             self._occurrences += 1
 
+        def change_index(self, new_index):
+            self._index = new_index
+
         def __eq__(self, other):
             return self._occurrences == other._occurrences and self._index == other._index
 
@@ -47,6 +50,9 @@ class OccurrenceDict:
             Guarantee that order of insertion is kept
             """
             return self._occurrences >= other._occurrences and self._index <= other._index
+
+        def __str__(self):
+            return f"ix:{self._index};occ:{self._occurrences}"
 
     def __init__(self):
         self._dict = {}
@@ -58,9 +64,14 @@ class OccurrenceDict:
         else:
             self._dict[word] = OccurrenceDict.Unit(len(self._dict))
 
-    def sort(self):
-        sorted_list = sorted(self._dict.items(), key=lambda item: item[1])
-        print(f"first ten : {' '.join(sorted_list[:10][0])}")
+    def sort(self, prunning : int = None):
+        sorted_list = sorted(self._dict.items(), key=lambda item: item[1], reverse=True)
+        if prunning is not None:
+            sorted_list = sorted_list[:prunning]
+        result = {}
+        for ix, (key, unit) in enumerate(sorted_list):
+            result[key] = ix
+        return result
 
     def keys(self):
         return self._dict.keys()
