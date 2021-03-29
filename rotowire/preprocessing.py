@@ -46,7 +46,7 @@ class BoxScore:
                 , box_score_dict
                 , home_city
                 , away_city
-                , entity_dict
+                , player_dict
                 , word_dict):
         """
         Creates the records from the BoxScore
@@ -60,7 +60,7 @@ class BoxScore:
             self._records += self.extract_player_info( player_number
                                                      , dct, home_city
                                                      , away_city
-                                                     , entity_dict
+                                                     , player_dict
                                                      , word_dict)
 
     @staticmethod
@@ -107,16 +107,18 @@ class LineScore:
                 , line_score_dict
                 , home_city
                 , away_city
-                , entity_dict
+                , city_dict
+                , team_name_dict
                 , word_dict):
         dct = EnumDict(line_score_dict)
-        self._records = self.create_records(dct, home_city, away_city, entity_dict, word_dict)
+        self._records = self.create_records(dct, home_city, away_city, city_dict, team_name_dict, word_dict)
 
     @staticmethod
     def create_records( dct
                       , home_city
                       , away_city
-                      , entity_dict
+                      , city_dict
+                      , team_name_dict
                       , word_dict):
         home_away = set_home_away(home_city, away_city, dct[LineScoreEntries.city])
 
@@ -125,7 +127,8 @@ class LineScore:
         # Lakers and Clippers
         dct.map(LineScoreEntries.city, transform_name)
         entity_name = dct[LineScoreEntries.name]
-        entity_dict.add(entity_name)
+        team_name_dict.add(entity_name)
+        city_dict.add(dct[LineScoreEntries.city])
         records = []
         for key in dct.keys():
             value = dct[LineScoreEntries(key)]
@@ -146,6 +149,39 @@ class LineScore:
 
 
 class Summary:
+    @staticmethod
+    def traverse_span(span, entities : OccurrenceDict):
+        """
+        traverse span of word tokens until we find a word which isn't any entity
+        :return: entity found in the span
+        """
+        candidate = span[0]
+        index = 1
+        while index < len(span) and join_strings(candidate, span[index]) in entities:
+            candidate = join_strings(candidate, span[index])
+            index += 1
+        return index, candidate
+
+    @staticmethod
+    def extract_entities(sentence, entities):
+        """
+        Traverse the sentence and try to extract all the
+        named entities present in it
+        :return: list with all the extracted named entities
+        """
+        index = 0
+        tokenized_sentence = sentence.split()
+        candidates = []
+        while index < len(tokenized_sentence):
+            if tokenized_sentence[index] in entities:
+                i, candidate = Summary.traverse_span(tokenized_sentence[index:], entities)
+                index += i
+                candidates.append(candidate)
+            else:
+                index += 1
+
+        return candidates
+
     @staticmethod
     def transform_numbers(sent):
         def has_to_be_ignored(__sent, __i):
@@ -203,6 +239,13 @@ class Summary:
             for token in tokens:
                 word_dict.add(token)
 
+    def get_entities_from_summary(self, entities):
+        summary = join_strings(*self._list_of_words)
+        extracted = []
+        for s in nltk_tok.sent_tokenize(summary):
+            extracted += self.extract_entities(s, entities)
+        return extracted
+
     def __init__( self
                 , list_of_words
                 , word_dict):
@@ -223,15 +266,23 @@ class MatchStat:
     def __init__( self
                 , match_dict
                 , word_dict : OccurrenceDict
-                , entity_dict
+                , player_dict
+                , city_dict
+                , team_name_dict
                 , cell_dict):
         dct = EnumDict(match_dict)
         if not self._is_summary_valid(dct):
             return
         home_city, vis_city = [ dct[key] for key in [MatchStatEntries.home_city, MatchStatEntries.vis_city]]
-        self.box_score = BoxScore(dct[MatchStatEntries.box_score], home_city, vis_city, entity_dict, cell_dict)
-        self.home_line = LineScore(dct[MatchStatEntries.home_line], home_city, vis_city, entity_dict, cell_dict)
-        self.vis_line = LineScore(dct[MatchStatEntries.vis_line], home_city, vis_city, entity_dict, cell_dict)
+        self.box_score = BoxScore(
+            dct[MatchStatEntries.box_score], home_city, vis_city, player_dict, cell_dict
+        )
+        self.home_line = LineScore(
+            dct[MatchStatEntries.home_line], home_city, vis_city, city_dict, team_name_dict, cell_dict
+        )
+        self.vis_line = LineScore(
+            dct[MatchStatEntries.vis_line], home_city, vis_city, city_dict, team_name_dict, cell_dict
+        )
         self.home_name = dct[MatchStatEntries.home_name]
         self.vis_name = dct[MatchStatEntries.vis_name]
         self.records = self.box_score.records + self.home_line.records + self.vis_line.records
@@ -250,11 +301,44 @@ class MatchStat:
 def get_all_types():
     type_dict = OccurrenceDict()
 
-    for type in BoxScoreEntries:
-        type_dict.add(type.value)
-    for type in LineScoreEntries:
-        type_dict.add(type.value)
+    for tp in BoxScoreEntries:
+        type_dict.add(tp.value)
+    for tp in LineScoreEntries:
+        type_dict.add(tp.value)
     return type_dict
+
+
+def extract_players_from_summaries(matches, player_dict):
+    player_in_summary_dict = OccurrenceDict()
+    # create a player_set consisting of all important parts of player name
+    # e.g. Tony Parker -> Tony, Parker, Tony Parker
+    player_set = set(player_dict.keys())
+    for k in list(player_set):
+        pieces = k.split()
+        if len(pieces) > 1:
+            for piece in pieces:
+                if len(piece) > 1 and piece not in ["II", "III", "Jr.", "Jr"]:
+                    player_set.add(piece)
+
+    # collect all the players mentioned in unique summaries
+    # collect all the parts of their name
+    for match in matches:
+        for candidate in match.summary.get_entities_from_summary(player_set):
+            player_in_summary_dict.add(candidate)
+
+    # merge the same names
+    for k in list(player_in_summary_dict.keys()):
+        tokens = k.split()
+        if len(tokens) == 1:
+            occurrences = player_in_summary_dict[k].occurrences
+            player_in_summary_dict.pop(k)
+            found = False
+            for kk in player_in_summary_dict.keys():
+                found = found or (k in kk)
+            if not found:
+                player_in_summary_dict.add(k, occurrences)
+
+    return player_in_summary_dict
 
 
 def create_dataset_from_json(json_file_path):
@@ -265,7 +349,9 @@ def create_dataset_from_json(json_file_path):
     """
     matches = []
     word_dict = OccurrenceDict()
-    entity_dict = OccurrenceDict()
+    player_dict = OccurrenceDict()
+    team_name_dict = OccurrenceDict()
+    city_dict = OccurrenceDict()
     cell_dict = OccurrenceDict()
     type_dict = get_all_types()
 
@@ -279,8 +365,9 @@ def create_dataset_from_json(json_file_path):
 
     with open(json_file_path, 'r', encoding='utf8') as f:
         for match in json.load(f, object_pairs_hook=OrderedDict):
-            matches.append(MatchStat(match, word_dict, entity_dict, cell_dict))
+            matches.append(MatchStat(match, word_dict, player_dict, city_dict, team_name_dict, cell_dict))
             if matches[-1].invalid:
+                matches.pop()
                 continue
 
             # collect summary statistics
@@ -299,27 +386,40 @@ def create_dataset_from_json(json_file_path):
             if max_table_length is None or table_length > max_table_length:
                 max_table_length = table_length
 
+    player_in_summary_dict = extract_players_from_summaries(matches, player_dict)
+
     # print summary statistics
+    print("---")
+    print(f"total number of summaries : {len(matches)}")
     print(f"number of different tokens in summaries: {len(word_dict.keys())}")
     print(f"max summary length : {max_summary_length}")
     print(f"min summary length : {min_summary_length}")
     print(f"average summary length : {total_summary_length / len(matches)}")
-    print("---")
 
     # print record statistics
+    print("---")
     print(f"max number of records : {max_table_length}")
     print(f"min number of records : {min_table_length}")
     print(f"average records length : {total_table_length / len(matches)}")
-    print("---")
 
     # print other vocab statistics
-    print(f"number of different entities in table : {len(entity_dict.keys())}")
+    print("---")
+    print(f"number of unique player names in summaries: {len(player_in_summary_dict.keys())}")
+    print(f"number of unique player names in match stats: {len(player_dict.keys())}")
+    print(f"number of unique city names in match stats : {len(city_dict.keys())}")
+    print(f"number of unique team names in match stats : {len(team_name_dict.keys())}")
     print(f"number of different tokens in cell values : {len(cell_dict.keys())}")
     print(f"number of different types of table cells : {len(type_dict.keys())}")
 
+    # player statistics
+    print("---")
+    print("20 most mentioned players in the summaries")
+    for player in player_in_summary_dict.sort(20).keys():
+        print(player)
+
 
 def _main():
-    paths = ["rotowire/train.json"]  # , "rotowire/valid.json", "rotowire/test.json"]
+    paths = ["rotowire/train.json", "rotowire/valid.json", "rotowire/test.json"]
     for path in paths:
         create_dataset_from_json(path)
 
