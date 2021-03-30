@@ -58,11 +58,15 @@ class OccurrenceDict:
         def __str__(self):
             return f"ix:{self._index};occ:{self._occurrences}"
 
-    def __init__(self):
+    def __init__(self, special_tokens=None):
         self._dict = {}
+        self._special_tokens = special_tokens
 
     def __getitem__(self, item):
         return self._dict[item]
+
+    def __iter__(self):
+        return self._dict.__iter__()
 
     def __contains__(self, item):
         return self._dict.__contains__(item)
@@ -82,12 +86,20 @@ class OccurrenceDict:
         else:
             self._dict[word] = OccurrenceDict.Unit(len(self._dict), occurrences)
 
-    def sort(self, prunning : int = None):
+    def sort(self, prunning : int = None, prun_occurrences : int = None):
         sorted_list = sorted(self._dict.items(), key=lambda item: item[1], reverse=True)
         if prunning is not None:
             sorted_list = sorted_list[:prunning]
-        result = {}
+        if prun_occurrences is not None:
+            sorted_list = [ s for s in sorted_list if s[1].occurrences >= prun_occurrences]
+        result = OccurrenceDict(self._special_tokens)
         for ix, (key, unit) in enumerate(sorted_list):
+            result.add(key, unit.occurrences)  # no need to update index, the indices are automatically incremented
+        return result
+
+    def to_dict(self):
+        result = {}
+        for ix, (key, _) in enumerate(self._dict.items()):
             result[key] = ix
         return result
 
@@ -111,20 +123,5 @@ def join_strings(first, second, *args, delimiter=" "):
 
     if len(args) > 0:
         return join_strings(result, *args)
-
-    return result
-
-
-def dict_keys_to_set(dct):
-    result = set()
-    for key in dct.keys():
-        lst = key.split()
-        if len(lst) == 0:
-            continue
-        for ix_1, item_2 in enumerate(lst):
-            candidate = ""
-            for ix_2, item_2 in enumerate(lst[ix_1 + 1:]):
-                candidate = join_strings(candidate, item)
-                result.add(candidate)
 
     return result

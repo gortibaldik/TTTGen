@@ -5,6 +5,7 @@ from information_extraction.utils import EnumDict, join_strings, OccurrenceDict
 from text_to_num import text2num
 
 import nltk.tokenize as nltk_tok
+import numpy as np
 import json
 
 
@@ -24,6 +25,12 @@ class Record:
 
 
 city_transform_dict = { "Los Angeles" : "LA" }
+name_transformations = {
+    "T.J.": "TJ",
+    "J.J.": "JJ",
+    "C.J .": "CJ",
+    "Steph": "Stephen"
+}
 
 
 def transform_name(city_name):
@@ -53,12 +60,13 @@ class BoxScore:
         BoxScore contains information about all the players, their stats, which team they're part of
         - the information about one player is grouped in succeeding records
         """
-        dct = EnumDict(box_score_dict)
+        self._dct = EnumDict(box_score_dict)
         self._records = []
 
-        for player_number in self.get_player_numbers(dct):
+        for player_number in self.get_player_numbers(self._dct):
             self._records += self.extract_player_info( player_number
-                                                     , dct, home_city
+                                                     , self._dct
+                                                     , home_city
                                                      , away_city
                                                      , player_dict
                                                      , word_dict)
@@ -76,6 +84,13 @@ class BoxScore:
                            , word_dict : OccurrenceDict):
         records = []
         player_name = dct[BoxScoreEntries.player_name][player_number]
+        player_name_transformed = ""
+        for token in player_name.strip().split():
+            if token in name_transformations:
+                player_name_transformed = join_strings(player_name_transformed, name_transformations[token])
+            else:
+                player_name_transformed = join_strings(player_name_transformed, token)
+        player_name = player_name_transformed
         entity_dict.add(player_name)
         home_away = set_home_away(home_city, away_city, dct[BoxScoreEntries.team_city][player_number])
 
@@ -100,6 +115,9 @@ class BoxScore:
     @property
     def records(self):
         return self._records
+
+    def get_player_list(self):
+        return [value for _, value in self._dct[BoxScoreEntries.player_name].items()]
 
 
 class LineScore:
@@ -163,7 +181,7 @@ class Summary:
         return index, candidate
 
     @staticmethod
-    def extract_entities(sentence, entities):
+    def extract_players(sentence, player_entities):
         """
         Traverse the sentence and try to extract all the
         named entities present in it
@@ -173,8 +191,8 @@ class Summary:
         tokenized_sentence = sentence.split()
         candidates = []
         while index < len(tokenized_sentence):
-            if tokenized_sentence[index] in entities:
-                i, candidate = Summary.traverse_span(tokenized_sentence[index:], entities)
+            if tokenized_sentence[index] in player_entities:
+                i, candidate = Summary.traverse_span(tokenized_sentence[index:], player_entities)
                 index += i
                 candidates.append(candidate)
             else:
@@ -232,34 +250,80 @@ class Summary:
                 i += 1
         return " ".join(extracted_sentence)
 
-    @staticmethod
-    def collect_tokens(word_dict : OccurrenceDict, sentences):
-        for s in sentences:
-            tokens = s.split()
-            for token in tokens:
-                word_dict.add(token)
+    def collect_tokens(self, word_dict : OccurrenceDict):
+        for token in self._list_of_words:
+            word_dict.add(token)
 
-    def get_entities_from_summary(self, entities):
+    @staticmethod
+    def _transform_words(list_of_words):
+        summary = join_strings(*list_of_words)
+        sentences = [Summary.transform_numbers(s) for s in nltk_tok.sent_tokenize(summary)]
+        result = []
+        for s in sentences:
+            tokens = s.strip().split()
+            ix = 0
+            while ix < len(tokens):
+                two_tokens = " ".join(tokens[ix:ix+2])
+                if tokens[ix] in name_transformations:
+                    result.append(name_transformations[tokens[ix]])
+                    ix += 1
+                elif two_tokens in name_transformations:
+                    result.append(name_transformations[two_tokens])
+                    ix += 2
+                else:
+                    result.append(tokens[ix])
+                    ix += 1
+
+        return result
+
+    def get_entities_from_summary(self, player_entities):
         summary = join_strings(*self._list_of_words)
         extracted = []
         for s in nltk_tok.sent_tokenize(summary):
-            extracted += self.extract_entities(s, entities)
+            extracted += self.extract_players(s, player_entities)
         return extracted
+
+    def transform(self, transformations):
+        new_list_of_words = []
+        ix = 0
+        length = len(self._list_of_words)
+        while ix < length:
+            found = False
+            for r in range(3, 0, -1):
+                candidate = " ".join(self._list_of_words[ix:ix+r])
+                if candidate in transformations:
+                    ix += r
+                    new_list_of_words.append(transformations[candidate])
+                    found = True
+                    break
+            if not found:
+                new_list_of_words.append(self._list_of_words[ix])
+                ix += 1
+        self._list_of_words = new_list_of_words
+
+    def get_words(self):
+        return self._list_of_words
 
     def __init__( self
                 , list_of_words
                 , word_dict):
-        self._list_of_words = list_of_words
-        summary = join_strings(*list_of_words)
-        sentences = [self.transform_numbers(s) for s in nltk_tok.sent_tokenize(summary)]
-        self.collect_tokens(word_dict, sentences)
-        self._list_of_words = [ word for s in sentences for word in s.split()]
+        self._list_of_words = self._transform_words(list_of_words)
+        self.collect_tokens(word_dict)
 
     def __str__(self):
         return " ".join(self._list_of_words)
 
     def __len__(self):
         return self._list_of_words.__len__()
+
+
+class Logger:
+    def __init__(self, log=True):
+        self._log = log
+
+    def __call__(self, message):
+        if self._log:
+            print(message)
 
 
 class MatchStat:
@@ -308,40 +372,109 @@ def get_all_types():
     return type_dict
 
 
-def extract_players_from_summaries(matches, player_dict):
+def extract_players_from_summaries(matches, player_dict, logger, transform_player_names=False):
+    def dict_to_set(dct):
+        result = set(dct.keys())
+        for k in list(result):
+            pieces = k.split()
+            if len(pieces) > 1:
+                for piece in pieces:
+                    if len(piece) > 1 and piece not in ["II", "III", "Jr.", "Jr"]:
+                        result.add(piece)
+        return result
+
     player_in_summary_dict = OccurrenceDict()
     # create a player_set consisting of all important parts of player name
     # e.g. Tony Parker -> Tony, Parker, Tony Parker
-    player_set = set(player_dict.keys())
-    for k in list(player_set):
-        pieces = k.split()
-        if len(pieces) > 1:
-            for piece in pieces:
-                if len(piece) > 1 and piece not in ["II", "III", "Jr.", "Jr"]:
-                    player_set.add(piece)
+    # important for extraction of player entities
+    player_set = dict_to_set(player_dict)
 
     # collect all the players mentioned in unique summaries
     # collect all the parts of their name
     for match in matches:
-        for candidate in match.summary.get_entities_from_summary(player_set):
-            player_in_summary_dict.add(candidate)
+        candidates_from_summary = set()
+        unique_candidates_from_summary = set()
+        # get all the entities from the summary
+        entities = match.summary.get_entities_from_summary(player_set)
+        box_players = set(match.box_score.get_player_list())
+        for candidate in entities:
+            candidates_from_summary.add(candidate)
 
-    # merge the same names
-    for k in list(player_in_summary_dict.keys()):
-        tokens = k.split()
-        if len(tokens) == 1:
-            occurrences = player_in_summary_dict[k].occurrences
-            player_in_summary_dict.pop(k)
-            found = False
-            for kk in player_in_summary_dict.keys():
-                found = found or (k in kk)
-            if not found:
-                player_in_summary_dict.add(k, occurrences)
+        # merge anaphors "LeBron James" and "James" are the same if they're mentioned
+        # in the same summary
+        for candidate in list(candidates_from_summary):
+            tokens = candidate.split()
+            if len(tokens) == 1:
+                found = False
+
+                # try to substitue the token with entity name from the summary
+                candidates_from_summary.remove(candidate)
+                for c in candidates_from_summary:
+                    if tokens[0] in c:
+                        logger(f"Substituing {candidate} with {c} (in)")
+                        found = True
+                candidates_from_summary.add(candidate)
+
+                # try to substitue the token with entity name from table statistics
+                if not found:
+                    for c in box_players:
+                        if candidate in c:
+                            unique_candidates_from_summary.add(c)
+                            found = True
+                            logger(f"Substituing {candidate} with {c} (out)")
+                            break
+                if not found:
+                    logger(f"{candidate} unresolved")
+            else:
+                unique_candidates_from_summary.add(candidate)
+
+        # add to dictionary all the occurrences of unique tokens
+        transformations = {}
+        for candidate in entities:
+            if candidate in unique_candidates_from_summary:
+                player_in_summary_dict.add(candidate)
+                if candidate not in transformations:
+                    transformations[candidate] = "_".join(candidate.strip().split())
+                    logger(f"{candidate} -> {transformations[candidate]}")
+            else:
+                for c in unique_candidates_from_summary:
+                    if candidate in c:
+                        player_in_summary_dict.add(c)
+                        if candidate not in transformations:
+                            transformations[candidate] = "_".join(c.strip().split())
+                            logger(f"{candidate} -> {transformations[candidate]}")
+                        break
+
+        if transform_player_names:
+            match.summary.transform(transformations)
 
     return player_in_summary_dict
 
 
-def create_dataset_from_json(json_file_path):
+def extract_summaries_from_json(json_file_path, output_path, logger, transform_player_names=True):
+    matches = []
+    word_dict = OccurrenceDict()
+    player_dict = OccurrenceDict()
+    team_name_dict = OccurrenceDict()
+    city_dict = OccurrenceDict()
+    cell_dict = OccurrenceDict()
+
+    with open(json_file_path, 'r', encoding='utf8') as f:
+        for match in json.load(f, object_pairs_hook=OrderedDict):
+            matches.append(MatchStat(match, word_dict, player_dict, city_dict, team_name_dict, cell_dict))
+            if matches[-1].invalid:
+                matches.pop()
+                continue
+
+    if transform_player_names:
+        extract_players_from_summaries(matches, player_dict, logger, transform_player_names=transform_player_names)
+
+    with open(output_path, 'w') as f:
+        for match in matches:
+            print(" ".join(match.summary.get_words()), file=f)
+
+
+def gather_json_stats(json_file_path):
     """
     - traverse all the elements of the json,
     - extract all the match statistics and summaries
@@ -392,6 +525,7 @@ def create_dataset_from_json(json_file_path):
     print("---")
     print(f"total number of summaries : {len(matches)}")
     print(f"number of different tokens in summaries: {len(word_dict.keys())}")
+    print(f"number of different tokens with more than 5 occurrences in summaries: {len(word_dict.sort(prun_occurrences=5).keys())}")
     print(f"max summary length : {max_summary_length}")
     print(f"min summary length : {min_summary_length}")
     print(f"average summary length : {total_summary_length / len(matches)}")
@@ -406,9 +540,18 @@ def create_dataset_from_json(json_file_path):
     print("---")
     print(f"number of unique player names in summaries: {len(player_in_summary_dict.keys())}")
     print(f"number of unique player names in match stats: {len(player_dict.keys())}")
+    print("---")
+    more_than_five_1 = player_dict.sort(prun_occurrences=5)
+    more_than_five_2 = player_in_summary_dict.sort(prun_occurrences=5)
+    print(f"number of unique player names with more than or equal to 5 occurrences in summaries: {len(more_than_five_2.keys())}")
+    print(f"number of unique player names with more than or equal to 5 occurrences in tables: {len(more_than_five_1.keys())}")
+    print("---")
+    print(f"number of different tokens in cell values : {len(cell_dict.keys())}")
+    more_than_five_3 = cell_dict.sort(prun_occurrences=5)
+    print(f"number of different tokens in cell values with more than or equal to 5 occurrences in cell values : {len(more_than_five_3.keys())}")
+    print("---")
     print(f"number of unique city names in match stats : {len(city_dict.keys())}")
     print(f"number of unique team names in match stats : {len(team_name_dict.keys())}")
-    print(f"number of different tokens in cell values : {len(cell_dict.keys())}")
     print(f"number of different types of table cells : {len(type_dict.keys())}")
 
     # player statistics
@@ -420,8 +563,12 @@ def create_dataset_from_json(json_file_path):
 
 def _main():
     paths = ["rotowire/train.json", "rotowire/valid.json", "rotowire/test.json"]
-    for path in paths:
-        create_dataset_from_json(path)
+    output_paths = [ "bpe_tests/train.txt", "bpe_tests/valid.txt", "bpe_tests/test.txt"]
+    logger = Logger(log=False)
+    for path, output_path in zip(paths, output_paths):
+        print(f"path: {path}")
+        extract_summaries_from_json(path, output_path, logger, transform_player_names=True)
+        # gather_json_stats(path)
 
 
 if __name__ == "__main__":
