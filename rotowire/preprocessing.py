@@ -26,10 +26,28 @@ class Record:
 
 city_transform_dict = { "Los Angeles" : "LA" }
 name_transformations = {
-    "T.J.": "TJ",
-    "J.J.": "JJ",
-    "C.J .": "CJ",
-    "Steph": "Stephen"
+    "T.J.": ["TJ"],
+    "J.J.": ["JJ"],
+    "C.J .": ["CJ"],
+    "J.R.": ["JR"],
+    "K.J .": ["KJ"],
+    "Steph Curry": ["Stephen", "Curry"],
+    "Tony Douglas": ["Toney", "Douglas"],
+    "Corey Joseph": ["Cory", "Joseph"],
+    "Jose Barea": ["JJ", "Barea"],
+    "Terrance Jones": ["Terrence", "Jones"],
+    "Aaron Afflalo": ["Arron", "Afflalo"],
+    "Andrew Brown": ["Anthony", "Brown"],
+    "Dwyane Wade": ["Dwyane", "Wade"],
+    "Jonathan Simmons": ["Jonathon", "Simmons"],
+    "Mo Speights": ["Speights"],
+    "Reggie Jefferson": ["Richard", "Jefferson"],
+    "Luc Richard Mbah A Moute": ["Moute"],
+    "Luc Mbah a Moute": ["Moute"],
+    "Luc Mbah A Moute": ["Moute"],
+    "Luc Richard Mbah a Moute": ["Moute"],
+    "Mbah a Moute": ["Moute"],
+    "Mbah A Moute": ["Moute"]
 }
 
 
@@ -87,7 +105,7 @@ class BoxScore:
         player_name_transformed = ""
         for token in player_name.strip().split():
             if token in name_transformations:
-                player_name_transformed = join_strings(player_name_transformed, name_transformations[token])
+                player_name_transformed = join_strings(player_name_transformed, *name_transformations[token])
             else:
                 player_name_transformed = join_strings(player_name_transformed, token)
         player_name = player_name_transformed
@@ -260,17 +278,27 @@ class Summary:
         sentences = [Summary.transform_numbers(s) for s in nltk_tok.sent_tokenize(summary)]
         result = []
         for s in sentences:
-            tokens = s.strip().split()
-            ix = 0
-            while ix < len(tokens):
-                two_tokens = " ".join(tokens[ix:ix+2])
-                if tokens[ix] in name_transformations:
-                    result.append(name_transformations[tokens[ix]])
-                    ix += 1
-                elif two_tokens in name_transformations:
-                    result.append(name_transformations[two_tokens])
-                    ix += 2
+            tokens = []
+            # transform possessives
+            for token in s.strip().split():
+                if token.endswith('’s'):
+                    tokens.append(token.replace('’s', ''))
+                    tokens.append("’s")
                 else:
+                    tokens.append(token)
+            ix = 0
+            # transform dataset faults
+            while ix < len(tokens):
+                found = False
+                for r in range(5, 0, -1):
+                    multi_tokens = " ".join(tokens[ix:ix+r])
+                    if multi_tokens in name_transformations:
+                        result += name_transformations[multi_tokens]
+                        found = True
+                        ix += r
+                        break
+
+                if not found:
                     result.append(tokens[ix])
                     ix += 1
 
@@ -383,6 +411,11 @@ def extract_players_from_summaries(matches, player_dict, logger, transform_playe
                         result.add(piece)
         return result
 
+    def log_if_important(logger, candidate):
+        if candidate not in ["Orlando", "West", "Luke", "Christmas", "Bradley", "Harris",\
+                             "Michael", "Jordan", "Smart"]:
+            logger(f"{candidate} unresolved")
+
     player_in_summary_dict = OccurrenceDict()
     # create a player_set consisting of all important parts of player name
     # e.g. Tony Parker -> Tony, Parker, Tony Parker
@@ -411,7 +444,6 @@ def extract_players_from_summaries(matches, player_dict, logger, transform_playe
                 candidates_from_summary.remove(candidate)
                 for c in candidates_from_summary:
                     if tokens[0] in c:
-                        logger(f"Substituing {candidate} with {c} (in)")
                         found = True
                 candidates_from_summary.add(candidate)
 
@@ -421,10 +453,9 @@ def extract_players_from_summaries(matches, player_dict, logger, transform_playe
                         if candidate in c:
                             unique_candidates_from_summary.add(c)
                             found = True
-                            logger(f"Substituing {candidate} with {c} (out)")
                             break
                 if not found:
-                    logger(f"{candidate} unresolved")
+                    log_if_important(logger, candidate)
             else:
                 unique_candidates_from_summary.add(candidate)
 
@@ -435,14 +466,12 @@ def extract_players_from_summaries(matches, player_dict, logger, transform_playe
                 player_in_summary_dict.add(candidate)
                 if candidate not in transformations:
                     transformations[candidate] = "_".join(candidate.strip().split())
-                    logger(f"{candidate} -> {transformations[candidate]}")
             else:
                 for c in unique_candidates_from_summary:
                     if candidate in c:
                         player_in_summary_dict.add(c)
                         if candidate not in transformations:
                             transformations[candidate] = "_".join(c.strip().split())
-                            logger(f"{candidate} -> {transformations[candidate]}")
                         break
 
         if transform_player_names:
@@ -564,7 +593,7 @@ def gather_json_stats(json_file_path):
 def _main():
     paths = ["rotowire/train.json", "rotowire/valid.json", "rotowire/test.json"]
     output_paths = [ "bpe_tests/train.txt", "bpe_tests/valid.txt", "bpe_tests/test.txt"]
-    logger = Logger(log=False)
+    logger = Logger(log=True)
     for path, output_path in zip(paths, output_paths):
         print(f"path: {path}")
         extract_summaries_from_json(path, output_path, logger, transform_player_names=True)
