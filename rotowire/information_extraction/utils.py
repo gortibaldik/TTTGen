@@ -87,6 +87,13 @@ class OccurrenceDict:
             self._dict[word] = OccurrenceDict.Unit(len(self._dict), occurrences)
 
     def sort(self, prunning : int = None, prun_occurrences : int = None):
+        """
+        Sorts the occurrence dict and returns it, NOT IN PLACE
+        :param prunning: only leave prunning elements in the resulting dict
+        :param prun_occurrences: all elements with less than prun_occurrences
+                                occurrences will be removed from the resulting dict
+        :return: sorted dict
+        """
         sorted_list = sorted(self._dict.items(), key=lambda item: item[1], reverse=True)
         if prunning is not None:
             sorted_list = sorted_list[:prunning]
@@ -125,3 +132,12 @@ def join_strings(first, second, *args, delimiter=" "):
         return join_strings(result, *args)
 
     return result
+
+
+class Logger:
+    def __init__(self, log=True):
+        self._log = log
+
+    def __call__(self, message):
+        if self._log:
+            print(message)
