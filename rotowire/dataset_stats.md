@@ -24,6 +24,7 @@
 | home line score | home team statistics |
 
 ### Dataset statistics
+- the gathered summary stats are before cleaning (e.g. transforming "Curry" -> "Stephen_Curry") after cleaning the summaries should be shorter
 - summary statistics :
 
 | dataset        | max summary length | min summary length  | average summary length | number of samples |
@@ -49,45 +50,98 @@
 #### Player statistics
 - number of unique players mentioned in box scores:
 
-| train dataset | validation dataset | test dataset |
-| ------------- | ------------------ | ------------ |
-| 669           | 651                | 661          |
+| occurrences | train dataset | validation dataset | test dataset |
+| ----------- | ------------- | ------------------ | ------------ |
+| >=1         | 668           | 650                | 660          |
+| >=5         | 651           | 596                | 595          |
 <br>
 - number of unique players mentioned in summaries:
 
-| train dataset | validation dataset | test dataset |
-| ------------- | ------------------ | ------------ |
-| 552           | 467                | 477          |
+| occurrences | train dataset | validation dataset | test dataset |
+| ----------- | ------------- | ------------------ | ------------ |
+| >=1         | 552           | 461                | 474          |
+| >=5         | 456           | 299                | 317          |
 <br>
 - before looking at the data 2 assumptions about them were made:
 
   1. there would be significantly more players in the match stats than in summaries <br>
-    - the assumption wasn't correct, the wast majority (82.5%, 71.7% and 72.2% respectively) of the players mentioned in the stats are mentioned in some summary of the respective dataset
+    - the assumption wasn't correct, the wast majority (82.6%, 70.9% and 71.8% respectively) of the players mentioned in the stats are mentioned in some summary of the respective dataset
 
   2. star players would be represented more in the summaries <br>
-    - the assumption was correct, LeBron James was the most mentioned player in both training and validation summaries, strangely in the test set he didn't make top 10, Rusell Westbrook was the highest player listed in all three top tens (2., 3., 10.)
+    - the assumption was correct, Russell Westbrook was the most mentioned player in both training and validation summaries (1., 2., 1.)
+    - the extraction of the player names from summaries didn't mind anaphoras, references. E.g. if Stephen Curry was to be represented in the summary either "Stephen Curry" or "Curry" or "Stephen" had to be present in the summary
 <br>
 - the most mentioned players in the summaries:
 
 | Position | Train             | Validation            | Test              |
 |----------|-------------------|-----------------------|-------------------|
-| 1.       | LeBron James      | LeBron James          | Chris Paul        |
-| 2.       | Russell Westbrook | Kyrie Irving          | DeMarcus Cousins  |
-| 3.       | Anthony Davis     | Russell Westbrook     | James Harden      |
-| 4.       | James Harden      | Kyle Lowry            | Kevin Durant      |
-| 5.       | DeMarcus Cousins  | John Wall             | Anthony Davis     |
-| 6.       | Damian Lillard    | Carmelo Anthony       | Dwyane Wade       |
-| 7.       | DeMar DeRozan     | DeMar DeRozan         | Isaiah Thomas     |
-| 8.       | John Wall         | Kevin Love            | Carmelo Anthony   |
-| 9.       | Kemba Walker      | James Harden          | John Wall         |
-| 10.      | Kevin Durant      | DeMarcus Cousins      | Russell Westbrook |
-| 11.      | Isaiah Thomas     | Giannis Antetokounmpo | Blake Griffin     |
-| 12.      | Klay Thompson     | Anthony Davis         | Kawhi Leonard     |
-| 13.      | Jimmy Butler      | Derrick Rose          | Jimmy Butler      |
-| 14.      | Kyrie Irving      | Chris Paul            | DeMar DeRozan     |
-| 15.      | Brook Lopez       | Andre Drummond        | Andrew Wiggins    |
-| 16.      | Chris Paul        | Isaiah Thomas         | Damian Lillard    |
-| 17.      | Andre Drummond    | Dwight Howard         | Mike Conley       |
-| 18.      | Kyle Lowry        | Brook Lopez           | Marc Gasol        |
-| 19.      | Kawhi Leonard     | Jimmy Butler          | LeBron James      |
-| 20.      | Marc Gasol        | Kevin Durant          | Gordon Hayward    |
+| 1.       | Russell Westbrook | LeBron James          | Russell Westbrook |
+| 2.       | Stephen Curry     | Russell Westbrook     | DeMarcus Cousins  |
+| 3.       | LeBron James      | Stephen Curry         | James Harden      |
+| 4.       | Anthony Davis     | DeMarcus Cousins      | Stephen Curry     |
+| 5.       | James Harden      | Kyrie Irving          | Kevin Durant      |
+| 6.       | DeMarcus Cousins  | Kyle Lowry            | Anthony Davis     |
+| 7.       | Damian Lillard    | James Harden          | John Wall         |
+| 8.       | Kevin Durant      | John Wall             | Chris Paul        |
+| 9.       | John Wall         | Carmelo Anthony       | Isaiah Thomas     |
+| 10.      | DeMar DeRozan     | DeMar DeRozan         | Dwyane Wade       |
+| 11.      | Kyrie Irving      | Anthony Davis         | Damian Lillard    |
+| 12.      | Kyle Lowry        | Kevin Durant          | Carmelo Anthony   |
+| 13.      | Isaiah Thomas     | Chris Paul            | LeBron James      |
+| 14.      | Chris Paul        | Kemba Walker          | Kyrie Irving      |
+| 15.      | Jimmy Butler      | Kevin Love            | Bradley Beal      |
+| 16.      | Kemba Walker      | Giannis Antetokounmpo | Kawhi Leonard     |
+| 17.      | Klay Thompson     | Kawhi Leonard         | Jimmy Butler      |
+| 18.      | Dwyane Wade       | Blake Griffin         | Blake Griffin     |
+| 19.      | Andre Drummond    | Brook Lopez           | DeMar DeRozan     |
+| 20.      | Kawhi Leonard     | Andre Drummond        | Klay Thompson     |
+
+##### Transformations
+- assumption : it would be easier for the neural network to learn how to use player names in the summaries if it wouldn't have to distinguish between "Luc Mbah a Moute", "Moute", "Mbah a Moute" etc. but just learn to use token `Luc_Mbah_a_Moute` (or more commonly merge "Stephen", "Curry", "Stephen Curry" to `Stephen_Curry`)
+- data would become denser
+- references are resolved, if only player's surname is used it's transformed into token special for the player
+
+```txt
+Jusuf Nurkic -> Jusuf_Nurkic
+McCollum -> CJ_McCollum
+Nurkic -> Jusuf_Nurkic
+Nikola Jokic -> Nikola_Jokic
+```
+
+- the tool for resolving references looks only to players on the team line-up for the game, it enables reasonable solutions for sentences like (LeBron hasn't played in this game):
+
+```txt
+Gordon Hayward put up a LeBron James-esque line of 27 points , 7 rebounds , and 5 assists in 36 minutes .
+
+Gordon_Hayward put up a LeBron James-esque line of 27 points , 7 rebounds , and 5 assists in 36 minutes .
+```
+
+##### Problems in player name domain
+- there were numerous problems with data correctness, possibly many aren't discovered yet ("Stephen Curry" is often referred to as "Steph", "Dwyane Wade" multiple times spelled as "Dwayne Wade", "Jonathon Simmons" as "Jonathan Simmons", "C.J. Collum" as "C.J . Collum")
+- many times names of coaches and stuff is mentionned although it isn't present in the table data (as well as names of legendary figures like Michael Jordan)
+- many player have multiple names like "Luc Mbah a Moute", who is sometimes "Luc Richard Mbah a Moute"
+
+#### Transformations of city names
+- there are only 29 names of cities and 30 names of teams
+- in the city domain, only Los Angeles, Golden State, New York, San Antonio and New Orleans are multi-token names
+- in the teams domain, only City Thunder and Trail Blazers are multi-token names
+- therefore the increased density of the names doesn't pay off the effort for doing and testing the work
+- therefore no transformation of the city names is done
+
+#### Token statistics
+- assumption: a neural network learns usages of tokens which are present more than or equal to 5 times in the training dataset 
+
+| dataset    | Unique tokens | Tokens with >= 5 occurrences absolute | Tokens with >= 5 occurrences relative |
+| ---------- | ------------- | --------------------------------------| ------------------------------------- |
+| train      | 9771          | 4153                                  | 42.503%                               |
+| validation | 5620          | 2312                                  | 41.139%                               |
+| test       | 5735          | 2356                                  | 41.081%                               |
+
+- another interesting statistics is how many tokens from the validation and test dataset can be learnt in the training dataset
+
+| dataset    | Overlap with train | >= 5 occurrences from train overlap |
+| ---------- | ------------------ | ----------------------------------- |
+| validation | 88.132%            | 66.601%                             |
+| test       | 87.428%            | 65.684%                             |
+
+- based on the presented stats, the decision is to use Byte Pair Encoding with 2000 merges on all the tokens except the preprocessed names of players, which will be left as is after preprocessing
