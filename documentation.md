@@ -19,6 +19,8 @@
 
 ### Hyperparameter tuning in Seq2Seq models
 - Massive Exploration of Neural Machine Translation Architectures :  https://arxiv.org/pdf/1703.03906.pdf
+- broad tutorial on seq2seq architectures : https://arxiv.org/pdf/1703.01619.pdf
+- Byte Pair Encoding: [blog of Lei Mao](https://leimao.github.io/blog/Byte-Pair-Encoding/), [paper (Sennrich et al.)](https://www.aclweb.org/anthology/P16-1162/), [code released by Sennrich et al.](https://github.com/rsennrich/subword-nmt)
 
 ### existing Seq2Seq neural frameworks
 - openNMT, looks like the best solution using tensorflow : https://github.com/OpenNMT/OpenNMT-tf
@@ -41,6 +43,7 @@
 ### Natural language generation - second phase
 #### Generating sport match summaries - RotoWire dataset
 - Data-to-Text Generation with Content Selection and Planning [paper](https://arxiv.org/pdf/1809.00582.pdf), [code](https://github.com/ratishsp/data2text-plan-py)
+- Information Extraction from Rotowire summaries [code](https://github.com/ratishsp/data2text-1) 
 - A Hierarchical Model for Data-to-Text Generation [paper](https://arxiv.org/pdf/1912.10011v1.pdf), [code](https://github.com/KaijuML/data-to-text-hierarchical)
 
 ------------------
