@@ -1,12 +1,14 @@
 from enum import Enum
 from collections import OrderedDict
 from information_extraction.constants import MatchStatEntries, LineScoreEntries, BoxScoreEntries, number_words
-from information_extraction.utils import EnumDict, join_strings, OccurrenceDict
+from information_extraction.utils import EnumDict, join_strings, OccurrenceDict, Logger
 from text_to_num import text2num
 
 import nltk.tokenize as nltk_tok
 import numpy as np
 import json
+import argparse
+import os
 
 
 class Record:
@@ -186,31 +188,34 @@ class LineScore:
 
 class Summary:
     @staticmethod
-    def traverse_span(span, entities : OccurrenceDict):
+    def traverse_span(span, entities_set):
         """
         traverse span of word tokens until we find a word which isn't any entity
-        :return: entity found in the span
+        :return: entity found in the span and number of words in the entity
         """
         candidate = span[0]
         index = 1
-        while index < len(span) and join_strings(candidate, span[index]) in entities:
+        while index < len(span) and join_strings(candidate, span[index]) in entities_set:
             candidate = join_strings(candidate, span[index])
             index += 1
         return index, candidate
 
     @staticmethod
-    def extract_players(sentence, player_entities):
+    def extract_entities(sentence, entities_set):
         """
         Traverse the sentence and try to extract all the
         named entities present in it
+        - problem: all the substrings present in the span must be in the entities_set, therefore
+        if we search for Luc Mbah a Moute then {"Luc", "Luc Mbah", "Luc Mbah a", "Luc Mbah a Moute"} must
+        be a subset of the entities set
         :return: list with all the extracted named entities
         """
         index = 0
         tokenized_sentence = sentence.split()
         candidates = []
         while index < len(tokenized_sentence):
-            if tokenized_sentence[index] in player_entities:
-                i, candidate = Summary.traverse_span(tokenized_sentence[index:], player_entities)
+            if tokenized_sentence[index] in entities_set:
+                i, candidate = Summary.traverse_span(tokenized_sentence[index:], entities_set)
                 index += i
                 candidates.append(candidate)
             else:
@@ -304,11 +309,18 @@ class Summary:
 
         return result
 
-    def get_entities_from_summary(self, player_entities):
+    def get_entities_from_summary(self, entities_set):
+        """
+        Traverse the summary and try to extract all the named entities present in it
+        - problem: all the substrings present in the summary must be in the entities_set, therefore
+        if we search for "Luc Mbah a Moute" then {"Luc", "Luc Mbah", "Luc Mbah a", "Luc Mbah a Moute"} must
+        be a subset of the entities set
+        :return: list with all the extracted named entities
+        """
         summary = join_strings(*self._list_of_words)
         extracted = []
         for s in nltk_tok.sent_tokenize(summary):
-            extracted += self.extract_players(s, player_entities)
+            extracted += self.extract_entities(s, entities_set)
         return extracted
 
     def transform(self, transformations):
@@ -321,7 +333,8 @@ class Summary:
                 candidate = " ".join(self._list_of_words[ix:ix+r])
                 if candidate in transformations:
                     ix += r
-                    new_list_of_words.append(transformations[candidate])
+                    if transformations[candidate] != "":
+                        new_list_of_words.append(transformations[candidate])
                     found = True
                     break
             if not found:
@@ -343,15 +356,6 @@ class Summary:
 
     def __len__(self):
         return self._list_of_words.__len__()
-
-
-class Logger:
-    def __init__(self, log=True):
-        self._log = log
-
-    def __call__(self, message):
-        if self._log:
-            print(message)
 
 
 class MatchStat:
@@ -400,7 +404,11 @@ def get_all_types():
     return type_dict
 
 
-def extract_players_from_summaries(matches, player_dict, logger, transform_player_names=False):
+def extract_players_from_summaries( matches
+                                  , player_dict
+                                  , logger
+                                  , transform_player_names=False
+                                  , prepare_for_bpe=False):
     def dict_to_set(dct):
         result = set(dct.keys())
         for k in list(result):
@@ -412,7 +420,7 @@ def extract_players_from_summaries(matches, player_dict, logger, transform_playe
         return result
 
     def log_if_important(logger, candidate):
-        if candidate not in ["Orlando", "West", "Luke", "Christmas", "Bradley", "Harris",\
+        if candidate not in ["Orlando", "West", "Luke", "Christmas", "Bradley", "Harris",
                              "Michael", "Jordan", "Smart"]:
             logger(f"{candidate} unresolved")
 
@@ -440,14 +448,14 @@ def extract_players_from_summaries(matches, player_dict, logger, transform_playe
             if len(tokens) == 1:
                 found = False
 
-                # try to substitue the token with entity name from the summary
+                # try to substitute the token with entity name from the summary
                 candidates_from_summary.remove(candidate)
                 for c in candidates_from_summary:
                     if tokens[0] in c:
                         found = True
                 candidates_from_summary.add(candidate)
 
-                # try to substitue the token with entity name from table statistics
+                # try to substitute the token with entity name from table statistics
                 if not found:
                     for c in box_players:
                         if candidate in c:
@@ -463,24 +471,32 @@ def extract_players_from_summaries(matches, player_dict, logger, transform_playe
         transformations = {}
         for candidate in entities:
             if candidate in unique_candidates_from_summary:
-                player_in_summary_dict.add(candidate)
                 if candidate not in transformations:
                     transformations[candidate] = "_".join(candidate.strip().split())
+                player_in_summary_dict.add(transformations[candidate])
             else:
                 for c in unique_candidates_from_summary:
                     if candidate in c:
-                        player_in_summary_dict.add(c)
                         if candidate not in transformations:
                             transformations[candidate] = "_".join(c.strip().split())
+                        player_in_summary_dict.add(transformations[candidate])
                         break
 
-        if transform_player_names:
+        if prepare_for_bpe:
+            for key in transformations.keys():
+                transformations[key] = ""
+
+        if transform_player_names or prepare_for_bpe:
             match.summary.transform(transformations)
 
     return player_in_summary_dict
 
 
-def extract_summaries_from_json(json_file_path, output_path, logger, transform_player_names=True):
+def extract_summaries_from_json( json_file_path
+                               , output_path
+                               , logger
+                               , transform_player_names=False
+                               , prepare_for_bpe=False):
     matches = []
     word_dict = OccurrenceDict()
     player_dict = OccurrenceDict()
@@ -495,15 +511,21 @@ def extract_summaries_from_json(json_file_path, output_path, logger, transform_p
                 matches.pop()
                 continue
 
-    if transform_player_names:
-        extract_players_from_summaries(matches, player_dict, logger, transform_player_names=transform_player_names)
+    if transform_player_names or prepare_for_bpe:
+        extract_players_from_summaries(
+            matches,
+            player_dict,
+            logger,
+            transform_player_names=transform_player_names,
+            prepare_for_bpe=prepare_for_bpe
+        )
 
     with open(output_path, 'w') as f:
         for match in matches:
             print(" ".join(match.summary.get_words()), file=f)
 
 
-def gather_json_stats(json_file_path):
+def gather_json_stats(json_file_path, logger, train_word_dict=None):
     """
     - traverse all the elements of the json,
     - extract all the match statistics and summaries
@@ -548,56 +570,152 @@ def gather_json_stats(json_file_path):
             if max_table_length is None or table_length > max_table_length:
                 max_table_length = table_length
 
-    player_in_summary_dict = extract_players_from_summaries(matches, player_dict)
+    ll = Logger(log=False)
+    player_in_summary_dict = extract_players_from_summaries(matches, player_dict, ll)
 
     # print summary statistics
-    print("---")
-    print(f"total number of summaries : {len(matches)}")
-    print(f"number of different tokens in summaries: {len(word_dict.keys())}")
-    print(f"number of different tokens with more than 5 occurrences in summaries: {len(word_dict.sort(prun_occurrences=5).keys())}")
-    print(f"max summary length : {max_summary_length}")
-    print(f"min summary length : {min_summary_length}")
-    print(f"average summary length : {total_summary_length / len(matches)}")
+    logger("---")
+    logger(f"total number of summaries : {len(matches)}")
+    logger(f"max summary length : {max_summary_length}")
+    logger(f"min summary length : {min_summary_length}")
+    logger(f"average summary length : {total_summary_length / len(matches)}")
+    logger("---")
+    logger(f"number of different tokens in summaries: {len(word_dict.keys())}")
+    logger(f"number of different tokens with more than 5 occurrences in summaries: {len(word_dict.sort(prun_occurrences=5).keys())}")
+    if train_word_dict is None:
+        train_word_dict = word_dict
+    count = 0
+    for word in word_dict.keys():
+        if word in train_word_dict:
+            count += 1
+    overlap = (count * 100.0) / len(word_dict.keys())
+    logger(f"percent of tokens from the train dict in the actual dict: {overlap}")
 
     # print record statistics
-    print("---")
-    print(f"max number of records : {max_table_length}")
-    print(f"min number of records : {min_table_length}")
-    print(f"average records length : {total_table_length / len(matches)}")
+    logger("---")
+    logger(f"max number of records : {max_table_length}")
+    logger(f"min number of records : {min_table_length}")
+    logger(f"average records length : {total_table_length / len(matches)}")
 
-    # print other vocab statistics
-    print("---")
-    print(f"number of unique player names in summaries: {len(player_in_summary_dict.keys())}")
-    print(f"number of unique player names in match stats: {len(player_dict.keys())}")
-    print("---")
+    # logger other vocab statistics
+    logger("---")
+    logger(f"number of unique player names in summaries: {len(player_in_summary_dict.keys())}")
+    logger(f"number of unique player names in match stats: {len(player_dict.keys())}")
+    logger("---")
     more_than_five_1 = player_dict.sort(prun_occurrences=5)
     more_than_five_2 = player_in_summary_dict.sort(prun_occurrences=5)
-    print(f"number of unique player names with more than or equal to 5 occurrences in summaries: {len(more_than_five_2.keys())}")
-    print(f"number of unique player names with more than or equal to 5 occurrences in tables: {len(more_than_five_1.keys())}")
-    print("---")
-    print(f"number of different tokens in cell values : {len(cell_dict.keys())}")
+    logger(f"number of unique player names with more than or equal to 5 occurrences in summaries: {len(more_than_five_2.keys())}")
+    logger(f"number of unique player names with more than or equal to 5 occurrences in tables: {len(more_than_five_1.keys())}")
+    logger("---")
+    logger(f"number of different tokens in cell values : {len(cell_dict.keys())}")
     more_than_five_3 = cell_dict.sort(prun_occurrences=5)
-    print(f"number of different tokens in cell values with more than or equal to 5 occurrences in cell values : {len(more_than_five_3.keys())}")
-    print("---")
-    print(f"number of unique city names in match stats : {len(city_dict.keys())}")
-    print(f"number of unique team names in match stats : {len(team_name_dict.keys())}")
-    print(f"number of different types of table cells : {len(type_dict.keys())}")
+    logger(f"number of different tokens in cell values with more than or equal to 5 occurrences in cell values : {len(more_than_five_3.keys())}")
+    logger("---")
+    logger(f"number of unique city names in match stats : {len(city_dict.keys())}")
+    logger(f"number of unique team names in match stats : {len(team_name_dict.keys())}")
+    logger(f"number of different types of table cells : {len(type_dict.keys())}")
 
     # player statistics
-    print("---")
-    print("20 most mentioned players in the summaries")
+    logger("---")
+    logger("20 most mentioned players in the summaries")
     for player in player_in_summary_dict.sort(20).keys():
-        print(player)
+        logger(player)
+
+    return word_dict
+
+
+_extract_activity_descr="extract_summaries"
+_gather_stats_descr="gather_stats"
+
+
+def _create_parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--only_train',
+        type=str,
+        help='use train data ? <yes|no>',
+        choices=["yes", "no"],
+        default="no"
+    )
+    parser.add_argument(
+        '--log',
+        type=str,
+        help='extensive logging ? <yes|no>',
+        choices=["yes", "no"],
+        default="no"
+    )
+    subparsers = parser.add_subparsers(
+        title="activity",
+        dest='activity',
+        required=True,
+        help='what to do ? <gather_stats|extract_summaries>'
+    )
+    gather_stats = subparsers.add_parser(_gather_stats_descr)
+    extract_summaries_parser = subparsers.add_parser(_extract_activity_descr)
+    extract_summaries_parser.add_argument(
+        '--output_dir',
+        type=str,
+        help="directory where the outputs will be saved",
+        required=True
+    )
+    extract_summaries_parser.add_argument(
+        '--file_suffix',
+        type=str,
+        help="suffix appended after name of extracted summary\
+         (train summary would be extracted to \"train_suffix.txt\")",
+        default=""
+    )
+    extract_summaries_parser.add_argument(
+        '--transform_players',
+        type=str,
+        help="transform names of players e.g. \"Stephen\" \"Curry\" to \"Stephen_Curry\"",
+        choices=["yes", "no"],
+        default="no"
+    )
+    extract_summaries_parser.add_argument(
+        "--prepare_for_bpe",
+        type=str,
+        help="extract all the player names from the text so that bpe isn't going to learn merging player names",
+        choices=["yes", "no"],
+        default="no"
+    )
+    return parser
 
 
 def _main():
+    parser = _create_parser()
+    args = parser.parse_args()
     paths = ["rotowire/train.json", "rotowire/valid.json", "rotowire/test.json"]
-    output_paths = [ "bpe_tests/train.txt", "bpe_tests/valid.txt", "bpe_tests/test.txt"]
-    logger = Logger(log=True)
+    output_paths = ["train", "valid", "test"]
+
+    if args.only_train == "yes":
+        paths = [paths[0]]
+        output_paths = [output_paths[0]]
+
+    bpe_suffix = ""
+
+    if args.activity == _extract_activity_descr:
+        if args.prepare_for_bpe == "yes":
+            bpe_suffix = "pfbpe"  # prepared for bpe
+        output_paths = [ os.path.join(args.output_dir, file_name + bpe_suffix + args.file_suffix + ".txt") for file_name in output_paths]
+
+    logger = Logger(log=(args.log == "yes"))
+    train_dict = None
     for path, output_path in zip(paths, output_paths):
-        print(f"path: {path}")
-        extract_summaries_from_json(path, output_path, logger, transform_player_names=True)
-        # gather_json_stats(path)
+        if args.activity == _extract_activity_descr:
+            extract_summaries_from_json(
+                path,
+                output_path,
+                logger,
+                transform_player_names=(args.transform_players=="yes"),
+                prepare_for_bpe=(args.prepare_for_bpe=="yes")
+            )
+        elif args.activity == _gather_stats_descr:
+            if path == "rotowire/train.json":
+                train_dict = gather_json_stats(path, logger)
+                train_dict = train_dict.sort(prun_occurrences=5)
+            else:
+                gather_json_stats(path, logger, train_dict)
 
 
 if __name__ == "__main__":
