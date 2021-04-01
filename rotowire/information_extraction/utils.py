@@ -1,6 +1,8 @@
 from collections import defaultdict
 from functools import total_ordering
 
+import sys
+
 
 class EnumDict:
     """
@@ -138,6 +140,15 @@ class Logger:
     def __init__(self, log=True):
         self._log = log
 
-    def __call__(self, message):
+    def switch_log(self):
+        self._log = not self._log
+
+    def set_on_log(self):
+        self._log = True
+
+    def set_off_log(self):
+        self._log = False
+
+    def __call__(self, message, file=sys.stdout):
         if self._log:
-            print(message)
+            print(message, file=file)

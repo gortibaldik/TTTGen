@@ -408,7 +408,8 @@ def extract_players_from_summaries( matches
                                   , player_dict
                                   , logger
                                   , transform_player_names=False
-                                  , prepare_for_bpe=False):
+                                  , prepare_for_bpe_training=False
+                                  , prepare_for_bpe_application=False):
     def dict_to_set(dct):
         result = set(dct.keys())
         for k in list(result):
@@ -482,21 +483,27 @@ def extract_players_from_summaries( matches
                         player_in_summary_dict.add(transformations[candidate])
                         break
 
-        if prepare_for_bpe:
+        if prepare_for_bpe_training:
             for key in transformations.keys():
                 transformations[key] = ""
 
-        if transform_player_names or prepare_for_bpe:
+        if prepare_for_bpe_application:
+            for key in transformations.keys():
+                transformations[key] = f"<<<{transformations[key]}>>>"
+
+        if transform_player_names or prepare_for_bpe_training or prepare_for_bpe_application:
             match.summary.transform(transformations)
 
     return player_in_summary_dict
 
 
-def extract_summaries_from_json( json_file_path
+def extract_summaries_from_json(json_file_path
                                , output_path
                                , logger
                                , transform_player_names=False
-                               , prepare_for_bpe=False):
+                               , prepare_for_bpe_training=False
+                               , prepare_for_bpe_application=False
+                               , all_summary_players: OccurrenceDict =None):
     matches = []
     word_dict = OccurrenceDict()
     player_dict = OccurrenceDict()
@@ -511,14 +518,18 @@ def extract_summaries_from_json( json_file_path
                 matches.pop()
                 continue
 
-    if transform_player_names or prepare_for_bpe:
-        extract_players_from_summaries(
+    if transform_player_names or prepare_for_bpe_training or prepare_for_bpe_application:
+        tmp_dict = extract_players_from_summaries(
             matches,
             player_dict,
             logger,
             transform_player_names=transform_player_names,
-            prepare_for_bpe=prepare_for_bpe
+            prepare_for_bpe_training=prepare_for_bpe_training,
+            prepare_for_bpe_application=prepare_for_bpe_application
         )
+        if all_summary_players is not None:
+            for key in tmp_dict.keys():
+                all_summary_players.add(key, tmp_dict[key].occurrences)
 
     with open(output_path, 'w') as f:
         for match in matches:
@@ -632,17 +643,13 @@ def _create_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--only_train',
-        type=str,
-        help='use train data ? <yes|no>',
-        choices=["yes", "no"],
-        default="no"
+        help='use only train data',
+        action='store_true'
     )
     parser.add_argument(
         '--log',
-        type=str,
-        help='extensive logging ? <yes|no>',
-        choices=["yes", "no"],
-        default="no"
+        help='use extensive logging',
+        action='store_true'
     )
     subparsers = parser.add_subparsers(
         title="activity",
@@ -651,6 +658,12 @@ def _create_parser():
         help='what to do ? <gather_stats|extract_summaries>'
     )
     gather_stats = subparsers.add_parser(_gather_stats_descr)
+    gather_stats.add_argument(
+        "--five_occurrences",
+        help="After looking at training dataset, filter out all the tokens from the \
+            dataset which occur less than 5 times",
+        action='store_true'
+    )
     extract_summaries_parser = subparsers.add_parser(_extract_activity_descr)
     extract_summaries_parser.add_argument(
         '--output_dir',
@@ -667,17 +680,31 @@ def _create_parser():
     )
     extract_summaries_parser.add_argument(
         '--transform_players',
-        type=str,
         help="transform names of players e.g. \"Stephen\" \"Curry\" to \"Stephen_Curry\"",
-        choices=["yes", "no"],
-        default="no"
+        action='store_true'
     )
     extract_summaries_parser.add_argument(
-        "--prepare_for_bpe",
-        type=str,
+        "--prepare_for_bpe_training",
         help="extract all the player names from the text so that bpe isn't going to learn merging player names",
-        choices=["yes", "no"],
-        default="no"
+        action='store_true'
+    )
+    extract_summaries_parser.add_argument(
+        "--prepare_for_bpe_application",
+        help="prepare the input files for subword-nmt apply-bpe (change each player_token to <<<player_token>>> to be \
+            able to use --glossaries \"<<<[^>]*>>>\" and don't change any of the player tokens)",
+        action='store_true'
+    )
+    extract_summaries_parser.add_argument(
+        "--player_vocab_path",
+        type=str,
+        help="where to save all the list of all the players mentioned in the summaries",
+        default=None
+    )
+    create_dataset_parser = subparsers.add_parser("create_dataset")
+    create_dataset_parser.add_argument(
+        "dir_preproc_summaries",
+        type=str,
+        help="path to directory with output of create_dataset.sh"
     )
     return parser
 
@@ -687,35 +714,56 @@ def _main():
     args = parser.parse_args()
     paths = ["rotowire/train.json", "rotowire/valid.json", "rotowire/test.json"]
     output_paths = ["train", "valid", "test"]
+    all_summary_players = None
 
-    if args.only_train == "yes":
+    if args.only_train:
         paths = [paths[0]]
         output_paths = [output_paths[0]]
 
     bpe_suffix = ""
 
     if args.activity == _extract_activity_descr:
-        if args.prepare_for_bpe == "yes":
-            bpe_suffix = "pfbpe"  # prepared for bpe
+        if args.prepare_for_bpe_training and args.prepare_for_bpe_application:
+            print("Only one of --prepare_for_bpe_training --prepare_for_bpe_application can be used")
+        elif args.prepare_for_bpe_training:
+            bpe_suffix = "_pfbpe"  # prepared for bpe
+        elif args.prepare_for_bpe_application:
+            bpe_suffix = "_pfa"
+
+        if args.player_vocab_path is not None:
+            all_summary_players = OccurrenceDict()
+
         output_paths = [ os.path.join(args.output_dir, file_name + bpe_suffix + args.file_suffix + ".txt") for file_name in output_paths]
 
-    logger = Logger(log=(args.log == "yes"))
+    logger = Logger(log=args.log)
     train_dict = None
+
     for path, output_path in zip(paths, output_paths):
         if args.activity == _extract_activity_descr:
+            print(f"working with {path}, extracting to {output_path}")
             extract_summaries_from_json(
                 path,
                 output_path,
                 logger,
-                transform_player_names=(args.transform_players=="yes"),
-                prepare_for_bpe=(args.prepare_for_bpe=="yes")
+                transform_player_names=args.transform_players,
+                prepare_for_bpe_training=args.prepare_for_bpe_training,
+                prepare_for_bpe_application=args.prepare_for_bpe_application,
+                all_summary_players=all_summary_players
             )
         elif args.activity == _gather_stats_descr:
+            print(f"working with {path}")
             if path == "rotowire/train.json":
                 train_dict = gather_json_stats(path, logger)
-                train_dict = train_dict.sort(prun_occurrences=5)
+                if args.five_occurrences:
+                    train_dict = train_dict.sort(prun_occurrences=5)
             else:
                 gather_json_stats(path, logger, train_dict)
+
+    if args.activity == _extract_activity_descr and all_summary_players is not None:
+        all_summary_players = all_summary_players.sort()
+        with open(args.player_vocab_path, 'w') as f:
+            for key in all_summary_players.keys():
+                print(f"{key} : {all_summary_players[key]}",file=f)
 
 
 if __name__ == "__main__":
