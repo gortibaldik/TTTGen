@@ -361,11 +361,12 @@ class Summary:
 class MatchStat:
     def __init__( self
                 , match_dict
-                , word_dict : OccurrenceDict
                 , player_dict
                 , city_dict
                 , team_name_dict
-                , cell_dict):
+                , cell_dict
+                , word_dict : OccurrenceDict = None
+                , process_summary : bool = True):
         dct = EnumDict(match_dict)
         if not self._is_summary_valid(dct):
             return
@@ -382,7 +383,8 @@ class MatchStat:
         self.home_name = dct[MatchStatEntries.home_name]
         self.vis_name = dct[MatchStatEntries.vis_name]
         self.records = self.box_score.records + self.home_line.records + self.vis_line.records
-        self.summary = Summary(dct[MatchStatEntries.summary], word_dict)
+        if process_summary:
+            self.summary = Summary(dct[MatchStatEntries.summary], word_dict)
 
     def _is_summary_valid(self, dct):
         if "Lorem" in dct[MatchStatEntries.summary]:
@@ -402,6 +404,29 @@ def get_all_types():
     for tp in LineScoreEntries:
         type_dict.add(tp.value)
     return type_dict
+
+
+def extract_matches_from_json( json_file_path
+                             , player_dict
+                             , city_dict
+                             , team_name_dict
+                             , cell_dict
+                             , word_dict = None
+                             , process_summary : bool = True):
+    matches = []
+    with open(json_file_path, 'r', encoding='utf8') as f:
+        for match in json.load(f, object_pairs_hook=OrderedDict):
+            matches.append(MatchStat( match
+                                      , player_dict
+                                      , city_dict
+                                      , team_name_dict
+                                      , cell_dict
+                                      , word_dict=word_dict
+                                      , process_summary=process_summary))
+            if matches[-1].invalid:
+                matches.pop()
+                continue
+    return matches
 
 
 def extract_players_from_summaries( matches
@@ -497,39 +522,120 @@ def extract_players_from_summaries( matches
     return player_in_summary_dict
 
 
+def _prepare_for_create(args, set_names, input_paths):
+    suffix = ""
+    if args.to_npy:
+        suffix = ".npy"
+
+    # prepare input paths
+    for ix, pth in enumerate(set_names):
+        input_paths[ix] = (os.path.join(args.preproc_summaries_dir, pth + "_prepared.txt"), input_paths[ix])
+
+    # prepare output paths
+    output_paths = []
+    for ix, pth in enumerate(set_names):
+        pth = os.path.join(args.preproc_summaries_dir, pth)
+        output_paths.append((pth + "_in" + suffix, pth + "_target" + suffix))
+
+    # prepare dictionary used on summaries
+    player_vocab_path = os.path.join(args.preproc_summaries_dir, "player_vocab.txt")
+    pl_vocab = OccurrenceDict.load(player_vocab_path)
+    token_vocab_path = os.path.join(args.preproc_summaries_dir, "token_vocab.txt")
+    tk_vocab = OccurrenceDict.load(token_vocab_path, basic_dict=True)
+    total_vocab = tk_vocab.update(pl_vocab).sort()
+    return input_paths, output_paths, total_vocab, pl_vocab
+
+
+def create_dataset( summary_path
+                  , json_path
+                  , summary_vocab
+                  , named_entities_vocab):
+    player_dict = OccurrenceDict()
+    team_name_dict = OccurrenceDict()
+    city_dict = OccurrenceDict()
+    cell_dict = OccurrenceDict()
+
+    matches = extract_matches_from_json( json_path
+                                       , player_dict
+                                       , city_dict
+                                       , team_name_dict
+                                       , cell_dict
+                                       , word_dict=None
+                                       , process_summary=False)
+
+    with open(summary_path, 'r') as f:
+        file_content = f.read().strip().split('\n')
+
+    summaries = []
+    for line in file_content:
+        summaries.append(line)
+
+    with open(f"first_summary{json_path[-6]}.txt", "w") as f:
+        print(summaries[0], file=f)
+    with open(f"first_records{json_path[-6]}.txt", "w") as f:
+        print("\n".join(str(r) for r in matches[0].records), file=f)
+
+
+def _prepare_for_extract(args, set_names):
+    bpe_suffix = ""
+    if args.prepare_for_bpe_training and args.prepare_for_bpe_application:
+        print("Only one of --prepare_for_bpe_training --prepare_for_bpe_application can be used")
+    elif args.prepare_for_bpe_training:
+        bpe_suffix = "_pfbpe"  # prepared for bpe
+    elif args.prepare_for_bpe_application:
+        bpe_suffix = "_pfa"
+
+    all_named_entities = None
+    if args.player_vocab_path is not None:
+        all_named_entities = OccurrenceDict()
+
+    output_paths = []
+    for name in set_names:
+        output_paths.append(os.path.join(args.output_dir, name + bpe_suffix + args.file_suffix + ".txt"))
+    return output_paths, all_named_entities
+
+
 def extract_summaries_from_json(json_file_path
-                               , output_path
-                               , logger
-                               , transform_player_names=False
-                               , prepare_for_bpe_training=False
-                               , prepare_for_bpe_application=False
-                               , all_summary_players: OccurrenceDict =None):
-    matches = []
+                                , output_path
+                                , logger
+                                , transform_player_names=False
+                                , prepare_for_bpe_training=False
+                                , prepare_for_bpe_application=False
+                                , all_named_entities: OccurrenceDict = None
+                                , cell_dict_overall: OccurrenceDict = None):
     word_dict = OccurrenceDict()
     player_dict = OccurrenceDict()
     team_name_dict = OccurrenceDict()
     city_dict = OccurrenceDict()
     cell_dict = OccurrenceDict()
 
-    with open(json_file_path, 'r', encoding='utf8') as f:
-        for match in json.load(f, object_pairs_hook=OrderedDict):
-            matches.append(MatchStat(match, word_dict, player_dict, city_dict, team_name_dict, cell_dict))
-            if matches[-1].invalid:
-                matches.pop()
-                continue
+    matches = extract_matches_from_json( json_file_path
+                                       , player_dict
+                                       , city_dict
+                                       , team_name_dict
+                                       , cell_dict
+                                       , word_dict=word_dict)
 
     if transform_player_names or prepare_for_bpe_training or prepare_for_bpe_application:
-        tmp_dict = extract_players_from_summaries(
-            matches,
-            player_dict,
-            logger,
-            transform_player_names=transform_player_names,
-            prepare_for_bpe_training=prepare_for_bpe_training,
-            prepare_for_bpe_application=prepare_for_bpe_application
-        )
-        if all_summary_players is not None:
-            for key in tmp_dict.keys():
-                all_summary_players.add(key, tmp_dict[key].occurrences)
+        tmp_dict = extract_players_from_summaries( matches
+                                                 , player_dict
+                                                 , logger
+                                                 , transform_player_names=transform_player_names
+                                                 , prepare_for_bpe_training=prepare_for_bpe_training
+                                                 , prepare_for_bpe_application=prepare_for_bpe_application)
+
+    if all_named_entities is not None:
+        for key in tmp_dict.keys():
+            all_named_entities.add(key, tmp_dict[key].occurrences)
+        for key in team_name_dict.keys():
+            # each city is mentioned 16 times in any vocab
+            occurrences = team_name_dict[key].occurrences
+            transformed = "_".join(key.strip().split())
+            all_named_entities.add(transformed, occurrences)
+        for key in player_dict.keys():
+            transformed = "_".join(key.strip().split())
+            if transformed not in all_named_entities:
+                all_named_entities.add(transformed)
 
     with open(output_path, 'w') as f:
         for match in matches:
@@ -542,7 +648,6 @@ def gather_json_stats(json_file_path, logger, train_word_dict=None):
     - extract all the match statistics and summaries
     - create dictionaries
     """
-    matches = []
     word_dict = OccurrenceDict()
     player_dict = OccurrenceDict()
     team_name_dict = OccurrenceDict()
@@ -558,28 +663,29 @@ def gather_json_stats(json_file_path, logger, train_word_dict=None):
     max_table_length = None
     min_table_length = None
 
-    with open(json_file_path, 'r', encoding='utf8') as f:
-        for match in json.load(f, object_pairs_hook=OrderedDict):
-            matches.append(MatchStat(match, word_dict, player_dict, city_dict, team_name_dict, cell_dict))
-            if matches[-1].invalid:
-                matches.pop()
-                continue
+    matches = extract_matches_from_json( json_file_path
+                                       , player_dict
+                                       , city_dict
+                                       , team_name_dict
+                                       , cell_dict
+                                       , word_dict=word_dict)
 
-            # collect summary statistics
-            sum_length = len(matches[-1].summary)
-            total_summary_length += sum_length
-            if min_summary_length is None or sum_length < min_summary_length:
-                min_summary_length = sum_length
-            if max_summary_length is None or sum_length > max_summary_length:
-                max_summary_length = sum_length
+    for match in matches:
+        # collect summary statistics
+        sum_length = len(matches[-1].summary)
+        total_summary_length += sum_length
+        if min_summary_length is None or sum_length < min_summary_length:
+            min_summary_length = sum_length
+        if max_summary_length is None or sum_length > max_summary_length:
+            max_summary_length = sum_length
 
-            # collect table statistics
-            table_length = len(matches[-1].records)
-            total_table_length += table_length
-            if min_table_length is None or table_length < min_table_length:
-                min_table_length = table_length
-            if max_table_length is None or table_length > max_table_length:
-                max_table_length = table_length
+        # collect table statistics
+        table_length = len(matches[-1].records)
+        total_table_length += table_length
+        if min_table_length is None or table_length < min_table_length:
+            min_table_length = table_length
+        if max_table_length is None or table_length > max_table_length:
+            max_table_length = table_length
 
     ll = Logger(log=False)
     player_in_summary_dict = extract_players_from_summaries(matches, player_dict, ll)
@@ -635,12 +741,20 @@ def gather_json_stats(json_file_path, logger, train_word_dict=None):
     return word_dict
 
 
-_extract_activity_descr="extract_summaries"
-_gather_stats_descr="gather_stats"
+_extract_activity_descr = "extract_summaries"
+_gather_stats_descr = "gather_stats"
+_create_dataset_descr = "create_dataset"
 
 
 def _create_parser():
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "rotowire_dir",
+        type=str,
+        help="path to directory with original rotowire .json files \
+              they should be found in the ${rotowire_dir}/{train, valid, test}.json",
+        default="rotowire"
+    )
     parser.add_argument(
         '--only_train',
         help='use only train data',
@@ -697,14 +811,26 @@ def _create_parser():
     extract_summaries_parser.add_argument(
         "--player_vocab_path",
         type=str,
-        help="where to save all the list of all the players mentioned in the summaries",
+        help="where to save the list of all the players mentioned in the summaries",
         default=None
     )
-    create_dataset_parser = subparsers.add_parser("create_dataset")
+    create_dataset_parser = subparsers.add_parser(_create_dataset_descr)
     create_dataset_parser.add_argument(
-        "dir_preproc_summaries",
+        "--preproc_summaries_dir",
         type=str,
-        help="path to directory with output of create_dataset.sh"
+        help="path to directory with output of create_dataset.sh",
+        required=True
+    )
+    create_dataset_parser.add_argument(
+        '--output_dir',
+        type=str,
+        help="directory where the outputs will be saved",
+        required=True
+    )
+    create_dataset_parser.add_argument(
+        "--to_npy",
+        help="save the output to .npy format",
+        action="store_true"
     )
     return parser
 
@@ -712,58 +838,49 @@ def _create_parser():
 def _main():
     parser = _create_parser()
     args = parser.parse_args()
-    paths = ["rotowire/train.json", "rotowire/valid.json", "rotowire/test.json"]
-    output_paths = ["train", "valid", "test"]
-    all_summary_players = None
-
+    set_names = ["train", "valid", "test"]
     if args.only_train:
-        paths = [paths[0]]
-        output_paths = [output_paths[0]]
-
-    bpe_suffix = ""
+        set_names = [set_names[0]]
+    input_paths = [ os.path.join(args.rotowire_dir, f + ".json") for f in set_names ]
+    all_named_entities = None
 
     if args.activity == _extract_activity_descr:
-        if args.prepare_for_bpe_training and args.prepare_for_bpe_application:
-            print("Only one of --prepare_for_bpe_training --prepare_for_bpe_application can be used")
-        elif args.prepare_for_bpe_training:
-            bpe_suffix = "_pfbpe"  # prepared for bpe
-        elif args.prepare_for_bpe_application:
-            bpe_suffix = "_pfa"
-
-        if args.player_vocab_path is not None:
-            all_summary_players = OccurrenceDict()
-
-        output_paths = [ os.path.join(args.output_dir, file_name + bpe_suffix + args.file_suffix + ".txt") for file_name in output_paths]
+        output_paths, all_named_entities = _prepare_for_extract(args, set_names)
+    elif args.activity == _create_dataset_descr:
+        input_paths, output_paths, total_vocab, player_vocab = _prepare_for_create(args, set_names, input_paths)
+    elif args.activity == _gather_stats_descr:
+        output_paths = set_names
 
     logger = Logger(log=args.log)
     train_dict = None
 
-    for path, output_path in zip(paths, output_paths):
+    for input_path, output_path in zip(input_paths, output_paths):
         if args.activity == _extract_activity_descr:
-            print(f"working with {path}, extracting to {output_path}")
+            print(f"working with {input_path}, extracting to {output_path}")
             extract_summaries_from_json(
-                path,
+                input_path,
                 output_path,
                 logger,
                 transform_player_names=args.transform_players,
                 prepare_for_bpe_training=args.prepare_for_bpe_training,
                 prepare_for_bpe_application=args.prepare_for_bpe_application,
-                all_summary_players=all_summary_players
+                all_named_entities=all_named_entities
             )
         elif args.activity == _gather_stats_descr:
-            print(f"working with {path}")
-            if path == "rotowire/train.json":
-                train_dict = gather_json_stats(path, logger)
+            print(f"working with {input_path}")
+            if input_path == "rotowire/train.json":
+                train_dict = gather_json_stats(input_path, logger)
                 if args.five_occurrences:
                     train_dict = train_dict.sort(prun_occurrences=5)
             else:
-                gather_json_stats(path, logger, train_dict)
+                gather_json_stats(input_path, logger, train_dict)
+        elif args.activity == _create_dataset_descr:
+            summary_path = input_path[0]
+            json_path = input_path[1]
+            create_dataset(summary_path, json_path, total_vocab, player_vocab)
 
-    if args.activity == _extract_activity_descr and all_summary_players is not None:
-        all_summary_players = all_summary_players.sort()
-        with open(args.player_vocab_path, 'w') as f:
-            for key in all_summary_players.keys():
-                print(f"{key} : {all_summary_players[key]}",file=f)
+    if args.activity == _extract_activity_descr and all_named_entities is not None:
+        all_named_entities.sort().save(args.player_vocab_path)
 
 
 if __name__ == "__main__":
