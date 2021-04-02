@@ -58,7 +58,14 @@ class OccurrenceDict:
             return self._occurrences >= other._occurrences and self._index <= other._index
 
         def __str__(self):
-            return f"ix:{self._index};occ:{self._occurrences}"
+            return f"ix:{self._index}\tocc:{self._occurrences}"
+
+        @classmethod
+        def from_str(cls, orig_str):
+            tokens = orig_str.strip().split('\t')
+            index = int(tokens[0].split(':')[1])
+            occurrences = int(tokens[1].split(':')[1])
+            return cls(index, occurrences)
 
     def __init__(self, special_tokens=None):
         self._dict = {}
@@ -114,6 +121,36 @@ class OccurrenceDict:
 
     def keys(self):
         return self._dict.keys()
+
+    def save(self, file_path):
+        with open(file_path, 'w') as f:
+            for key in self.keys():
+                print(f"{key}\t{self[key]}", file=f)
+
+    def update(self, other, basic_dict : bool = False):
+        for key in other.keys():
+            if basic_dict:
+                self.add(key, other[key])
+            else:
+                self.add(key, other[key].occurrences)
+        return self
+
+    @classmethod
+    def load(cls, file_path, basic_dict : bool = False):
+        with open(file_path, 'r') as f:
+            file_content = f.read().strip().split('\n')
+        result = cls()
+        for ix, line in enumerate(file_content):
+            if basic_dict:
+                tokens = line.strip().split()
+                word = tokens[0]
+                occurrences = int(tokens[1])
+                result.add(word, occurrences)
+            else:
+                tokens = line.strip().split('\t')
+                word = tokens[0]
+                result._dict[word] = cls.Unit.from_str("\t".join(tokens[1:]))
+        return result
 
 
 def join_strings(first, second, *args, delimiter=" "):
