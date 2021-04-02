@@ -53,7 +53,11 @@ if __name__ == "__main__":
                                                              , batch_size=batch_size
                                                              , shuffle=False
                                                              , num_examples=validation_examples)
-    gold_path_prefix = os.path.join(task_dir, "processed_data", "valid", "valid_split_for_rouge", "gold_summary_")
+    gold_path_prefix = os.path.join( task_dir
+                                   , "processed_data"
+                                   , "valid"
+                                   , "valid_split_for_rouge"
+                                   , "gold_summary_")
     print("Training and Validation dataset loaded!", flush=True)
 
     words_emb_dim = 400
@@ -76,10 +80,8 @@ if __name__ == "__main__":
 
     learning_rate = 0.0003
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-    loss_object = tf.keras.losses.SparseCategoricalCrossentropy(
-            from_logits=False,
-            reduction=tf.keras.losses.Reduction.NONE
-    )
+    loss_object = tf.keras.losses.SparseCategoricalCrossentropy( from_logits=False
+                                                               , reduction='none' )
     print("Model created!", flush=True)
 
     # create checkpoints
