@@ -8,9 +8,13 @@ print_info() {
   grep -nh '5$' "${file}" | tail -1 | cut -f1 -d:
 }
 
-
+rotowire_dir=$3
 out_dir=$2
 num_merges=$1
+
+if [ ! -d "${rotowire_dir}" ]; then
+  1>&2 echo "directory with .json rotowire files (${rotowire_dir}) doesn't exist, quitting" 
+fi
 
 # pfa means <<<Preapared For Application of byte pair encoding>>>
 # pfbpe mean <<<Prepared For Byte Pair Encoding>>> -- training
@@ -27,7 +31,8 @@ do
   if [ ! -f "${out_dir}/${f}_pfa.txt" ]; then
 
     echo "${out_dir}/${f}_pfa.txt doesn't exist, it is going to be created!"
-    python3 preprocessing.py extract_summaries --output_dir="${out_dir}" \
+    python3 preprocessing.py "${rotowire_dir}" extract_summaries \
+                                               --output_dir="${out_dir}" \
                                                --transform_players \
                                                --prepare_for_bpe_application \
                                                --player_vocab_path="${out_dir}/player_vocab.txt"

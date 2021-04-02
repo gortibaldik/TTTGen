@@ -1,5 +1,6 @@
 set -e
 
+rotowire_dir=$3
 out_dir=$2
 num_merges=$1
 
@@ -7,7 +8,7 @@ DELETE_VOCAB=0
 # if dictionaries weren't created yet, create them
 if [ ! -f "${out_dir}/all_pfbpe_vocab_${num_merges}.txt" ]; then
   echo "vocabs weren't created yet, gonna create them in ${out_dir}"
-  ./create_bpe_vocab.sh "${num_merges}" "${out_dir}"
+  ./create_bpe_vocab.sh "${num_merges}" "${out_dir}" "${rotowire_dir}"
   DELETE_VOCAB=1
   echo -e "---\n"
 fi
@@ -18,7 +19,8 @@ for f in "train" "valid" "test"
 do
   if [ ! -f "${out_dir}/${f}_pfa.txt" ]; then
     echo "preparing the summaries for bpe application"
-    python3 preprocessing.py extract_summaries --output_dir="${out_dir}" \
+    python3 preprocessing.py "${rotowire_dir}" extract_summaries \
+                                               --output_dir="${out_dir}" \
                                                --transform_players \
                                                --prepare_for_bpe_application
     break
