@@ -5,3 +5,7 @@ rotowire/
 # ignore tmp files
 **.json
 **.txt
+
+# ignore datasets
+**.tfrecord
+**.npy

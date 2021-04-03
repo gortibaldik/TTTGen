@@ -6,6 +6,7 @@ from text_to_num import text2num
 
 import nltk.tokenize as nltk_tok
 import numpy as np
+import tensorflow as tf
 import json
 import argparse
 import os
@@ -514,12 +515,16 @@ def extract_players_from_summaries( matches
 
 def _prepare_for_create(args, set_names, input_paths):
     suffix = ""
-    if args.to_npy and args.to_txt:
+    if not args.to_npy and not args.to_txt and not args.to_tfrecord:
+        raise RuntimeError("Exactly one from --to_npy --to_txt --to_tfrecord should be specified")
+    elif (args.to_npy and args.to_txt) or (args.to_npy and args.to_tfrecord) or (args.to_txt and args.to_tfrecord):
         raise RuntimeError("Multiple mutually exclusive options specified (--to_npy and --to_txt)")
     elif args.to_npy:
         suffix = ".npy"
     elif args.to_txt:
         suffix = ".txt"
+    elif args.to_tfrecord:
+        suffix = ".tfrecord"
 
     # prepare input paths
     for ix, pth in enumerate(set_names):
@@ -529,7 +534,10 @@ def _prepare_for_create(args, set_names, input_paths):
     output_paths = []
     for ix, pth in enumerate(set_names):
         pth = os.path.join(args.output_dir, pth)
-        output_paths.append((pth + "_in" + suffix, pth + "_target" + suffix))
+        if suffix != ".tfrecord":
+            output_paths.append((pth + "_in" + suffix, pth + "_target" + suffix))
+        else:
+            output_paths.append([pth + suffix])
 
     # prepare dictionary used on summaries
     entity_vocab_path = os.path.join(args.preproc_summaries_dir, "entity_vocab.txt")
@@ -552,8 +560,7 @@ def _prepare_for_create(args, set_names, input_paths):
 
 def create_dataset( summary_path : str
                   , json_path : str
-                  , out_in_path : str
-                  , out_target_path : str
+                  , out_paths : str
                   , summary_vocab
                   , cell_values_vocab
                   , named_entities_vocab
@@ -561,12 +568,15 @@ def create_dataset( summary_path : str
                   , max_table_length
                   , logger):
 
-    def save_np_to_txt(_np_in: np.ndarray
+    def save_np_to_txt( _np_in: np.ndarray
                       , _np_target: np.ndarray
-                      , _out_in_path: str
-                      , _out_target_path: str
+                      , _out_paths
                       , _logger):
-        _logger("--- saving to txt")
+        _out_in_path = _out_paths[0]
+        _out_target_path = _out_paths[1]
+        _logger(f"summaries {summary_path} -> {out_paths[1]}")
+        _logger(f"tables {json_path} -> {out_paths[0]}")
+        _logger("--- saving to .txt")
         with open(_out_in_path, 'w') as f:
             for _m_ix in range(_np_in.shape[0]):
                 for _t_ix in range(_np_in.shape[2]):
@@ -581,11 +591,30 @@ def create_dataset( summary_path : str
                     print(_np_target[_m_ix, _s_ix], end=" ", file=f)
                 print(file=f)
 
+    def save_np_to_tfrecord( _np_in: np.ndarray
+                           , _np_target: np.ndarray
+                           , _out_path
+                           , _logger):
+        logger(f"summaries {summary_path} -> {out_paths[0]}")
+        logger(f"tables {json_path} ->> {out_paths[0]}")
+        data = tf.data.Dataset.from_tensor_slices(
+            (_np_target,
+             _np_in[:, 0, :],
+             _np_in[:, 1, :],
+             _np_in[:, 2, :],
+             _np_in[:, 3, :])
+        )
+
+        # code from https://stackoverflow.com/questions/61720708/how-do-you-save-a-tensorflow-dataset-to-a-file
+        def write_map_fn(_summary, types, entities, values, has):
+            return tf.io.serialize_tensor(tf.concat([_summary, types, entities, values, has], axis=-1))
+        data = data.map(write_map_fn)
+        writer = tf.data.experimental.TFRecordWriter(_out_path)
+        writer.write(data)
+
     tables = [ m.records for m in extract_matches_from_json( json_path
                                                            , word_dict=None
                                                            , process_summary=False)]
-    logger(f"summaries {summary_path} -> {out_target_path}")
-    logger(f"tables {json_path} -> {out_in_path}")
 
     with open(summary_path, 'r') as f:
         file_content = f.read().strip().split('\n')
@@ -615,14 +644,17 @@ def create_dataset( summary_path : str
             # zero reserved for padding
             np_target[m_ix, s_ix] = sum_to_ix[subword] + 1
 
-    extension = os.path.splitext(out_in_path)[1]
+    extension = os.path.splitext(out_paths[0])[1]
     if extension == ".txt":
-        save_np_to_txt(np_in, np_target, out_in_path, out_target_path, logger)
+        save_np_to_txt(np_in, np_target, out_paths, logger)
     elif extension == ".npy":
-        np_in.save(out_in_path)
-        np_target.save(out_target_path)
+        logger(f"summaries {summary_path} -> {out_paths[1]}")
+        logger(f"tables {json_path} -> {out_paths[0]}")
+        logger("--- saving to .npy")
+        np_in.save(out_paths[0])
+        np_target.save(out_paths[1])
     elif extension == ".tfrecord":
-        pass
+        save_np_to_tfrecord(np_in, np_target, out_paths[0], logger)
 
 
 def _prepare_for_extract(args, set_names):
@@ -906,7 +938,12 @@ def _create_parser():
     )
     create_dataset_parser.add_argument(
         "--to_txt",
-        help="save the outut to .txt format (indices in txt)",
+        help="save the output to .txt format (indices in txt)",
+        action="store_true"
+    )
+    create_dataset_parser.add_argument(
+        "--to_tfrecord",
+        help="save the output to .tfrecord format",
         action="store_true"
     )
     return parser
@@ -956,13 +993,10 @@ def _main():
         elif args.activity == _create_dataset_descr:
             summary_path = input_path[0]
             json_path = input_path[1]
-            out_in_path = output_path[0]
-            out_target_path = output_path[1]
             create_dataset(
                 summary_path,
                 json_path,
-                out_in_path,
-                out_target_path,
+                output_path,
                 total_vocab,
                 cell_vocab,
                 entity_vocab,
