@@ -3,15 +3,17 @@ from argparse import ArgumentParser
 def get_most_words_line_count(file_path, log):
     with open(file_path, 'r') as f:
         content = f.read().strip().split('\n')
-    m = 0
+    _max = 0
+    _min = 1000000  # just some ridiculously high number
     sm = 0
     for line in content:
         ln = len(line.strip().split())
-        if ln > m: m = ln
+        if ln > _max: _max = ln
+        if ln < _min: _min = ln
         sm += ln
     if log:
-      print(f"{file_path} : max : {m} average : {sm / len(content)}")
-    return m
+      print(f"{file_path} : max : {_max} min : {_min} average : {sm / len(content)}")
+    return _max
 
 if __name__ == "__main__":
   parser = ArgumentParser(

@@ -6,7 +6,6 @@ from text_to_num import text2num
 
 import nltk.tokenize as nltk_tok
 import numpy as np
-import tensorflow as tf
 import json
 import argparse
 import os
@@ -525,6 +524,8 @@ def _prepare_for_create(args, set_names, input_paths):
         suffix = ".txt"
     elif args.to_tfrecord:
         suffix = ".tfrecord"
+        # conditional import of tensorflow
+        import tensorflow as tf
 
     # prepare input paths
     for ix, pth in enumerate(set_names):
@@ -676,14 +677,14 @@ def _prepare_for_extract(args, set_names):
     return output_paths, all_named_entities, cell_dict_overall, max_table_length
 
 
-def extract_summaries_from_json(json_file_path
-                                , output_path
-                                , logger
-                                , transform_player_names=False
-                                , prepare_for_bpe_training=False
-                                , prepare_for_bpe_application=False
-                                , all_named_entities: OccurrenceDict = None
-                                , cell_dict_overall: OccurrenceDict = None):
+def extract_summaries_from_json( json_file_path
+                               , output_path
+                               , logger
+                               , transform_player_names=False
+                               , prepare_for_bpe_training=False
+                               , prepare_for_bpe_application=False
+                               , all_named_entities: OccurrenceDict = None
+                               , cell_dict_overall: OccurrenceDict = None):
     word_dict = OccurrenceDict()
     player_dict = OccurrenceDict()
     team_name_dict = OccurrenceDict()
@@ -708,11 +709,16 @@ def extract_summaries_from_json(json_file_path
                                                  , prepare_for_bpe_training=prepare_for_bpe_training
                                                  , prepare_for_bpe_application=prepare_for_bpe_application)
 
+    count = 0
     # save named entities from the summaries and table
     if all_named_entities is not None:
         for key in tmp_dict.keys():
+            if key not in all_named_entities:
+                count +=1
             all_named_entities.add(key, tmp_dict[key].occurrences)
         for key in team_name_dict.keys():
+            if key not in all_named_entities:
+                count += 1
             # each city is mentioned 16 times in any vocab
             occurrences = team_name_dict[key].occurrences
             transformed = "_".join(key.strip().split())
@@ -720,12 +726,18 @@ def extract_summaries_from_json(json_file_path
         for key in player_dict.keys():
             transformed = "_".join(key.strip().split())
             if transformed not in all_named_entities:
+                count += 1
                 all_named_entities.add(transformed)
+    logger(f"{count} new values introduced to all_named_entities")
 
+    count = 0
     # save cell values from the table
     if cell_dict_overall is not None:
         for key in cell_dict.keys():
+            if key not in cell_dict_overall:
+                count += 1
             cell_dict_overall.add(key, cell_dict[key].occurrences)
+    logger(f"{count} new values introduced to cell_dict_overall")
 
     with open(output_path, 'w') as f:
         for match in matches:
