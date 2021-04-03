@@ -543,12 +543,17 @@ def _prepare_for_create(args, set_names, input_paths):
     token_vocab_path = os.path.join(args.preproc_summaries_dir, "token_vocab.txt")
     tk_vocab = OccurrenceDict.load(token_vocab_path, basic_dict=True)
     total_vocab = tk_vocab.update(pl_vocab).sort()
-    return input_paths, output_paths, total_vocab, pl_vocab
+
+    # prepare dictionary on cell values
+    cell_vocab_path = os.path.join(args.preproc_summaries_dir, "cell_vocab.txt")
+    cl_vocab = OccurrenceDict.load(cell_vocab_path)
+    return input_paths, output_paths, total_vocab, pl_vocab, cl_vocab
 
 
 def create_dataset( summary_path
                   , json_path
                   , summary_vocab
+                  , cell_values_vocab
                   , named_entities_vocab):
     player_dict = OccurrenceDict()
     team_name_dict = OccurrenceDict()
@@ -585,14 +590,13 @@ def _prepare_for_extract(args, set_names):
     elif args.prepare_for_bpe_application:
         bpe_suffix = "_pfa"
 
-    all_named_entities = None
-    if args.player_vocab_path is not None:
-        all_named_entities = OccurrenceDict()
+    all_named_entities = None if args.player_vocab_path is None else OccurrenceDict()
+    cell_dict_overall = None if args.cell_vocab_path is None else OccurrenceDict()
 
     output_paths = []
     for name in set_names:
         output_paths.append(os.path.join(args.output_dir, name + bpe_suffix + args.file_suffix + ".txt"))
-    return output_paths, all_named_entities
+    return output_paths, all_named_entities, cell_dict_overall
 
 
 def extract_summaries_from_json(json_file_path
@@ -624,6 +628,7 @@ def extract_summaries_from_json(json_file_path
                                                  , prepare_for_bpe_training=prepare_for_bpe_training
                                                  , prepare_for_bpe_application=prepare_for_bpe_application)
 
+    # save named entities from the summaries and table
     if all_named_entities is not None:
         for key in tmp_dict.keys():
             all_named_entities.add(key, tmp_dict[key].occurrences)
@@ -636,6 +641,11 @@ def extract_summaries_from_json(json_file_path
             transformed = "_".join(key.strip().split())
             if transformed not in all_named_entities:
                 all_named_entities.add(transformed)
+
+    # save cell values from the table
+    if cell_dict_overall is not None:
+        for key in cell_dict.keys():
+            cell_dict_overall.add(key, cell_dict[key].occurrences)
 
     with open(output_path, 'w') as f:
         for match in matches:
@@ -672,7 +682,7 @@ def gather_json_stats(json_file_path, logger, train_word_dict=None):
 
     for match in matches:
         # collect summary statistics
-        sum_length = len(matches[-1].summary)
+        sum_length = len(match.summary)
         total_summary_length += sum_length
         if min_summary_length is None or sum_length < min_summary_length:
             min_summary_length = sum_length
@@ -680,7 +690,7 @@ def gather_json_stats(json_file_path, logger, train_word_dict=None):
             max_summary_length = sum_length
 
         # collect table statistics
-        table_length = len(matches[-1].records)
+        table_length = len(match.records)
         total_table_length += table_length
         if min_table_length is None or table_length < min_table_length:
             min_table_length = table_length
@@ -814,6 +824,12 @@ def _create_parser():
         help="where to save the list of all the players mentioned in the summaries",
         default=None
     )
+    extract_summaries_parser.add_argument(
+        "--cell_vocab_path",
+        type=str,
+        help="where to save the list of all the cell values from the tables",
+        default=None
+    )
     create_dataset_parser = subparsers.add_parser(_create_dataset_descr)
     create_dataset_parser.add_argument(
         "--preproc_summaries_dir",
@@ -842,12 +858,12 @@ def _main():
     if args.only_train:
         set_names = [set_names[0]]
     input_paths = [ os.path.join(args.rotowire_dir, f + ".json") for f in set_names ]
-    all_named_entities = None
 
     if args.activity == _extract_activity_descr:
-        output_paths, all_named_entities = _prepare_for_extract(args, set_names)
+        output_paths, all_named_entities, cell_dict_overall = _prepare_for_extract(args, set_names)
     elif args.activity == _create_dataset_descr:
-        input_paths, output_paths, total_vocab, player_vocab = _prepare_for_create(args, set_names, input_paths)
+        input_paths, output_paths, total_vocab, player_vocab, cell_vocab =\
+            _prepare_for_create(args, set_names, input_paths)
     elif args.activity == _gather_stats_descr:
         output_paths = set_names
 
@@ -864,7 +880,8 @@ def _main():
                 transform_player_names=args.transform_players,
                 prepare_for_bpe_training=args.prepare_for_bpe_training,
                 prepare_for_bpe_application=args.prepare_for_bpe_application,
-                all_named_entities=all_named_entities
+                all_named_entities=all_named_entities,
+                cell_dict_overall=cell_dict_overall
             )
         elif args.activity == _gather_stats_descr:
             print(f"working with {input_path}")
@@ -877,10 +894,12 @@ def _main():
         elif args.activity == _create_dataset_descr:
             summary_path = input_path[0]
             json_path = input_path[1]
-            create_dataset(summary_path, json_path, total_vocab, player_vocab)
+            create_dataset(summary_path, json_path, total_vocab, player_vocab, cell_vocab)
 
-    if args.activity == _extract_activity_descr and all_named_entities is not None:
+    if args.activity == _extract_activity_descr and args.player_vocab_path is not None:
         all_named_entities.sort().save(args.player_vocab_path)
+    if args.activity == _extract_activity_descr and args.cell_vocab_path is not None:
+        cell_dict_overall.sort().save(args.cell_vocab_path)
 
 
 if __name__ == "__main__":
