@@ -24,15 +24,24 @@
 | home line score | home team statistics |
 
 ### Dataset statistics
-- the gathered summary stats are before cleaning (e.g. transforming "Curry" -> "Stephen_Curry") after cleaning the summaries should be shorter
+- the gathered summary stats are before cleaning (e.g. transforming `Curry` -> `Stephen_Curry`, transforming numbers from words to digits, preprocessing some non valid words in the original dataset), after cleaning and after applying bpe on cleaned summaries
 - summary statistics :
 
-| dataset        | max summary length | min summary length  | average summary length | number of samples |
-| -------------- |--------------------|---------------------|------------------------| ----------------- |
-| __train__      | 762                | 149                 | 334.406                | 3397              |
-| __validation__ | 813                | 154                 | 339.972                | 727               |
-| __test__       | 782                | 149                 | 346.832                | 728               |
+| dataset                   | max summary length | min summary length  | average summary length | number of samples |
+| ------------------------- |--------------------|---------------------|------------------------| ----------------- |
+| __train__ (no clean)      | 762                | 149                 | 334.406                | 3397              |
+| __train__ (clean)         | 752                | 144                 | 327.137                | 3397              |
+| __train__ (bpe)           | 870                | 152                 | 358.733                | 3397              |
+| ------------------------- | ------------------ | ------------------- | ---------------------- | ----------------- |
+| __validation__ (no clean) | 813                | 154                 | 339.972                | 727               |
+| __validation__ (clean)    | 803                | 150                 | 332.613                | 727               |
+| __validation__ (bpe)      | 854                | 151                 | 364.765                | 727               |
+| ------------------------- | ------------------ | ------------------- | ---------------------- | ----------------- |
+| __test__ (no clean)       | 782                | 149                 | 346.832                | 728               |
+| __test__ (clean)          | 773                | 145                 | 339.368                | 728               |
+| __test__ (bpe             | 814                | 148                 | 373.155                | 728               |
 <br>
+- right now no preprocessing of tables takes place
 - table statistics :
 
 | dataset        | max table length | min table length  | average table length | number of samples |
@@ -129,6 +138,7 @@ Gordon_Hayward put up a LeBron James-esque line of 27 points , 7 rebounds , and 
 - therefore no transformation of the city names is done
 
 #### Token statistics
+- these are tokens extracted from cleaned summaries
 - assumption: a neural network learns usages of tokens which are present more than or equal to 5 times in the training dataset 
 
 | dataset    | Unique tokens | Tokens with >= 5 occurrences absolute | Tokens with >= 5 occurrences relative |
@@ -143,5 +153,29 @@ Gordon_Hayward put up a LeBron James-esque line of 27 points , 7 rebounds , and 
 | ---------- | ------------------ | ----------------------------------- |
 | validation | 88.132%            | 66.601%                             |
 | test       | 87.428%            | 65.684%                             |
+
+- therefore a decision was made to apply Byte Pair Encoding on summaries to increase the density of the data
+- BPE is learned only from the train dataset
+- __number of merges__ : defines how many times the BPE iteration takes place
+- __BPE iteration__: during one iteration, the most frequent pair of tokens is found and replaced by a special token representing the combination of the tokens
+- 3 number of merges were tried:
+
+| dataset    | number of merges | Unique tokens | Tokens with >= 5 occurrences absolute | Tokens with >= 5 occurrences relative | 
+| ---------- | ---------------- | ------------- | ------------------------------------- | ------------------------------------- |
+| train      | 1500             | 1621          | 1527                                  | 94.20%                                |
+| train      | 2000             | 2097          | 1964                                  | 93.66%                                |
+| train      | 2500             | 2555          | 2377                                  | 93.03%                                |
+| ---------- | ---------------- | ------------- | ------------------------------------- | ------------------------------------- |
+| validation | 1500             | 1552          | 1412                                  | 90.98%                                |
+| validation | 2000             | 2001          | 1786                                  | 89.26%                                |
+| validation | 2500             | 2422          | 2101                                  | 86.75%                                |
+| ---------- | ---------------- | ------------- | ------------------------------------- | ------------------------------------- |
+| test       | 1500             | 1545          | 1405                                  | 90.94%                                |
+| test       | 2000             | 1995          | 1787                                  | 89.57%                                |
+| test       | 2500             | 2411          | 2108                                  | 87.43%                                |
+| ---------- | ---------------- | ------------- | ------------------------------------- | ------------------------------------- |
+| overall    | 1500             | 1641          | 1549                                  | 94.39%                                |
+| overall    | 2000             | 2113          | 1999                                  | 94.61%                                |
+| overall    | 2500             | 2575          | 2421                                  | 94.02%                                |
 
 - based on the presented stats, the decision is to use Byte Pair Encoding with 2000 merges on all the tokens except the preprocessed names of players, which will be left as is after preprocessing
