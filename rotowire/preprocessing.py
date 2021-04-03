@@ -538,16 +538,16 @@ def _prepare_for_create(args, set_names, input_paths):
         output_paths.append((pth + "_in" + suffix, pth + "_target" + suffix))
 
     # prepare dictionary used on summaries
-    player_vocab_path = os.path.join(args.preproc_summaries_dir, "player_vocab.txt")
-    pl_vocab = OccurrenceDict.load(player_vocab_path)
+    entity_vocab_path = os.path.join(args.preproc_summaries_dir, "entity_vocab.txt")
+    ent_vocab = OccurrenceDict.load(entity_vocab_path)
     token_vocab_path = os.path.join(args.preproc_summaries_dir, "token_vocab.txt")
     tk_vocab = OccurrenceDict.load(token_vocab_path, basic_dict=True)
-    total_vocab = tk_vocab.update(pl_vocab).sort()
+    total_vocab = tk_vocab.update(ent_vocab).sort()
 
     # prepare dictionary on cell values
     cell_vocab_path = os.path.join(args.preproc_summaries_dir, "cell_vocab.txt")
     cl_vocab = OccurrenceDict.load(cell_vocab_path)
-    return input_paths, output_paths, total_vocab, pl_vocab, cl_vocab
+    return input_paths, output_paths, total_vocab, ent_vocab, cl_vocab
 
 
 def create_dataset( summary_path
@@ -590,7 +590,7 @@ def _prepare_for_extract(args, set_names):
     elif args.prepare_for_bpe_application:
         bpe_suffix = "_pfa"
 
-    all_named_entities = None if args.player_vocab_path is None else OccurrenceDict()
+    all_named_entities = None if args.entity_vocab_path is None else OccurrenceDict()
     cell_dict_overall = None if args.cell_vocab_path is None else OccurrenceDict()
 
     output_paths = []
@@ -819,7 +819,7 @@ def _create_parser():
         action='store_true'
     )
     extract_summaries_parser.add_argument(
-        "--player_vocab_path",
+        "--entity_vocab_path",
         type=str,
         help="where to save the list of all the players mentioned in the summaries",
         default=None
@@ -896,8 +896,8 @@ def _main():
             json_path = input_path[1]
             create_dataset(summary_path, json_path, total_vocab, player_vocab, cell_vocab)
 
-    if args.activity == _extract_activity_descr and args.player_vocab_path is not None:
-        all_named_entities.sort().save(args.player_vocab_path)
+    if args.activity == _extract_activity_descr and args.entity_vocab_path is not None:
+        all_named_entities.sort().save(args.entity_vocab_path)
     if args.activity == _extract_activity_descr and args.cell_vocab_path is not None:
         cell_dict_overall.sort().save(args.cell_vocab_path)
 
