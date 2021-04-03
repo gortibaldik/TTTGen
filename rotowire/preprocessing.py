@@ -74,7 +74,7 @@ class BoxScore:
                 , home_city
                 , away_city
                 , player_dict
-                , word_dict):
+                , cell_dict):
         """
         Creates the records from the BoxScore
         BoxScore contains information about all the players, their stats, which team they're part of
@@ -89,7 +89,7 @@ class BoxScore:
                                                      , home_city
                                                      , away_city
                                                      , player_dict
-                                                     , word_dict)
+                                                     , cell_dict)
 
     @staticmethod
     def get_player_numbers(dct : EnumDict):
@@ -101,7 +101,7 @@ class BoxScore:
                            , home_city : str
                            , away_city : str
                            , entity_dict : OccurrenceDict
-                           , word_dict : OccurrenceDict):
+                           , cell_dict : OccurrenceDict):
         records = []
         player_name = dct[BoxScoreEntries.player_name][player_number]
         player_name_transformed = ""
@@ -121,7 +121,7 @@ class BoxScore:
 
         for key in dct.keys():
             value = dct[BoxScoreEntries(key)][player_number]
-            word_dict.add(value)
+            cell_dict.add(value)
             records.append(
                 Record(
                     key,
@@ -147,9 +147,9 @@ class LineScore:
                 , away_city
                 , city_dict
                 , team_name_dict
-                , word_dict):
+                , cell_dict):
         dct = EnumDict(line_score_dict)
-        self._records = self.create_records(dct, home_city, away_city, city_dict, team_name_dict, word_dict)
+        self._records = self.create_records(dct, home_city, away_city, city_dict, team_name_dict, cell_dict)
 
     @staticmethod
     def create_records( dct
@@ -157,7 +157,7 @@ class LineScore:
                       , away_city
                       , city_dict
                       , team_name_dict
-                      , word_dict):
+                      , cell_dict):
         home_away = set_home_away(home_city, away_city, dct[LineScoreEntries.city])
 
         # transform Los Angeles to LA -> done after setting home_away, because
@@ -170,7 +170,7 @@ class LineScore:
         records = []
         for key in dct.keys():
             value = dct[LineScoreEntries(key)]
-            word_dict.add(value)
+            cell_dict.add(value)
             records.append(
                 Record(
                     key,
@@ -359,12 +359,14 @@ class Summary:
 
 
 class MatchStat:
+    _placeholder_dict = OccurrenceDict()
+
     def __init__( self
                 , match_dict
-                , player_dict
-                , city_dict
-                , team_name_dict
-                , cell_dict
+                , player_dict : OccurrenceDict = _placeholder_dict
+                , city_dict : OccurrenceDict = _placeholder_dict
+                , team_name_dict : OccurrenceDict = _placeholder_dict
+                , cell_dict : OccurrenceDict = _placeholder_dict
                 , word_dict : OccurrenceDict = None
                 , process_summary : bool = True):
         dct = EnumDict(match_dict)
@@ -406,23 +408,11 @@ def get_all_types():
     return type_dict
 
 
-def extract_matches_from_json( json_file_path
-                             , player_dict
-                             , city_dict
-                             , team_name_dict
-                             , cell_dict
-                             , word_dict = None
-                             , process_summary : bool = True):
+def extract_matches_from_json(json_file_path, **kwargs):
     matches = []
     with open(json_file_path, 'r', encoding='utf8') as f:
         for match in json.load(f, object_pairs_hook=OrderedDict):
-            matches.append(MatchStat( match
-                                      , player_dict
-                                      , city_dict
-                                      , team_name_dict
-                                      , cell_dict
-                                      , word_dict=word_dict
-                                      , process_summary=process_summary))
+            matches.append(MatchStat(match, **kwargs))
             if matches[-1].invalid:
                 matches.pop()
                 continue
@@ -524,8 +514,12 @@ def extract_players_from_summaries( matches
 
 def _prepare_for_create(args, set_names, input_paths):
     suffix = ""
-    if args.to_npy:
+    if args.to_npy and args.to_txt:
+        raise RuntimeError("Multiple mutually exclusive options specified (--to_npy and --to_txt)")
+    elif args.to_npy:
         suffix = ".npy"
+    elif args.to_txt:
+        suffix = ".txt"
 
     # prepare input paths
     for ix, pth in enumerate(set_names):
@@ -547,26 +541,23 @@ def _prepare_for_create(args, set_names, input_paths):
     # prepare dictionary on cell values
     cell_vocab_path = os.path.join(args.preproc_summaries_dir, "cell_vocab.txt")
     cl_vocab = OccurrenceDict.load(cell_vocab_path)
-    return input_paths, output_paths, total_vocab, ent_vocab, cl_vocab
+
+    # get max table length and max summary length
+    mlt, mls = 0, 0
+    with open(os.path.join(args.preproc_summaries_dir, "config.txt"), 'r') as f:
+        tokens = [int(n) for n in f.read().strip().split('\n')]
+        mlt, mls = tokens[0], tokens[1]
+    return input_paths, output_paths, total_vocab, ent_vocab, cl_vocab, mlt, mls
 
 
 def create_dataset( summary_path
                   , json_path
                   , summary_vocab
                   , cell_values_vocab
-                  , named_entities_vocab):
-    player_dict = OccurrenceDict()
-    team_name_dict = OccurrenceDict()
-    city_dict = OccurrenceDict()
-    cell_dict = OccurrenceDict()
-
-    matches = extract_matches_from_json( json_path
-                                       , player_dict
-                                       , city_dict
-                                       , team_name_dict
-                                       , cell_dict
-                                       , word_dict=None
-                                       , process_summary=False)
+                  , named_entities_vocab
+                  , max_summary_length
+                  , max_table_length):
+    matches = extract_matches_from_json(json_path, word_dict=None, process_summary=False)
 
     with open(summary_path, 'r') as f:
         file_content = f.read().strip().split('\n')
@@ -580,6 +571,9 @@ def create_dataset( summary_path
     with open(f"first_records{json_path[-6]}.txt", "w") as f:
         print("\n".join(str(r) for r in matches[0].records), file=f)
 
+    print(f"max summary : {max_summary_length}")
+    print(f"max table : {max_table_length}")
+
 
 def _prepare_for_extract(args, set_names):
     bpe_suffix = ""
@@ -592,11 +586,12 @@ def _prepare_for_extract(args, set_names):
 
     all_named_entities = None if args.entity_vocab_path is None else OccurrenceDict()
     cell_dict_overall = None if args.cell_vocab_path is None else OccurrenceDict()
+    max_table_length = 0
 
     output_paths = []
     for name in set_names:
         output_paths.append(os.path.join(args.output_dir, name + bpe_suffix + args.file_suffix + ".txt"))
-    return output_paths, all_named_entities, cell_dict_overall
+    return output_paths, all_named_entities, cell_dict_overall, max_table_length
 
 
 def extract_summaries_from_json(json_file_path
@@ -614,11 +609,14 @@ def extract_summaries_from_json(json_file_path
     cell_dict = OccurrenceDict()
 
     matches = extract_matches_from_json( json_file_path
-                                       , player_dict
-                                       , city_dict
-                                       , team_name_dict
-                                       , cell_dict
+                                       , player_dict=player_dict
+                                       , city_dict=city_dict
+                                       , team_name_dict=team_name_dict
+                                       , cell_dict=cell_dict
                                        , word_dict=word_dict)
+    max_table_length = 0
+    for match in matches:
+       if max_table_length < len(match.records): max_table_length = len(match.records)
 
     if transform_player_names or prepare_for_bpe_training or prepare_for_bpe_application:
         tmp_dict = extract_players_from_summaries( matches
@@ -651,6 +649,8 @@ def extract_summaries_from_json(json_file_path
         for match in matches:
             print(" ".join(match.summary.get_words()), file=f)
 
+    return max_table_length
+
 
 def gather_json_stats(json_file_path, logger, train_word_dict=None):
     """
@@ -674,10 +674,10 @@ def gather_json_stats(json_file_path, logger, train_word_dict=None):
     min_table_length = None
 
     matches = extract_matches_from_json( json_file_path
-                                       , player_dict
-                                       , city_dict
-                                       , team_name_dict
-                                       , cell_dict
+                                       , player_dict=player_dict
+                                       , city_dict=city_dict
+                                       , team_name_dict=team_name_dict
+                                       , cell_dict=cell_dict
                                        , word_dict=word_dict)
 
     for match in matches:
@@ -830,6 +830,12 @@ def _create_parser():
         help="where to save the list of all the cell values from the tables",
         default=None
     )
+    extract_summaries_parser.add_argument(
+        "--config_path",
+        type=str,
+        help="where to save the max_table_length",
+        default=None
+    )
     create_dataset_parser = subparsers.add_parser(_create_dataset_descr)
     create_dataset_parser.add_argument(
         "--preproc_summaries_dir",
@@ -845,7 +851,12 @@ def _create_parser():
     )
     create_dataset_parser.add_argument(
         "--to_npy",
-        help="save the output to .npy format",
+        help="save the output to .npy format (indices in npy arrays)",
+        action="store_true"
+    )
+    create_dataset_parser.add_argument(
+        "--to_txt",
+        help="save the outut to .txt format (indices in txt)",
         action="store_true"
     )
     return parser
@@ -860,10 +871,10 @@ def _main():
     input_paths = [ os.path.join(args.rotowire_dir, f + ".json") for f in set_names ]
 
     if args.activity == _extract_activity_descr:
-        output_paths, all_named_entities, cell_dict_overall = _prepare_for_extract(args, set_names)
+        output_paths, all_named_entities, cell_dict_overall, max_table_length = _prepare_for_extract(args, set_names)
     elif args.activity == _create_dataset_descr:
-        input_paths, output_paths, total_vocab, player_vocab, cell_vocab =\
-            _prepare_for_create(args, set_names, input_paths)
+        input_paths, output_paths, total_vocab, player_vocab, cell_vocab, \
+            max_table_length, max_summary_length= _prepare_for_create(args, set_names, input_paths)
     elif args.activity == _gather_stats_descr:
         output_paths = set_names
 
@@ -873,7 +884,7 @@ def _main():
     for input_path, output_path in zip(input_paths, output_paths):
         if args.activity == _extract_activity_descr:
             print(f"working with {input_path}, extracting to {output_path}")
-            extract_summaries_from_json(
+            mtl = extract_summaries_from_json(
                 input_path,
                 output_path,
                 logger,
@@ -883,6 +894,7 @@ def _main():
                 all_named_entities=all_named_entities,
                 cell_dict_overall=cell_dict_overall
             )
+            if mtl > max_table_length: max_table_length = mtl
         elif args.activity == _gather_stats_descr:
             print(f"working with {input_path}")
             if input_path == "rotowire/train.json":
@@ -894,12 +906,23 @@ def _main():
         elif args.activity == _create_dataset_descr:
             summary_path = input_path[0]
             json_path = input_path[1]
-            create_dataset(summary_path, json_path, total_vocab, player_vocab, cell_vocab)
+            create_dataset(
+                summary_path,
+                json_path,
+                total_vocab,
+                player_vocab,
+                cell_vocab,
+                max_summary_length=max_summary_length,
+                max_table_length=max_table_length
+            )
 
     if args.activity == _extract_activity_descr and args.entity_vocab_path is not None:
         all_named_entities.sort().save(args.entity_vocab_path)
     if args.activity == _extract_activity_descr and args.cell_vocab_path is not None:
         cell_dict_overall.sort().save(args.cell_vocab_path)
+    if args.activity == _extract_activity_descr and args.config_path is not None:
+        with open(args.config_path, "w") as f:
+            print(max_table_length, file=f)
 
 
 if __name__ == "__main__":

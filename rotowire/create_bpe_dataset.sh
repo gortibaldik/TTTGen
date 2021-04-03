@@ -38,6 +38,11 @@ do
                         sed -r 's/<<<([^>]*)>>>/\1/g' > "${out_dir}/${f}_prepared.txt"
 done
 
+# store biggest wc to config
+echo "collecting biggest summary stat"
+python3 word_count.py "${out_dir}/train_prepared.txt" \
+                                       "${out_dir}/valid_prepared.txt" \
+                                       "${out_dir}/test_prepared.txt" >> "${out_dir}/config.txt"
 echo "cleaning"
 # cleaning
 for f in "train" "valid" "test"

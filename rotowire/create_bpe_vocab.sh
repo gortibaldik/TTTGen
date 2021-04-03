@@ -36,7 +36,8 @@ do
                                                --transform_players \
                                                --prepare_for_bpe_application \
                                                --entity_vocab_path="${out_dir}/entity_vocab.txt" \
-                                               --cell_vocab_path="${out_dir}/cell_vocab.txt"
+                                               --cell_vocab_path="${out_dir}/cell_vocab.txt" \
+                                               --config_path="${out_dir}/config.txt"
     # as the input for learn-bpe the text should be without any
     # tokens not desirable to be merged, therefore each player_token (which is 
     # enclosed in <<<player_token>>> after preprocessing) is gonna be removed
