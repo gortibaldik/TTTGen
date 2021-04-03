@@ -528,7 +528,7 @@ def _prepare_for_create(args, set_names, input_paths):
     # prepare output paths
     output_paths = []
     for ix, pth in enumerate(set_names):
-        pth = os.path.join(args.preproc_summaries_dir, pth)
+        pth = os.path.join(args.output_dir, pth)
         output_paths.append((pth + "_in" + suffix, pth + "_target" + suffix))
 
     # prepare dictionary used on summaries
@@ -550,14 +550,42 @@ def _prepare_for_create(args, set_names, input_paths):
     return input_paths, output_paths, total_vocab, ent_vocab, cl_vocab, mlt, mls
 
 
-def create_dataset( summary_path
-                  , json_path
+def create_dataset( summary_path : str
+                  , json_path : str
+                  , out_in_path : str
+                  , out_target_path : str
                   , summary_vocab
                   , cell_values_vocab
                   , named_entities_vocab
                   , max_summary_length
-                  , max_table_length):
-    matches = extract_matches_from_json(json_path, word_dict=None, process_summary=False)
+                  , max_table_length
+                  , logger):
+
+    def save_np_to_txt(_np_in: np.ndarray
+                      , _np_target: np.ndarray
+                      , _out_in_path: str
+                      , _out_target_path: str
+                      , _logger):
+        _logger("--- saving to txt")
+        with open(_out_in_path, 'w') as f:
+            for _m_ix in range(_np_in.shape[0]):
+                for _t_ix in range(_np_in.shape[2]):
+                    for _v_ix in range(_np_in.shape[1]):
+                        print(_np_in[_m_ix, _v_ix, _t_ix], end=" ", file=f)
+                    print(end=";", file=f)
+                print(file=f)
+
+        with open(_out_target_path, 'w') as f:
+            for _m_ix in range(_np_target.shape[0]):
+                for _s_ix in range(_np_target.shape[1]):
+                    print(_np_target[_m_ix, _s_ix], end=" ", file=f)
+                print(file=f)
+
+    tables = [ m.records for m in extract_matches_from_json( json_path
+                                                           , word_dict=None
+                                                           , process_summary=False)]
+    logger(f"summaries {summary_path} -> {out_target_path}")
+    logger(f"tables {json_path} -> {out_in_path}")
 
     with open(summary_path, 'r') as f:
         file_content = f.read().strip().split('\n')
@@ -566,13 +594,35 @@ def create_dataset( summary_path
     for line in file_content:
         summaries.append(line)
 
-    with open(f"first_summary{json_path[-6]}.txt", "w") as f:
-        print(summaries[0], file=f)
-    with open(f"first_records{json_path[-6]}.txt", "w") as f:
-        print("\n".join(str(r) for r in matches[0].records), file=f)
+    sum_to_ix = summary_vocab.to_dict()
+    cell_to_ix = cell_values_vocab.to_dict()
+    ent_to_ix = named_entities_vocab.to_dict()
+    tp_to_ix = get_all_types().to_dict()
+    ha_to_ix = { "HOME": 0, "AWAY" : 1}
 
-    print(f"max summary : {max_summary_length}")
-    print(f"max table : {max_table_length}")
+    np_in = np.zeros(shape=[len(tables), 4, max_table_length])
+    np_target = np.zeros(shape=[len(tables), max_summary_length])
+
+    for m_ix, (table, summary) in enumerate(zip(tables, summaries)):
+        for t_ix, record in enumerate(table):
+            # zero reserved for padding
+            np_in[m_ix, 0, t_ix] = tp_to_ix[record.type] + 1
+            np_in[m_ix, 1, t_ix] = ent_to_ix["_".join(record.entity.strip().split())] + 1
+            np_in[m_ix, 2, t_ix] = cell_to_ix[record.value] + 1
+            np_in[m_ix, 3, t_ix] = ha_to_ix[record.ha] + 1
+
+        for s_ix, subword in enumerate(summary.strip().split()):
+            # zero reserved for padding
+            np_target[m_ix, s_ix] = sum_to_ix[subword] + 1
+
+    extension = os.path.splitext(out_in_path)[1]
+    if extension == ".txt":
+        save_np_to_txt(np_in, np_target, out_in_path, out_target_path, logger)
+    elif extension == ".npy":
+        np_in.save(out_in_path)
+        np_target.save(out_target_path)
+    elif extension == ".tfrecord":
+        pass
 
 
 def _prepare_for_extract(args, set_names):
@@ -873,7 +923,7 @@ def _main():
     if args.activity == _extract_activity_descr:
         output_paths, all_named_entities, cell_dict_overall, max_table_length = _prepare_for_extract(args, set_names)
     elif args.activity == _create_dataset_descr:
-        input_paths, output_paths, total_vocab, player_vocab, cell_vocab, \
+        input_paths, output_paths, total_vocab, entity_vocab, cell_vocab, \
             max_table_length, max_summary_length= _prepare_for_create(args, set_names, input_paths)
     elif args.activity == _gather_stats_descr:
         output_paths = set_names
@@ -906,14 +956,19 @@ def _main():
         elif args.activity == _create_dataset_descr:
             summary_path = input_path[0]
             json_path = input_path[1]
+            out_in_path = output_path[0]
+            out_target_path = output_path[1]
             create_dataset(
                 summary_path,
                 json_path,
+                out_in_path,
+                out_target_path,
                 total_vocab,
-                player_vocab,
                 cell_vocab,
+                entity_vocab,
                 max_summary_length=max_summary_length,
-                max_table_length=max_table_length
+                max_table_length=max_table_length,
+                logger=logger
             )
 
     if args.activity == _extract_activity_descr and args.entity_vocab_path is not None:
