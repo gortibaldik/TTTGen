@@ -773,7 +773,7 @@ def extract_summaries_from_json( json_file_path
     return max_table_length
 
 
-def gather_json_stats(json_file_path, logger, train_word_dict=None):
+def gather_json_stats(json_file_path, logger, train_word_dict=None, transform_player_names : bool = False):
     """
     - traverse all the elements of the json,
     - extract all the match statistics and summaries
@@ -801,6 +801,9 @@ def gather_json_stats(json_file_path, logger, train_word_dict=None):
                                        , cell_dict=cell_dict
                                        , word_dict=word_dict)
 
+    ll = Logger(log=False)
+    player_in_summary_dict = extract_players_from_summaries(matches, player_dict, ll, transform_player_names=transform_player_names)
+    
     for match in matches:
         # collect summary statistics
         sum_length = len(match.summary)
@@ -818,8 +821,6 @@ def gather_json_stats(json_file_path, logger, train_word_dict=None):
         if max_table_length is None or table_length > max_table_length:
             max_table_length = table_length
 
-    ll = Logger(log=False)
-    player_in_summary_dict = extract_players_from_summaries(matches, player_dict, ll)
 
     # print summary statistics
     logger("---")
@@ -913,6 +914,11 @@ def _create_parser():
         "--five_occurrences",
         help="After looking at training dataset, filter out all the tokens from the \
             dataset which occur less than 5 times",
+        action='store_true'
+    )
+    gather_stats.add_argument(
+        "--transform_players",
+        help="Gather stats over transformed player names",
         action='store_true'
     )
     extract_summaries_parser = subparsers.add_parser(_extract_activity_descr)
@@ -1031,12 +1037,12 @@ def _main():
             if mtl > max_table_length: max_table_length = mtl
         elif args.activity == _gather_stats_descr:
             print(f"working with {input_path}")
-            if input_path == "rotowire/train.json":
-                train_dict = gather_json_stats(input_path, logger)
+            if os.path.basename(input_path) == "train.json":
+                train_dict = gather_json_stats(input_path, logger, transform_player_names=args.transform_players)
                 if args.five_occurrences:
                     train_dict = train_dict.sort(prun_occurrences=5)
             else:
-                gather_json_stats(input_path, logger, train_dict)
+                gather_json_stats(input_path, logger, train_dict, transform_player_names=args.transform_players)
         elif args.activity == _create_dataset_descr:
             summary_path = input_path[0]
             json_path = input_path[1]
