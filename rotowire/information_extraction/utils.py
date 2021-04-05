@@ -27,6 +27,11 @@ class EnumDict:
     def mapmap(self, key1, key2, fn):
         self[key1][key2] = fn(self[key1][key2])
 
+    def pop(self, key):
+        if key.value in self._dict:
+            return self._dict.pop(key.value)
+        return None 
+
     def keys(self):
         return self._dict.keys()
 
@@ -86,7 +91,8 @@ class OccurrenceDict:
         :param item: key to be popped
         """
         if item in self._dict:
-            self._dict.pop(item)
+            return self._dict.pop(item)
+        return None
 
     def add(self, word, occurrences=1):
         token = str(word)
