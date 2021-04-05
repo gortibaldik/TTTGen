@@ -1,7 +1,7 @@
 from enum import Enum
 from collections import OrderedDict
-from information_extraction.constants import MatchStatEntries, LineScoreEntries, BoxScoreEntries, number_words
-from information_extraction.utils import EnumDict, join_strings, OccurrenceDict, Logger
+from constants import MatchStatEntries, LineScoreEntries, BoxScoreEntries, number_words
+from utils import EnumDict, join_strings, OccurrenceDict, Logger
 from text_to_num import text2num
 
 import nltk.tokenize as nltk_tok
@@ -143,13 +143,13 @@ class BoxScore:
         dct.mapmap(BoxScoreEntries.player_name, player_number, transform_player_name)
 
         for key in dct.keys():
-            value = dct[BoxScoreEntries(key)][player_number]
+            value = "_".join(dct[BoxScoreEntries(key)][player_number].strip().split())
             cell_dict.add(value)
             records.append(
                 Record(
                     key,
                     player_name,
-                    dct[BoxScoreEntries(key)][player_number],
+                    value,
                     home_away
                 )
             )
@@ -192,7 +192,7 @@ class LineScore:
         city_dict.add(dct[LineScoreEntries.city])
         records = []
         for key in dct.keys():
-            value = dct[LineScoreEntries(key)]
+            value = "_".join(dct[LineScoreEntries(key)].strip().split())
             cell_dict.add(value)
             records.append(
                 Record(
@@ -249,8 +249,15 @@ class Summary:
     @staticmethod
     def transform_numbers(sent):
         def has_to_be_ignored(__sent, __i):
-            ignores = {"three point", "three - point", "three - pt", "three pt", "three - pointers", "three - pointer",
-                       "three pointers"}
+            ignores = { 
+              "three point",
+              "three - point",
+              "three - pt",
+              "three pt",
+              "three - pointers",
+              "three - pointer",
+               "three pointers"
+            }
             return " ".join(__sent[__i:__i + 3]) in ignores or " ".join(__sent[__i:__i + 2]) in ignores
 
         def extract_number_literal(word):
@@ -395,7 +402,8 @@ class MatchStat:
         dct = EnumDict(match_dict)
         if not self._is_summary_valid(dct):
             return
-        home_city, vis_city = [ dct[key] for key in [MatchStatEntries.home_city, MatchStatEntries.vis_city]]
+        home_city = dct[MatchStatEntries.home_city]
+        vis_city = dct[MatchStatEntries.vis_city]
         self.box_score = BoxScore(
             dct[MatchStatEntries.box_score], home_city, vis_city, player_dict, cell_dict
         )
@@ -561,31 +569,31 @@ def _prepare_for_create(args, set_names, input_paths):
         else:
             output_paths.append([pth + suffix])
 
-    # prepare dictionary used on summaries
-    entity_vocab_path = os.path.join(args.preproc_summaries_dir, "entity_vocab.txt")
-    ent_vocab = OccurrenceDict.load(entity_vocab_path)
+    # prepare vocab of unique tokens from summaries
     token_vocab_path = os.path.join(args.preproc_summaries_dir, "token_vocab.txt")
     tk_vocab = OccurrenceDict.load(token_vocab_path, basic_dict=True)
-    total_vocab = tk_vocab.update(ent_vocab).sort()
 
-    # prepare dictionary on cell values
+    # prepare vocab of cell values
     cell_vocab_path = os.path.join(args.preproc_summaries_dir, "cell_vocab.txt")
     cl_vocab = OccurrenceDict.load(cell_vocab_path)
+
+    # join the vocabs
+    tk_vocab.update(cl_vocab)
+    tk_vocab = tk_vocab.sort()
+    tk_vocab.save(os.path.join(args.output_dir, "all_vocab.txt"))
 
     # get max table length and max summary length
     mlt, mls = 0, 0
     with open(os.path.join(args.preproc_summaries_dir, "config.txt"), 'r') as f:
         tokens = [int(n) for n in f.read().strip().split('\n')]
         mlt, mls = tokens[0], tokens[1]
-    return input_paths, output_paths, total_vocab, ent_vocab, cl_vocab, mlt, mls
+    return input_paths, output_paths, tk_vocab, mlt, mls
 
 
 def create_dataset( summary_path : str
                   , json_path : str
                   , out_paths : str
-                  , summary_vocab
-                  , cell_values_vocab
-                  , named_entities_vocab
+                  , tk_vocab
                   , max_summary_length
                   , max_table_length
                   , logger):
@@ -645,9 +653,7 @@ def create_dataset( summary_path : str
     for line in file_content:
         summaries.append(line)
 
-    sum_to_ix = summary_vocab.to_dict()
-    cell_to_ix = cell_values_vocab.to_dict()
-    ent_to_ix = named_entities_vocab.to_dict()
+    tk_to_ix = tk_vocab.to_dict()
     tp_to_ix = get_all_types().to_dict()
     ha_to_ix = { "HOME": 0, "AWAY" : 1}
 
@@ -658,13 +664,13 @@ def create_dataset( summary_path : str
         for t_ix, record in enumerate(table):
             # zero reserved for padding
             np_in[m_ix, 0, t_ix] = tp_to_ix[record.type] + 1
-            np_in[m_ix, 1, t_ix] = ent_to_ix["_".join(record.entity.strip().split())] + 1
-            np_in[m_ix, 2, t_ix] = cell_to_ix[record.value] + 1
+            np_in[m_ix, 1, t_ix] = tk_to_ix["_".join(record.entity.strip().split())] + 1
+            np_in[m_ix, 2, t_ix] = tk_to_ix[record.value] + 1
             np_in[m_ix, 3, t_ix] = ha_to_ix[record.ha] + 1
 
         for s_ix, subword in enumerate(summary.strip().split()):
             # zero reserved for padding
-            np_target[m_ix, s_ix] = sum_to_ix[subword] + 1
+            np_target[m_ix, s_ix] = tk_to_ix[subword] + 1
 
     extension = os.path.splitext(out_paths[0])[1]
     if extension == ".txt":
@@ -673,8 +679,8 @@ def create_dataset( summary_path : str
         logger(f"summaries {summary_path} -> {out_paths[1]}")
         logger(f"tables {json_path} -> {out_paths[0]}")
         logger("--- saving to .npy")
-        np_in.save(out_paths[0])
-        np_target.save(out_paths[1])
+        np.save(out_paths[0], np_in)
+        np.save(out_paths[1], np_target)
     elif extension == ".tfrecord":
         save_np_to_tfrecord(np_in, np_target, out_paths[0], logger)
 
@@ -1001,7 +1007,7 @@ def _main():
     if args.activity == _extract_activity_descr:
         output_paths, all_named_entities, cell_dict_overall, max_table_length = _prepare_for_extract(args, set_names)
     elif args.activity == _create_dataset_descr:
-        input_paths, output_paths, total_vocab, entity_vocab, cell_vocab, \
+        input_paths, output_paths, total_vocab, \
             max_table_length, max_summary_length= _prepare_for_create(args, set_names, input_paths)
     elif args.activity == _gather_stats_descr:
         output_paths = set_names
@@ -1039,8 +1045,6 @@ def _main():
                 json_path,
                 output_path,
                 total_vocab,
-                cell_vocab,
-                entity_vocab,
                 max_summary_length=max_summary_length,
                 max_table_length=max_table_length,
                 logger=logger
