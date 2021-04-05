@@ -68,12 +68,14 @@ python3 word_count.py --log \
 
 # create tfrecord dataset
 echo "creating tfrecord dataset"
-if [ ! -d "${out_dir}_tfrecord" ]; then
-  mkdir "${out_dir}_tfrecord"
+tfrecord_dir="${out_dir}_tfrecord"
+if [ ! -d "${tfrecord_dir}" ]; then
+  mkdir "${tfrecord_dir}"
   python3 preprocessing.py "${rotowire_dir}" create_dataset \
                                              --preproc_summaries_dir="${out_dir}" \
-                                             --output_dir="${out_dir}_tfrecord" \
+                                             --output_dir="${tfrecord_dir}" \
                                              --to_tfrecord
+ cp "${out_dir}/config.txt" "${tfrecord_dir}/config.txt"
 fi
 
 echo "cleaning"
