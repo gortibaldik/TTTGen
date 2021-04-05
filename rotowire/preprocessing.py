@@ -6,6 +6,7 @@ from text_to_num import text2num
 
 import nltk.tokenize as nltk_tok
 import numpy as np
+import tensorflow as tf
 import json
 import argparse
 import os
@@ -26,7 +27,8 @@ class Record:
         return f"{self.value} | {self.entity} | {self.type} | {self.ha}"
 
 
-city_transform_dict = { "Los Angeles" : "LA" }
+city_transform_dict = { "Los Angeles" : "Los_Angeles", "LA" : "Los_Angeles" }
+player_transform_dict = { "T.J. McConnell" : "TJ McConnell"}
 name_transformations = {
     "T.J.": ["TJ"],
     "J.J.": ["JJ"],
@@ -49,14 +51,31 @@ name_transformations = {
     "Luc Mbah A Moute": ["Moute"],
     "Luc Richard Mbah a Moute": ["Moute"],
     "Mbah a Moute": ["Moute"],
-    "Mbah A Moute": ["Moute"]
+    "Mbah A Moute": ["Moute"],
+    "Oklahoma City": ["Oklahoma_City"],
+    "Oklahoma city": ["Oklahoma_City"],
+    "Oklahoma": ["Oklahoma_City"],
+    "Golden State": ["Golden_State"],
+    "Golden state": ["Golden_State"],
+    "Golden Warriors": ["Golden_State", "Warriors"],
+    "New York": ["New_York"],
+    "Los Angeles": ["Los_Angeles"],
+    "Blazers": ["Trail_Blazers"],
+    "Trail Blazers": ["Trail_Blazers"],
+    "New Orleans": ["New_Orleans"],
+    "San Antonio": ["San_Antonio"]
 }
 
 
-def transform_name(city_name):
+def transform_city_name(city_name):
     if city_name in city_transform_dict.keys():
         return city_transform_dict[city_name]
     return city_name
+
+def transform_player_name(player_name):
+    if player_name in player_transform_dict:
+        return player_transform_dict[player_name]
+    return player_name
 
 
 def set_home_away(home_city, away_city, actual_city):
@@ -81,6 +100,9 @@ class BoxScore:
         - the information about one player is grouped in succeeding records
         """
         self._dct = EnumDict(box_score_dict)
+        # in our task neither first name, nor second name is needed or used
+        self._dct.pop(BoxScoreEntries.first_name)
+        self._dct.pop(BoxScoreEntries.second_name)
         self._records = []
 
         for player_number in self.get_player_numbers(self._dct):
@@ -93,7 +115,7 @@ class BoxScore:
 
     @staticmethod
     def get_player_numbers(dct : EnumDict):
-        return dct[BoxScoreEntries.first_name].keys()
+        return dct[BoxScoreEntries.player_name].keys()
 
     @staticmethod
     def extract_player_info( player_number
@@ -114,10 +136,11 @@ class BoxScore:
         entity_dict.add(player_name)
         home_away = set_home_away(home_city, away_city, dct[BoxScoreEntries.team_city][player_number])
 
-        # transform Los Angeles to LA -> done after setting home_away, because
+        # transform Los Angeles to Los_Angeles -> done after setting home_away, because
         # in the dataset LA and Los Angeles are used as different names for
         # Lakers and Clippers
-        dct.mapmap(BoxScoreEntries.team_city, player_number, transform_name)
+        dct.mapmap(BoxScoreEntries.team_city, player_number, transform_city_name)
+        dct.mapmap(BoxScoreEntries.player_name, player_number, transform_player_name)
 
         for key in dct.keys():
             value = dct[BoxScoreEntries(key)][player_number]
@@ -160,10 +183,10 @@ class LineScore:
                       , cell_dict):
         home_away = set_home_away(home_city, away_city, dct[LineScoreEntries.city])
 
-        # transform Los Angeles to LA -> done after setting home_away, because
+        # transform Los Angeles to Los_Angeles -> done after setting home_away, because
         # in the dataset LA and Los Angeles are used as different names for
         # Lakers and Clippers
-        dct.map(LineScoreEntries.city, transform_name)
+        dct.map(LineScoreEntries.city, transform_city_name)
         entity_name = dct[LineScoreEntries.name]
         team_name_dict.add(entity_name)
         city_dict.add(dct[LineScoreEntries.city])
@@ -524,8 +547,6 @@ def _prepare_for_create(args, set_names, input_paths):
         suffix = ".txt"
     elif args.to_tfrecord:
         suffix = ".tfrecord"
-        # conditional import of tensorflow
-        import tensorflow as tf
 
     # prepare input paths
     for ix, pth in enumerate(set_names):
@@ -860,6 +881,12 @@ def _create_parser():
         default="rotowire"
     )
     parser.add_argument(
+        "--only_set",
+        type=str,
+        help="specify the set to be processed",
+        default=None
+    )
+    parser.add_argument(
         '--only_train',
         help='use only train data',
         action='store_true'
@@ -967,6 +994,8 @@ def _main():
     set_names = ["train", "valid", "test"]
     if args.only_train:
         set_names = [set_names[0]]
+    if args.only_set is not None:
+        set_names = [args.only_set]
     input_paths = [ os.path.join(args.rotowire_dir, f + ".json") for f in set_names ]
 
     if args.activity == _extract_activity_descr:
