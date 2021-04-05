@@ -1,4 +1,7 @@
+#!/usr/bin/env python3
+
 from argparse import ArgumentParser
+import sys
 
 def get_most_words_line_count(file_path, log):
     with open(file_path, 'r') as f:
@@ -12,7 +15,7 @@ def get_most_words_line_count(file_path, log):
         if ln < _min: _min = ln
         sm += ln
     if log:
-      print(f"{file_path} : max : {_max} min : {_min} average : {sm / len(content)}")
+      print(f"{file_path} : max : {_max} min : {_min} average : {sm / len(content)}", file=sys.stderr)
     return _max
 
 if __name__ == "__main__":
@@ -27,6 +30,6 @@ if __name__ == "__main__":
   for file_path in args['file_names']:
     t = get_most_words_line_count(file_path, args['log'])
     if wc < t: wc = t
-
+      
   print(wc)
 
