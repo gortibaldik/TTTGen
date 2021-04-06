@@ -1,7 +1,7 @@
 from enum import Enum
 from collections import OrderedDict
-from constants import MatchStatEntries, LineScoreEntries, BoxScoreEntries, number_words
-from utils import EnumDict, join_strings, OccurrenceDict, Logger
+from preprocessing.constants import MatchStatEntries, LineScoreEntries, BoxScoreEntries, number_words
+from preprocessing.utils import EnumDict, join_strings, OccurrenceDict, Logger
 from text_to_num import text2num
 
 import nltk.tokenize as nltk_tok
