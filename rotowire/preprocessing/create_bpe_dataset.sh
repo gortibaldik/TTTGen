@@ -62,10 +62,17 @@ print_info "${out_dir}/token_vocab.txt"
 
 # store biggest wc to config
 echo "collecting biggest summary stat"
+
+# do not modify config.txt if it already contains all the needed data
+file_name="${out_dir}/config.txt"
+if [ $(wc -l "${out_dir}/config.txt" | cut -f1 -d' ') -eq 2 ]; then
+  file_name="/dev/null"
+fi
+
 python3 word_count.py --log \
                       "${out_dir}/train_prepared.txt" \
                       "${out_dir}/valid_prepared.txt" \
-                      "${out_dir}/test_prepared.txt" >> "${out_dir}/config.txt"
+                      "${out_dir}/test_prepared.txt" >> "${file_name}"
 
 # create tfrecord dataset
 echo "creating ${format} dataset"
