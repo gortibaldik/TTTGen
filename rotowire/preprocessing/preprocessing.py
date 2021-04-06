@@ -429,7 +429,7 @@ class MatchStat:
         return True
 
 
-def get_all_types():
+def create_tp_vocab():
     type_dict = OccurrenceDict()
 
     for tp in BoxScoreEntries:
@@ -543,6 +543,13 @@ def extract_players_from_summaries( matches
     return player_in_summary_dict
 
 
+def create_ha_vocab():
+    _vocab = OccurrenceDict()
+    _vocab.add("HOME")
+    _vocab.add("AWAY")
+    return _vocab
+
+
 def _prepare_for_create(args, set_names, input_paths):
     suffix = ""
     if not args.to_npy and not args.to_txt and not args.to_tfrecord:
@@ -654,11 +661,15 @@ def create_dataset( summary_path : str
         summaries.append(line)
 
     tk_to_ix = tk_vocab.to_dict()
-    tp_to_ix = get_all_types().to_dict()
-    ha_to_ix = { "HOME": 0, "AWAY" : 1}
+
+    tp_vocab = create_tp_vocab()
+    tp_to_ix = tp_vocab.to_dict()
+
+    ha_vocab = create_ha_vocab()
+    ha_to_ix = ha_vocab.to_dict()
 
     pad_value = tk_to_ix[tk_vocab.get_pad()]
-    if pad_value != tp_to_ix[get_all_types().get_pad()]:
+    if pad_value != tp_to_ix[tp_vocab.get_pad()] or pad_value != ha_to_ix[ha_vocab.get_pad()]:
         raise RuntimeError("Different padding values in type and token vocabs!")
 
     np_in = np.full(shape=[len(tables), 4, max_table_length], fill_value=pad_value, dtype=np.int16)
@@ -786,7 +797,7 @@ def gather_json_stats(json_file_path, logger, train_word_dict=None, transform_pl
     team_name_dict = OccurrenceDict()
     city_dict = OccurrenceDict()
     cell_dict = OccurrenceDict()
-    type_dict = get_all_types()
+    type_dict = create_tp_vocab()
 
     total_summary_length = 0
     max_summary_length = None

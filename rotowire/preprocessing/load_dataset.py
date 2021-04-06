@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from preprocessing.utils import OccurrenceDict
-from preprocessing.preprocessing import get_all_types
+from preprocessing.preprocessing import create_tp_vocab, create_ha_vocab
 
 def load_values_from_config(config_path):
     with open(config_path, 'r') as f:
@@ -44,12 +44,19 @@ def load_tf_record_dataset( path
     steps = len(list(data.as_numpy_iterator()))
     print(f"data loading : {steps} steps per epoch!")
 
-    # prepare vocab
+    # prepare token vocab
     vocab = OccurrenceDict.load(vocab_path)
     tk_to_ix = vocab.to_dict()
-    tp_vocab = get_all_types()
+
+    # prepare type vocab
+    tp_vocab = create_tp_vocab()
     tp_to_ix = tp_vocab.to_dict()
+
+    # prepare home/away vocab
+    ha_vocab = create_ha_vocab()
+    ha_to_ix = ha_vocab.to_dict()
+
     pad_value = tk_to_ix[vocab.get_pad()]
-    if pad_value != tp_to_ix[tp_vocab.get_pad()]:
+    if pad_value != tp_to_ix[tp_vocab.get_pad()] or pad_value != ha_to_ix[ha_vocab.get_pad()]:
         raise RuntimeError("Different pad values in the vocab!")
-    return data, steps, tk_to_ix, tp_to_ix, pad_value
+    return data, steps, tk_to_ix, tp_to_ix, ha_to_ix, pad_value
