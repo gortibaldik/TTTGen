@@ -72,18 +72,33 @@ class OccurrenceDict:
             occurrences = int(tokens[1].split(':')[1])
             return cls(index, occurrences)
 
-    def __init__(self, special_tokens=None):
-        self._dict = {}
-        self._special_tokens = special_tokens
+    __UNK_TOKEN="N/A"
+    __PAD="<<PAD>>"
+
+    def __init__(self, initialize_special_tokens : bool = True):
+        self._dict = {
+            self.__PAD : self.Unit(0),
+            self.__UNK_TOKEN : self.Unit(1)
+        } if initialize_special_tokens else {}
+        self._initialize_special_tokens = initialize_special_tokens
 
     def __getitem__(self, item):
-        return self._dict[item]
+        if item in self._dict:
+            return self._dict[item]
+        else:
+            return self._dict[self.__UNK_TOKEN]
 
     def __iter__(self):
         return self._dict.__iter__()
 
     def __contains__(self, item):
         return self._dict.__contains__(item)
+
+    def get_pad(self):
+        if self._initialize_special_tokens:
+            return self.__PAD
+        else:
+            raise RuntimeError("Cannot return PAD_TOKEN when dict was initialized without special tokens")
 
     def pop(self, item):
         """
@@ -109,13 +124,20 @@ class OccurrenceDict:
                                 occurrences will be removed from the resulting dict
         :return: sorted dict
         """
+        # do not sort UNK and PAD, leave them out, they need to be on first positions
+        self._dict.pop(self.__UNK_TOKEN)
+        self._dict.pop(self.__PAD)
         sorted_list = sorted(self._dict.items(), key=lambda item: item[1], reverse=True)
+        self._dict[self.__PAD] = self.Unit(0)
+        self._dict[self.__UNK_TOKEN] = self.Unit(1)
         if prunning is not None:
             sorted_list = sorted_list[:prunning]
         if prun_occurrences is not None:
             sorted_list = [ s for s in sorted_list if s[1].occurrences >= prun_occurrences]
-        result = OccurrenceDict(self._special_tokens)
-        for ix, (key, unit) in enumerate(sorted_list):
+
+        # UNK and PAD are implicitly created in __init__
+        result = OccurrenceDict()
+        for _, (key, unit) in enumerate(sorted_list):
             result.add(key, unit.occurrences)  # no need to update index, the indices are automatically incremented
         return result
 

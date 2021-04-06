@@ -657,20 +657,22 @@ def create_dataset( summary_path : str
     tp_to_ix = get_all_types().to_dict()
     ha_to_ix = { "HOME": 0, "AWAY" : 1}
 
-    np_in = np.zeros(shape=[len(tables), 4, max_table_length])
-    np_target = np.zeros(shape=[len(tables), max_summary_length])
+    pad_value = tk_to_ix[tk_vocab.get_pad()]
+    if pad_value != tp_to_ix[get_all_types().get_pad()]:
+        raise RuntimeError("Different padding values in type and token vocabs!")
+
+    np_in = np.full(shape=[len(tables), 4, max_table_length], fill_value=pad_value, dtype=np.int16)
+    np_target = np.full(shape=[len(tables), max_summary_length], fill_value=pad_value, dtype=np.int16)
 
     for m_ix, (table, summary) in enumerate(zip(tables, summaries)):
         for t_ix, record in enumerate(table):
-            # zero reserved for padding
-            np_in[m_ix, 0, t_ix] = tp_to_ix[record.type] + 1
-            np_in[m_ix, 1, t_ix] = tk_to_ix["_".join(record.entity.strip().split())] + 1
-            np_in[m_ix, 2, t_ix] = tk_to_ix[record.value] + 1
-            np_in[m_ix, 3, t_ix] = ha_to_ix[record.ha] + 1
+            np_in[m_ix, 0, t_ix] = tp_to_ix[record.type] 
+            np_in[m_ix, 1, t_ix] = tk_to_ix["_".join(record.entity.strip().split())]
+            np_in[m_ix, 2, t_ix] = tk_to_ix[record.value]
+            np_in[m_ix, 3, t_ix] = ha_to_ix[record.ha]
 
         for s_ix, subword in enumerate(summary.strip().split()):
-            # zero reserved for padding
-            np_target[m_ix, s_ix] = tk_to_ix[subword] + 1
+            np_target[m_ix, s_ix] = tk_to_ix[subword]
 
     extension = os.path.splitext(out_paths[0])[1]
     if extension == ".txt":
