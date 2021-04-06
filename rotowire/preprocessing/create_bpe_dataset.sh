@@ -8,6 +8,7 @@ print_info() {
   grep -nh '5$' "${file}" | tail -1 | cut -f1 -d:
 }
 
+format=$4
 rotowire_dir=$3
 out_dir=$2
 num_merges=$1
@@ -23,7 +24,7 @@ fi
 
 # pfa means << Prepared For Application of byte pair encoding >>
 # creates ${out_dir}/{train, valid, test}_pfa.txt if they don't exist yet
-for f in "valid" "test"
+for f in "train" "valid" "test"
 do
   if [ ! -f "${out_dir}/${f}_pfa.txt" ]; then
     echo "preparing the summaries for bpe application (${out_dir}/${f}_pfa.txt)"
@@ -67,15 +68,29 @@ python3 word_count.py --log \
                       "${out_dir}/test_prepared.txt" >> "${out_dir}/config.txt"
 
 # create tfrecord dataset
-echo "creating tfrecord dataset"
-tfrecord_dir="${out_dir}_tfrecord"
-if [ ! -d "${tfrecord_dir}" ]; then
-  mkdir "${tfrecord_dir}"
-  python3 preprocessing.py "${rotowire_dir}" create_dataset \
-                                             --preproc_summaries_dir="${out_dir}" \
-                                             --output_dir="${tfrecord_dir}" \
-                                             --to_tfrecord
- cp "${out_dir}/config.txt" "${tfrecord_dir}/config.txt"
+echo "creating ${format} dataset"
+dataset_dir="${out_dir}_${format}"
+if [ ! -d "${dataset_dir}" ]; then
+  mkdir "${dataset_dir}"
+  if [ "$format" == "tfrecord" ]; then
+    python3 preprocessing.py "${rotowire_dir}" create_dataset \
+                                              --preproc_summaries_dir="${out_dir}" \
+                                              --output_dir="${dataset_dir}" \
+                                              --to_tfrecord
+  elif [ "$format" == "txt" ]; then
+    python3 preprocessing.py "${rotowire_dir}" create_dataset \
+                                              --preproc_summaries_dir="${out_dir}" \
+                                              --output_dir="${dataset_dir}" \
+                                              --to_txt
+  elif [ "$format" == "np" ]; then
+    python3 preprocessing.py "${rotowire_dir}" create_dataset \
+                                              --preproc_summaries_dir="${out_dir}" \
+                                              --output_dir="${dataset_dir}" \
+                                              --to_npy
+  else
+    echo "Invalid format specified!"
+  fi
+ cp "${out_dir}/config.txt" "${dataset_dir}/config.txt"
 fi
 
 echo "cleaning"
