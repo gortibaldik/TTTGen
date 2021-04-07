@@ -156,9 +156,6 @@ class BahdanauAttention(tf.keras.layers.Layer):
 
 
 class Decoder(tf.keras.Model):
-    """ Decoder no attention
-        - computes the predictions from hidden encoder state
-    """
 
     def __init__(self, vocab_size, embedding_dim, n_layers, dec_units, batch_sz):
         super(Decoder, self).__init__()

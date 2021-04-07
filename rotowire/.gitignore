@@ -9,3 +9,6 @@ rotowire/
 # ignore datasets
 **.tfrecord
 **.npy
+
+# ignore test files
+test.py
