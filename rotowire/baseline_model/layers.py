@@ -53,3 +53,18 @@ class MLPEncodingCell(tf.keras.layers.Layer):
             , states):
         outputs = self._MLP(inputs)
         return outputs, outputs
+
+class DotAttention(tf.keras.layers.Layer):
+    def __init__( self):
+        super(DotAttention, self).__init__()
+    
+    def call( self
+            , actual_hidden
+            , all_encs):
+        actual_hidden = tf.expand_dims(actual_hidden, 1)
+        score = tf.matmul(actual_hidden, all_encs, transpose_b=True)
+        score = tf.squeeze(score, [1])
+        alignment = tf.nn.softmax(score)
+        context = tf.reduce_sum(tf.expand_dims(alignment, -1) * all_encs, axis=1)
+        return context, alignment
+        
