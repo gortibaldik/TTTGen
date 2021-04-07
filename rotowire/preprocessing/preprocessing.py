@@ -678,7 +678,8 @@ def create_dataset( summary_path : str
         raise RuntimeError("Different padding values in type and token vocabs!")
 
     np_in = np.full(shape=[len(tables), 4, max_table_length], fill_value=pad_value, dtype=np.int16)
-    np_target = np.full(shape=[len(tables), max_summary_length], fill_value=pad_value, dtype=np.int16)
+    # add space for special tokens
+    np_target = np.full(shape=[len(tables), max_summary_length + 2], fill_value=pad_value, dtype=np.int16)
 
     for m_ix, (table, summary) in enumerate(zip(tables, summaries)):
         for t_ix, record in enumerate(table):
@@ -686,9 +687,11 @@ def create_dataset( summary_path : str
             np_in[m_ix, 1, t_ix] = tk_to_ix["_".join(record.entity.strip().split())]
             np_in[m_ix, 2, t_ix] = tk_to_ix[record.value]
             np_in[m_ix, 3, t_ix] = ha_to_ix[record.ha]
-
-        for s_ix, subword in enumerate(summary.strip().split()):
-            np_target[m_ix, s_ix] = tk_to_ix[subword]
+        np_target[m_ix, 0] = tk_to_ix[tp_vocab.get_bos()]
+        summary_tokens = summary.strip().split()
+        for s_ix, subword in enumerate(summary_tokens):
+            np_target[m_ix, s_ix+1] = tk_to_ix[subword]
+        np_target[m_ix, len(summary_tokens) + 1]  = tk_to_ix[tp_vocab.get_eos()]
 
     extension = os.path.splitext(out_paths[0])[1]
     if extension == ".txt":

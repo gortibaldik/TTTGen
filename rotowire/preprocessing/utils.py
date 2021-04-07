@@ -73,13 +73,18 @@ class OccurrenceDict:
             return cls(index, occurrences)
 
     __UNK_TOKEN="N/A"
-    __PAD="<<PAD>>"
+    __PAD_TOKEN="<<PAD>>"
+    __BOS_TOKEN="<<BOS>>"
+    __EOS_TOKEN="<<EOS>>"
 
     def __init__(self, initialize_special_tokens : bool = True):
         self._dict = {
-            self.__PAD : self.Unit(0),
-            self.__UNK_TOKEN : self.Unit(1)
+            self.__PAD_TOKEN : self.Unit(0),
+            self.__UNK_TOKEN : self.Unit(1),
+            self.__BOS_TOKEN : self.Unit(2),
+            self.__EOS_TOKEN : self.Unit(3)
         } if initialize_special_tokens else {}
+        self.special_tokens = [ key for key in self._dict.keys() ]
         self._initialize_special_tokens = initialize_special_tokens
 
     def __getitem__(self, item):
@@ -96,9 +101,21 @@ class OccurrenceDict:
 
     def get_pad(self):
         if self._initialize_special_tokens:
-            return self.__PAD
+            return self.__PAD_TOKEN
         else:
             raise RuntimeError("Cannot return PAD_TOKEN when dict was initialized without special tokens")
+
+    def get_eos(self):
+        if self._initialize_special_tokens:
+            return self.__EOS_TOKEN
+        else:
+            raise RuntimeError("Cannot return EOS_TOKEN when dict was initialized without special tokens")
+
+    def get_bos(self):
+        if self._initialize_special_tokens:
+            return self.__BOS_TOKEN
+        else:
+            raise RuntimeError("Cannot return BOS_TOKEN when dict was initialized without special tokens")
 
     def pop(self, item):
         """
@@ -124,18 +141,20 @@ class OccurrenceDict:
                                 occurrences will be removed from the resulting dict
         :return: sorted dict
         """
-        # do not sort UNK and PAD, leave them out, they need to be on first positions
-        self._dict.pop(self.__UNK_TOKEN)
-        self._dict.pop(self.__PAD)
+
+        # do not sort special tokens, leave them out, they need to be on first positions
+        for token in self.special_tokens:
+            self._dict.pop(token)
         sorted_list = sorted(self._dict.items(), key=lambda item: item[1], reverse=True)
-        self._dict[self.__PAD] = self.Unit(0)
-        self._dict[self.__UNK_TOKEN] = self.Unit(1)
+        for ix, token in enumerate(self.special_tokens):
+            self._dict[token] = self.Unit(ix)
+
         if prunning is not None:
             sorted_list = sorted_list[:prunning]
         if prun_occurrences is not None:
             sorted_list = [ s for s in sorted_list if s[1].occurrences >= prun_occurrences]
 
-        # UNK and PAD are implicitly created in __init__
+        # special tokens are implicitly created in __init__
         result = OccurrenceDict()
         for _, (key, unit) in enumerate(sorted_list):
             result.add(key, unit.occurrences)  # no need to update index, the indices are automatically incremented

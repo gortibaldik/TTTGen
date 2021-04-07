@@ -9,7 +9,7 @@ def load_values_from_config(config_path):
     if len(contents) != 2:
         raise RuntimeError("Invalid config dir")
     max_table_size = int(contents[0])
-    max_summary_size = int(contents[1])
+    max_summary_size = int(contents[1]) + 2 # eos and bos tokens
     return max_table_size, max_summary_size
 
 def load_tf_record_dataset( path
@@ -56,7 +56,9 @@ def load_tf_record_dataset( path
     ha_vocab = create_ha_vocab()
     ha_to_ix = ha_vocab.to_dict()
 
-    pad_value = tk_to_ix[vocab.get_pad()]
-    if pad_value != tp_to_ix[tp_vocab.get_pad()] or pad_value != ha_to_ix[ha_vocab.get_pad()]:
+    pad_token = tk_to_ix[vocab.get_pad()]
+    if pad_token != tp_to_ix[tp_vocab.get_pad()] or pad_token != ha_to_ix[ha_vocab.get_pad()]:
         raise RuntimeError("Different pad values in the vocab!")
-    return data, steps, tk_to_ix, tp_to_ix, ha_to_ix, pad_value
+    bos_token = tk_to_ix[vocab.get_bos()]
+    eos_token = tk_to_ix[vocab.get_eos()]
+    return data, steps, tk_to_ix, tp_to_ix, ha_to_ix, pad_token, bos_token, eos_token
