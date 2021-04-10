@@ -4,12 +4,13 @@ import tensorflow as tf
 import time
 import os
 
-def loss_function(x, y, loss_object):
+def loss_function(x, y, loss_object, train_scc_metrics):
     """ use only the non-pad values """
     mask = tf.math.logical_not(tf.math.equal(y, 0))
     loss_ = loss_object(y, x)
     mask = tf.cast(mask, dtype=loss_.dtype)
     loss_ *= mask
+    train_scc_metrics.update_state(y, x, sample_weight=mask)
     return tf.reduce_mean(loss_)
 
 class TrainStepWrapper:
@@ -21,7 +22,8 @@ class TrainStepWrapper:
                   , encoder
                   , decoderRNNCell
                   , decoderRNN
-                  , train_accurracy_metrics):
+                  , train_accurracy_metrics
+                  , train_scc_metrics):
         loss = 0
         dec_input, targets, *tables = batch_data
         with tf.GradientTape() as tape:
@@ -32,7 +34,8 @@ class TrainStepWrapper:
             outputs = decoderRNN( dec_input, initial_state=initial_state)
             loss += loss_function( outputs
                                  , targets
-                                 , loss_object)
+                                 , loss_object
+                                 , train_scc_metrics)
 
         batch_loss = loss
         variables = encoder.trainable_variables + decoderRNNCell.trainable_variables
@@ -58,7 +61,8 @@ def train( train_dataset
          , entity_span
          , hidden_size
          , learning_rate
-         , epochs):
+         , epochs
+         , load_last : bool = False):
     encoder = Encoder( word_vocab_size
                      , word_emb_dim
                      , tp_vocab_size
@@ -82,6 +86,7 @@ def train( train_dataset
                                     , encoder=encoder
                                     , decoderRNNCell=decoderRNNCell)
     train_accurracy_metrics = tf.keras.metrics.SparseCategoricalAccuracy()
+    train_scc_metrics = tf.keras.metrics.SparseCategoricalCrossentropy()
     tsw = TrainStepWrapper()
     for epoch in range(epochs):
         start = time.time()
@@ -99,14 +104,16 @@ def train( train_dataset
                                        , encoder
                                        , decoderRNNCell
                                        , decoderRNN
-                                       , train_accurracy_metrics)
+                                       , train_accurracy_metrics
+                                       , train_scc_metrics)
             total_loss += batch_loss
 
             if num % 50 == 0:
-                print(f'Epoch {epoch + 1} Batch {num} Loss {batch_loss.numpy():.4f}'+
+                print(f'Epoch {epoch + 1} Batch {num} Loss {train_scc_metrics.result():.4f}'+
                       f' Accurracy {train_accurracy_metrics.result()}', flush=True)
 
         # saving the model every epoch
         checkpoint.save(file_prefix=checkpoint_prefix)
         print(f"Epoch {epoch + 1} duration : {time.time() - start}", flush=True)
         train_accurracy_metrics.reset_states()
+        train_scc_metrics.reset_states()
