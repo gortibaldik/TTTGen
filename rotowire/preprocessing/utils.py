@@ -117,6 +117,12 @@ class OccurrenceDict:
         else:
             raise RuntimeError("Cannot return BOS_TOKEN when dict was initialized without special tokens")
 
+    def get_unk(self):
+        if self._initialize_special_tokens:
+            return self.__UNK_TOKEN
+        else:
+            raise RuntimeError("Cannot return BOS_TOKEN when dict was initialized without special tokens")
+
     def pop(self, item):
         """
         safe pop, no penalty if item isn't in the dictionary
@@ -233,6 +239,6 @@ class Logger:
     def set_off_log(self):
         self._log = False
 
-    def __call__(self, message, file=sys.stdout):
+    def __call__(self, message, file=sys.stderr):
         if self._log:
             print(message, file=file)
