@@ -1,14 +1,11 @@
-from .model import Encoder, Decoder
+from .model import Encoder
+from .layers import DecoderRNNCell
 import tensorflow as tf
 import time
 import os
 
 def loss_function(x, y, loss_object):
-    """
-    only count those values which count in the computations
-    - meaning, we ignore padding 0 values
-    :return:
-    """
+    """ use only the non-pad values """
     mask = tf.math.logical_not(tf.math.equal(y, 0))
     loss_ = loss_object(y, x)
     mask = tf.cast(mask, dtype=loss_.dtype)
@@ -22,31 +19,28 @@ class TrainStepWrapper:
                   , loss_object
                   , optimizer
                   , encoder
-                  , decoder
-                  , BATCH_SIZE):
+                  , decoderRNNCell
+                  , decoderRNN
+                  , train_accurracy_metrics):
         loss = 0
+        dec_input, targets, *tables = batch_data
         with tf.GradientTape() as tape:
-            summaries, *tables = batch_data
             enc_outs, *last_hidden_rnn = encoder(tables)
-            last_hidden_attn = last_hidden_rnn[-1]
+            initial_state = [last_hidden_rnn[-1], *last_hidden_rnn]
+            decoderRNNCell.initialize_enc_outs(enc_outs)
 
-            # go over all the time steps
-            for t in range(0, summaries.shape[1] - 1):
-                # teacher forcing for any index bigger than 0
-                dec_input = tf.expand_dims(summaries[:, t], 1)
-                preds, last_hidden_attn, align, *last_hidden_rnn = decoder( dec_input
-                                                                          , last_hidden_rnn
-                                                                          , last_hidden_attn
-                                                                          , enc_outs)
-                loss += loss_function( preds
-                                     , summaries[:, t + 1]
-                                     , loss_object)
+            outputs = decoderRNN( dec_input, initial_state=initial_state)
+            loss += loss_function( outputs
+                                 , targets
+                                 , loss_object)
 
-
-        batch_loss = loss / int(summaries.shape[1])
-        variables = encoder.trainable_variables + decoder.trainable_variables
+        batch_loss = loss
+        variables = encoder.trainable_variables + decoderRNNCell.trainable_variables
         gradients = tape.gradient(loss, variables)
         optimizer.apply_gradients(zip(gradients, variables))
+        
+        mask = tf.math.logical_not(tf.math.equal(targets, 0))
+        train_accurracy_metrics.update_state(targets, outputs, sample_weight=mask)
 
         return batch_loss
 
@@ -54,6 +48,7 @@ def train( train_dataset
          , train_steps_per_epoch
          , checkpoint_dir
          , batch_size
+         , max_sum_size
          , word_emb_dim
          , word_vocab_size
          , tp_emb_dim
@@ -73,17 +68,20 @@ def train( train_dataset
                      , entity_span
                      , hidden_size
                      , batch_size)
-    decoder = Decoder( word_vocab_size
-                     , word_emb_dim
-                     , hidden_size
-                     , batch_size)
-    optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate)
+    decoderRNNCell = DecoderRNNCell( word_vocab_size
+                                   , word_emb_dim
+                                   , hidden_size
+                                   , batch_size)
+    decoderRNN = tf.keras.layers.RNN( decoderRNNCell
+                                    , return_sequences=True)
+    optimizer = tf.keras.optimizers.Adam()
     loss_object = tf.keras.losses.SparseCategoricalCrossentropy( from_logits=False
                                                                , reduction='none')
     checkpoint_prefix = os.path.join(checkpoint_dir, 'ckpt')
     checkpoint = tf.train.Checkpoint( optimizer=optimizer
                                     , encoder=encoder
-                                    , decoder=decoder)
+                                    , decoderRNNCell=decoderRNNCell)
+    train_accurracy_metrics = tf.keras.metrics.SparseCategoricalAccuracy()
     tsw = TrainStepWrapper()
     for epoch in range(epochs):
         start = time.time()
@@ -92,17 +90,23 @@ def train( train_dataset
         total_loss = 0
 
         for (num, batch_data) in enumerate(train_dataset.take(train_steps_per_epoch)):
+            summaries, *tables = batch_data
+            sums = tf.expand_dims(summaries, axis=-1)
+            batch_data = (sums[:, :max_sum_size, :], summaries[:, 1:max_sum_size+1], *tables)
             batch_loss = tsw.train_step( batch_data
                                        , loss_object
                                        , optimizer
                                        , encoder
-                                       , decoder
-                                       , batch_size)
+                                       , decoderRNNCell
+                                       , decoderRNN
+                                       , train_accurracy_metrics)
             total_loss += batch_loss
 
-            if num % 100 == 0:
-                print(f'Epoch {epoch + 1} Batch {num} Loss {batch_loss.numpy():.4f}', flush=True)
+            if num % 50 == 0:
+                print(f'Epoch {epoch + 1} Batch {num} Loss {batch_loss.numpy():.4f}'+
+                      f' Accurracy {train_accurracy_metrics.result()}', flush=True)
 
         # saving the model every epoch
         checkpoint.save(file_prefix=checkpoint_prefix)
         print(f"Epoch {epoch + 1} duration : {time.time() - start}", flush=True)
+        train_accurracy_metrics.reset_states()
