@@ -653,6 +653,28 @@ def create_dataset( summary_path : str
         data = data.map(write_map_fn)
         writer = tf.data.experimental.TFRecordWriter(_out_path)
         writer.write(data)
+    
+    class UnkStat:
+        def __init__(self):
+            self._unk_stat = 0
+            self._unk_token = tk_vocab.get_unk()
+
+        def increment_unk_stat(self):
+            self._unk_stat += 1
+        
+        def get_unk_stat(self):
+            return self._unk_stat
+        
+        def get_unk(self):
+            return self._unk_token
+
+
+    def assign_ix_or_unk(dct, key, unk_stat):
+        if key in dct:
+            return dct[key]
+        else:
+            unk_stat.increment_unk_stat()
+            return dct[unk_stat.get_unk()]
 
     tables = [ m.records for m in extract_matches_from_json( json_path
                                                            , word_dict=None
@@ -680,18 +702,27 @@ def create_dataset( summary_path : str
     np_in = np.full(shape=[len(tables), 4, max_table_length], fill_value=pad_value, dtype=np.int16)
     # add space for special tokens
     np_target = np.full(shape=[len(tables), max_summary_length + 2], fill_value=pad_value, dtype=np.int16)
+    unk_stat = UnkStat()
 
     for m_ix, (table, summary) in enumerate(zip(tables, summaries)):
         for t_ix, record in enumerate(table):
             np_in[m_ix, 0, t_ix] = tp_to_ix[record.type] 
-            np_in[m_ix, 1, t_ix] = tk_to_ix["_".join(record.entity.strip().split())]
-            np_in[m_ix, 2, t_ix] = tk_to_ix[record.value]
+            np_in[m_ix, 1, t_ix] = assign_ix_or_unk( tk_to_ix
+                                                   , "_".join(record.entity.strip().split())
+                                                   , unk_stat)
+            np_in[m_ix, 2, t_ix] = assign_ix_or_unk( tk_to_ix
+                                                   , record.value
+                                                   , unk_stat)
             np_in[m_ix, 3, t_ix] = ha_to_ix[record.ha]
         np_target[m_ix, 0] = tk_to_ix[tp_vocab.get_bos()]
         summary_tokens = summary.strip().split()
         for s_ix, subword in enumerate(summary_tokens):
-            np_target[m_ix, s_ix+1] = tk_to_ix[subword]
+            np_target[m_ix, s_ix+1] = assign_ix_or_unk( tk_to_ix
+                                                      , subword
+                                                      , unk_stat)
         np_target[m_ix, len(summary_tokens) + 1]  = tk_to_ix[tp_vocab.get_eos()]
+    
+    logger(f"{out_paths[0]} : {unk_stat.get_unk_stat()} tokens assigned for OOV words")
 
     extension = os.path.splitext(out_paths[0])[1]
     if extension == ".txt":
