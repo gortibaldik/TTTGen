@@ -62,6 +62,10 @@ def train( train_dataset
          , hidden_size
          , learning_rate
          , epochs
+         , val_save_path : str = None
+         , ix_to_tk : dict = None
+         , val_dataset = None
+         , val_steps = None
          , load_last : bool = False):
     encoder = Encoder( word_vocab_size
                      , word_emb_dim
@@ -76,8 +80,6 @@ def train( train_dataset
                                    , word_emb_dim
                                    , hidden_size
                                    , batch_size)
-    decoderRNN = tf.keras.layers.RNN( decoderRNNCell
-                                    , return_sequences=True)
     optimizer = tf.keras.optimizers.Adam()
     loss_object = tf.keras.losses.SparseCategoricalCrossentropy( from_logits=False
                                                                , reduction='none')
@@ -85,6 +87,11 @@ def train( train_dataset
     checkpoint = tf.train.Checkpoint( optimizer=optimizer
                                     , encoder=encoder
                                     , decoderRNNCell=decoderRNNCell)
+    if load_last:
+        checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
+    
+    decoderRNN = tf.keras.layers.RNN( decoderRNNCell
+                                    , return_sequences=True)
     train_accurracy_metrics = tf.keras.metrics.SparseCategoricalAccuracy()
     train_scc_metrics = tf.keras.metrics.SparseCategoricalCrossentropy()
     tsw = TrainStepWrapper()
@@ -115,5 +122,13 @@ def train( train_dataset
         # saving the model every epoch
         checkpoint.save(file_prefix=checkpoint_prefix)
         print(f"Epoch {epoch + 1} duration : {time.time() - start}", flush=True)
+        evaluate( val_dataset
+                , val_steps
+                , batch_size
+                , max_sum_size
+                , ix_to_tk
+                , val_save_path
+                , encoder
+                , decoderRNNCell)
         train_accurracy_metrics.reset_states()
         train_scc_metrics.reset_states()

@@ -7,7 +7,7 @@ import numpy as np
 import time
 import os
 
-@tf.function
+
 def eval_step( batch_data
              , encoder
              , decoderRNNCell
@@ -66,7 +66,7 @@ def evaluate( dataset
             targets_for_bleu.append([ix_to_tk[i] for i in tgt.numpy()[:ix]])
             predictions_for_bleu.append([ix_to_tk[i] for i in rp[:ix]])
         if num % ten_percent == 0:
-           print("=", end="")
+            print("=", end="")
     print("]")
         
     bleu = corpus_bleu( targets_for_bleu
