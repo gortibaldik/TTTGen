@@ -56,9 +56,11 @@ echo -e "---\ncreating global vocab"
 cat "${out_dir}/train_prepared.txt" \
     "${out_dir}/valid_prepared.txt" \
     "${out_dir}/test_prepared.txt" |
-    subword-nmt get-vocab > "${out_dir}/token_vocab.txt"
+    subword-nmt get-vocab > "${out_dir}/tmp_vocab.txt"
 
-print_info "${out_dir}/token_vocab.txt"
+print_info "${out_dir}/tmp_vocab.txt"
+
+subword-nmt get-vocab -i "${out_dir}/train_prepared.txt" -o "${out_dir}/token_vocab.txt"
 
 # store biggest wc to config
 echo "collecting biggest summary stat"
@@ -80,20 +82,23 @@ dataset_dir="${out_dir}_${format}"
 if [ ! -d "${dataset_dir}" ]; then
   mkdir "${dataset_dir}"
   if [ "$format" == "tfrecord" ]; then
-    python3 preprocessing.py "${rotowire_dir}" create_dataset \
-                                              --preproc_summaries_dir="${out_dir}" \
-                                              --output_dir="${dataset_dir}" \
-                                              --to_tfrecord
+    python3 preprocessing.py "${rotowire_dir}" --log \
+                                               create_dataset \
+                                               --preproc_summaries_dir="${out_dir}" \
+                                               --output_dir="${dataset_dir}" \
+                                               --to_tfrecord
   elif [ "$format" == "txt" ]; then
-    python3 preprocessing.py "${rotowire_dir}" create_dataset \
-                                              --preproc_summaries_dir="${out_dir}" \
-                                              --output_dir="${dataset_dir}" \
-                                              --to_txt
+    python3 preprocessing.py "${rotowire_dir}" --log \ 
+                                               create_dataset \
+                                               --preproc_summaries_dir="${out_dir}" \
+                                               --output_dir="${dataset_dir}" \
+                                               --to_txt
   elif [ "$format" == "np" ]; then
-    python3 preprocessing.py "${rotowire_dir}" create_dataset \
-                                              --preproc_summaries_dir="${out_dir}" \
-                                              --output_dir="${dataset_dir}" \
-                                              --to_npy
+    python3 preprocessing.py "${rotowire_dir}" --log 
+                                               create_dataset \
+                                               --preproc_summaries_dir="${out_dir}" \
+                                               --output_dir="${dataset_dir}" \
+                                               --to_npy
   else
     echo "Invalid format specified!"
   fi
@@ -101,6 +106,7 @@ if [ ! -d "${dataset_dir}" ]; then
 fi
 
 echo "cleaning"
+rm "${out_dir}/tmp_vocab.txt"
 for f in "train" "valid" "test"
 do
   rm "${out_dir}/${f}_pfa.txt"
