@@ -8,6 +8,7 @@ print_info() {
   grep -nh '5$' "${file}" | tail -1 | cut -f1 -d:
 }
 
+advanced_transformations=$5
 format=$4
 rotowire_dir=$3
 out_dir=$2
@@ -17,7 +18,10 @@ DELETE_VOCAB=0
 # if codes for bpe weren't learnt yet
 if [ ! -f "${out_dir}/codes_train_${num_merges}.txt" ]; then
   echo "codes weren't learnt yet, gonna create them in ${out_dir}"
-  ./learn_bpe_codes.sh "${num_merges}" "${out_dir}" "${rotowire_dir}"
+  ./learn_bpe_codes.sh "${num_merges}" \
+                      "${out_dir}" \
+                      "${rotowire_dir}" \
+                      "${advanced_transformations}"
   DELETE_VOCAB=1
   echo -e "---\n"
 fi
@@ -28,11 +32,22 @@ for f in "train" "valid" "test"
 do
   if [ ! -f "${out_dir}/${f}_pfa.txt" ]; then
     echo "preparing the summaries for bpe application (${out_dir}/${f}_pfa.txt)"
-    python3 preprocessing.py "${rotowire_dir}" --only_set="${f}" \
-                                               extract_summaries \
-                                               --output_dir="${out_dir}" \
-                                               --transform_players \
-                                               --prepare_for_bpe_application
+    if [ -z "$advanced_transformations" ]; then
+      python3 preprocessing.py "${rotowire_dir}" --only_set="${f}" \
+                                                extract_summaries \
+                                                --output_dir="${out_dir}" \
+                                                --transform_players \
+                                                --prepare_for_bpe_application
+    else
+      python3 preprocessing.py "${rotowire_dir}" --only_set="${f}" \
+                                                 extract_summaries \
+                                                 --lowercase \
+                                                 --exception_cities \
+                                                 --exception_teams \
+                                                 --output_dir="${out_dir}" \
+                                                 --transform_players \
+                                                 --prepare_for_bpe_application
+    fi
   fi
 done
 
@@ -44,7 +59,7 @@ do
   echo "applying bpe to ${f} dataset"
   subword-nmt apply-bpe -c "${out_dir}/codes_train_${num_merges}.txt" \
                         -i "${out_dir}/${f}_pfa.txt" \
-                        --glossaries "<<<[^>]*>>>" "[0-9]+"| 
+                        --glossaries "<<<[^>]*>>>|[0-9]+" |
                         sed -r 's/<<<([^>]*)>>>/\1/g' > "${out_dir}/${f}_prepared.txt"
 
   subword-nmt get-vocab -o "${out_dir}/${f}_pfbpe_vocab_${num_merges}.txt" \

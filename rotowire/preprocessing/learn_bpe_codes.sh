@@ -1,5 +1,6 @@
 set -e
 
+advanced_transformations=$4
 rotowire_dir=$3
 out_dir=$2
 num_merges=$1
@@ -21,13 +22,29 @@ fi
 if [ ! -f "${out_dir}/train_pfa.txt" ]; then
 
   echo "${out_dir}/train_pfa.txt doesn't exist, it is going to be created!"
-  python3 preprocessing.py "${rotowire_dir}" extract_summaries \
-                                             --output_dir="${out_dir}" \
-                                             --transform_players \
-                                             --prepare_for_bpe_application \
-                                             --entity_vocab_path="${out_dir}/entity_vocab.txt" \
-                                             --cell_vocab_path="${out_dir}/cell_vocab.txt" \
-                                             --config_path="${out_dir}/config.txt"
+
+  if [ -z "$advanced_transformations" ]; then
+    python3 preprocessing.py "${rotowire_dir}" --only_train \
+                                               extract_summaries \
+                                               --output_dir="${out_dir}" \
+                                               --transform_players \
+                                               --prepare_for_bpe_application \
+                                               --entity_vocab_path="${out_dir}/entity_vocab.txt" \
+                                               --cell_vocab_path="${out_dir}/cell_vocab.txt" \
+                                               --config_path="${out_dir}/config.txt"
+  else
+    python3 preprocessing.py "${rotowire_dir}" --only_train \
+                                               extract_summaries \
+                                               --output_dir="${out_dir}" \
+                                               --transform_players \
+                                               --prepare_for_bpe_application \
+                                               --lowercase \
+                                               --exception_cities \
+                                               --exception_teams \
+                                               --entity_vocab_path="${out_dir}/entity_vocab.txt" \
+                                               --cell_vocab_path="${out_dir}/cell_vocab.txt" \
+                                               --config_path="${out_dir}/config.txt"
+  fi
   # as the input for learn-bpe the text should be without any
   # tokens not desirable to be merged, therefore each player_token (which is 
   # enclosed in <<<player_token>>> after preprocessing) is gonna be removed

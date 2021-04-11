@@ -70,6 +70,70 @@ name_transformations = {
     "New Orleans": ["New_Orleans"],
     "San Antonio": ["San_Antonio"]
 }
+city_names = [
+    "Oklahoma_City",
+    "Golden_State",
+    "New_York",
+    "Los_Angeles",
+    "New_Orleans",
+    "San_Antonio",
+    "Sacramento",
+    "Philadelphia",
+    "Houston",
+    "Denver",
+    "Brooklyn",
+    "Milwaukee",
+    "Orlando",
+    "Dallas",
+    "Boston",
+    "Minnesota",
+    "Utah",
+    "Washington",
+    "Detroit",
+    "Miami",
+    "Atlanta",
+    "Toronto",
+    "Memphis",
+    "Portland",
+    "Charlotte",
+    "Phoenix",
+    "Indiana",
+    "Chicago",
+    "Cleveland"
+]
+
+team_names = [
+    "Kings",
+    "76ers",
+    "Rockets",
+    "Nuggets",
+    "Nets",
+    "Bucks",
+    "Magic",
+    "Thunder",
+    "Warriors",
+    "Lakers",
+    "Clippers",
+    "Mavericks",
+    "Celtics",
+    "Timberwolves",
+    "Jazz",
+    "Knicks",
+    "Wizzards",
+    "Pistons",
+    "Heat",
+    "Hawks",
+    "Raptors",
+    "Grizzlies",
+    "Trail_Blazers",
+    "Pelicans",
+    "Hornets",
+    "Suns",
+    "Pacers",
+    "Spurs",
+    "Bulls",
+    "Cavaliers"
+]
 
 
 def transform_city_name(city_name):
@@ -358,7 +422,9 @@ class Summary:
             extracted += self.extract_entities(s, entities_set)
         return extracted
 
-    def transform(self, transformations):
+    def transform( self
+                 , transformations
+                 , lowercase=False):
         new_list_of_words = []
         ix = 0
         length = len(self._list_of_words)
@@ -373,7 +439,8 @@ class Summary:
                     found = True
                     break
             if not found:
-                new_list_of_words.append(self._list_of_words[ix])
+                new_list_of_words.append(self._list_of_words[ix].lower() if lowercase
+                                         else self._list_of_words[ix])
                 ix += 1
         self._list_of_words = new_list_of_words
 
@@ -460,7 +527,10 @@ def extract_players_from_summaries( matches
                                   , logger
                                   , transform_player_names=False
                                   , prepare_for_bpe_training=False
-                                  , prepare_for_bpe_application=False):
+                                  , prepare_for_bpe_application=False
+                                  , lowercase=False
+                                  , exception_cities=False
+                                  , exception_teams=False):
     def dict_to_set(dct):
         result = set(dct.keys())
         for k in list(result):
@@ -534,16 +604,33 @@ def extract_players_from_summaries( matches
                         player_in_summary_dict.add(transformations[candidate])
                         break
 
+        #TODO : DRY
         if prepare_for_bpe_training:
             for key in transformations.keys():
                 transformations[key] = ""
+
+            if exception_cities:
+                for city_name in city_names:
+                    transformations[city_name] = f""
+
+            if exception_teams:
+                for team_name in team_names:
+                    transformations[team_name] = f""
 
         if prepare_for_bpe_application:
             for key in transformations.keys():
                 transformations[key] = f"<<<{transformations[key]}>>>"
 
+            if exception_cities:
+                for city_name in city_names:
+                    transformations[city_name] = f"<<<{city_name}>>>"
+
+            if exception_teams:
+                for team_name in team_names:
+                    transformations[team_name] = f"<<<{team_name}>>>"
+
         if transform_player_names or prepare_for_bpe_training or prepare_for_bpe_application:
-            match.summary.transform(transformations)
+            match.summary.transform(transformations, lowercase)
 
     return player_in_summary_dict
 
@@ -762,6 +849,9 @@ def extract_summaries_from_json( json_file_path
                                , transform_player_names=False
                                , prepare_for_bpe_training=False
                                , prepare_for_bpe_application=False
+                               , lowercase=False
+                               , exception_cities=False
+                               , exception_teams=False
                                , all_named_entities: OccurrenceDict = None
                                , cell_dict_overall: OccurrenceDict = None):
     word_dict = OccurrenceDict()
@@ -780,13 +870,16 @@ def extract_summaries_from_json( json_file_path
     for match in matches:
        if max_table_length < len(match.records): max_table_length = len(match.records)
 
-    if transform_player_names or prepare_for_bpe_training or prepare_for_bpe_application:
+    if transform_player_names or prepare_for_bpe_training or prepare_for_bpe_application or lowercase:
         tmp_dict = extract_players_from_summaries( matches
                                                  , player_dict
                                                  , logger
                                                  , transform_player_names=transform_player_names
                                                  , prepare_for_bpe_training=prepare_for_bpe_training
-                                                 , prepare_for_bpe_application=prepare_for_bpe_application)
+                                                 , prepare_for_bpe_application=prepare_for_bpe_application
+                                                 , lowercase=lowercase
+                                                 , exception_cities=exception_cities
+                                                 , exception_teams=exception_teams)
 
     count = 0
     # save named entities from the summaries and table
@@ -854,7 +947,10 @@ def gather_json_stats(json_file_path, logger, train_word_dict=None, transform_pl
                                        , word_dict=word_dict)
 
     ll = Logger(log=False)
-    player_in_summary_dict = extract_players_from_summaries(matches, player_dict, ll, transform_player_names=transform_player_names)
+    player_in_summary_dict = extract_players_from_summaries( matches
+                                                           , player_dict
+                                                           , ll
+                                                           , transform_player_names=transform_player_names)
     
     for match in matches:
         # collect summary statistics
@@ -1004,6 +1100,21 @@ def _create_parser():
         action='store_true'
     )
     extract_summaries_parser.add_argument(
+        "--lowercase",
+        help="lowercase all the tokens in the summaries except for the special ones",
+        action='store_true'
+    )
+    extract_summaries_parser.add_argument(
+        "--exception_cities",
+        help="apply bpe-application or bpe-training transformations also to city names",
+        action='store_true'
+    )
+    extract_summaries_parser.add_argument(
+        "--exception_teams",
+        help="apply bpe-application or bpe-training transformations also to team names",
+        action='store_true'
+    )
+    extract_summaries_parser.add_argument(
         "--entity_vocab_path",
         type=str,
         help="where to save the list of all the players mentioned in the summaries",
@@ -1083,6 +1194,9 @@ def _main():
                 transform_player_names=args.transform_players,
                 prepare_for_bpe_training=args.prepare_for_bpe_training,
                 prepare_for_bpe_application=args.prepare_for_bpe_application,
+                exception_cities=args.exception_cities,
+                exception_teams=args.exception_teams,
+                lowercase=args.lowercase,
                 all_named_entities=all_named_entities,
                 cell_dict_overall=cell_dict_overall
             )
