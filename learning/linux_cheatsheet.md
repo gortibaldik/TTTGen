@@ -2,14 +2,14 @@
 
 ## Using `tar`
 - create `tar.gz` (compressed tar) archive : `tar -czvf <archive_name> <path to directory which should be comprimed>`
-<br>
+
 | `c`               | `z`                    | `v`     | `f`                  |
 |-------------------|------------------------|---------|----------------------|
 | create an archive | use `gzip` compression | verbose | specify archive name |
 <br>
 - extract from `tar.gz` archive: `tar -xzvf <archive_name> -C <directory where to extract>`
 - extract from `tar.bz2` archive: `tar -xjvf <archive_name> -C <directory where to extract>`
-<br>
+
 | `x`                           | `C`                                       | `j`                            |
 |-------------------------------|-------------------------------------------|--------------------------------|
 | extract from the `gz` archive | change to directory before doing anything | extract from the `bz2` archive |
