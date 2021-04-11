@@ -1,5 +1,5 @@
 from .model import Encoder
-from .layers import DecoderRNNCell
+from .layers import DecoderRNNCell, DotAttention, ConcatAttention
 import tensorflow as tf
 import time
 import os
@@ -63,6 +63,7 @@ def train( train_dataset
          , learning_rate
          , epochs
          , eos
+         , attention_type=ConcatAttention
          , val_save_path : str = None
          , ix_to_tk : dict = None
          , val_dataset = None
@@ -80,7 +81,8 @@ def train( train_dataset
     decoderRNNCell = DecoderRNNCell( word_vocab_size
                                    , word_emb_dim
                                    , hidden_size
-                                   , batch_size)
+                                   , batch_size
+                                   , attention=attention_type)
     optimizer = tf.keras.optimizers.Adam()
     loss_object = tf.keras.losses.SparseCategoricalCrossentropy( from_logits=False
                                                                , reduction='none')

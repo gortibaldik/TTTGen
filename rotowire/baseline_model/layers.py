@@ -68,12 +68,29 @@ class DotAttention(tf.keras.layers.Layer):
         context = tf.reduce_sum(tf.expand_dims(alignment, -1) * all_encs, axis=1)
         return context, alignment
 
+class ConcatAttention(tf.keras.layers.Layer):
+    def __init__(self, units):
+        super(ConcatAttention, self).__init__()
+        self.W1 = tf.keras.layers.Dense(units)
+        self.W2 = tf.keras.layers.Dense(units)
+        self.V = tf.keras.layers.Dense(1)
+
+    def call(self, actual_hidden, enc_hidden):
+        actual_hidden_extended = tf.expand_dims(actual_hidden, 1)
+        score = self.V(tf.nn.tanh(
+                      self.W1(actual_hidden_extended) + self.W2(enc_hidden)))
+        alignment_vector = tf.nn.softmax(score, axis=1)
+        context_vector = tf.reduce_sum(alignment_vector * enc_hidden, axis=1)
+
+        return context_vector, alignment_vector
+
 class DecoderRNNCell(tf.keras.layers.Layer):
     def __init__( self
                 , word_vocab_size
                 , word_emb_dim
                 , decoder_rnn_dim
-                , batch_size):
+                , batch_size
+                , attention):
         super(DecoderRNNCell, self).__init__()
         self._word_emb_dim = word_emb_dim
         self._embedding = tf.keras.layers.Embedding(word_vocab_size, word_emb_dim)
@@ -85,7 +102,7 @@ class DecoderRNNCell(tf.keras.layers.Layer):
                                           , activation='tanh')
         self._fc_2 = tf.keras.layers.Dense( word_vocab_size
                                           , activation='softmax')
-        self._attention = DotAttention()
+        self._attention = attention()
         self._batch_size = batch_size
         self._hidden_size = decoder_rnn_dim
         self._enc_outs = None
