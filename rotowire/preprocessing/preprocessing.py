@@ -377,7 +377,7 @@ class Summary:
             word_dict.add(token)
 
     @staticmethod
-    def _transform_words(list_of_words):
+    def _transform_words(list_of_words, words_limit=None):
         summary = join_strings(*list_of_words)
         sentences = [Summary.transform_numbers(s) for s in nltk_tok.sent_tokenize(summary)]
         result = []
@@ -391,20 +391,25 @@ class Summary:
                 else:
                     tokens.append(token)
             ix = 0
+            candidate_sentence = []
             # transform dataset faults
             while ix < len(tokens):
                 found = False
                 for r in range(5, 0, -1):
                     multi_tokens = " ".join(tokens[ix:ix+r])
                     if multi_tokens in name_transformations:
-                        result += name_transformations[multi_tokens]
+                        candidate_sentence += name_transformations[multi_tokens]
                         found = True
                         ix += r
                         break
 
                 if not found:
-                    result.append(tokens[ix])
+                    candidate_sentence.append(tokens[ix])
                     ix += 1
+            if (words_limit is not None) and (len(result) + len(candidate_sentence) > words_limit):
+                break
+            else:
+                result += candidate_sentence
 
         return result
 
@@ -449,8 +454,9 @@ class Summary:
 
     def __init__( self
                 , list_of_words
-                , word_dict):
-        self._list_of_words = self._transform_words(list_of_words)
+                , word_dict
+                , words_limit=None):
+        self._list_of_words = self._transform_words(list_of_words, words_limit=words_limit)
         self.collect_tokens(word_dict)
 
     def __str__(self):
@@ -470,7 +476,8 @@ class MatchStat:
                 , team_name_dict : OccurrenceDict = _placeholder_dict
                 , cell_dict : OccurrenceDict = _placeholder_dict
                 , word_dict : OccurrenceDict = None
-                , process_summary : bool = True):
+                , process_summary : bool = True
+                , words_limit : int = None):
         dct = EnumDict(match_dict)
         if not self._is_summary_valid(dct):
             return
@@ -489,7 +496,9 @@ class MatchStat:
         self.vis_name = dct[MatchStatEntries.vis_name]
         self.records = self.box_score.records + self.home_line.records + self.vis_line.records
         if process_summary:
-            self.summary = Summary(dct[MatchStatEntries.summary], word_dict)
+            self.summary = Summary( dct[MatchStatEntries.summary]
+                                  , word_dict
+                                  , words_limit=words_limit)
 
     def _is_summary_valid(self, dct):
         if "Lorem" in dct[MatchStatEntries.summary]:
@@ -852,6 +861,7 @@ def extract_summaries_from_json( json_file_path
                                , lowercase=False
                                , exception_cities=False
                                , exception_teams=False
+                               , words_limit=None
                                , all_named_entities: OccurrenceDict = None
                                , cell_dict_overall: OccurrenceDict = None):
     word_dict = OccurrenceDict()
@@ -865,7 +875,8 @@ def extract_summaries_from_json( json_file_path
                                        , city_dict=city_dict
                                        , team_name_dict=team_name_dict
                                        , cell_dict=cell_dict
-                                       , word_dict=word_dict)
+                                       , word_dict=word_dict
+                                       , words_limit=words_limit)
     max_table_length = 0
     for match in matches:
        if max_table_length < len(match.records): max_table_length = len(match.records)
@@ -1115,6 +1126,12 @@ def _create_parser():
         action='store_true'
     )
     extract_summaries_parser.add_argument(
+        "--words_limit",
+        help="limits the size of the extracted summaries",
+        default=None,
+        type=int
+    )
+    extract_summaries_parser.add_argument(
         "--entity_vocab_path",
         type=str,
         help="where to save the list of all the players mentioned in the summaries",
@@ -1197,6 +1214,7 @@ def _main():
                 exception_cities=args.exception_cities,
                 exception_teams=args.exception_teams,
                 lowercase=args.lowercase,
+                words_limit=args.words_limit,
                 all_named_entities=all_named_entities,
                 cell_dict_overall=cell_dict_overall
             )

@@ -26,6 +26,7 @@ if [ ! -f "${out_dir}/train_pfa.txt" ]; then
   if [ -z "$advanced_transformations" ]; then
     python3 preprocessing.py "${rotowire_dir}" --only_train \
                                                extract_summaries \
+                                               --words_limit=160
                                                --output_dir="${out_dir}" \
                                                --transform_players \
                                                --prepare_for_bpe_application \
@@ -35,6 +36,7 @@ if [ ! -f "${out_dir}/train_pfa.txt" ]; then
   else
     python3 preprocessing.py "${rotowire_dir}" --only_train \
                                                extract_summaries \
+                                               --words_limit=160 \
                                                --output_dir="${out_dir}" \
                                                --transform_players \
                                                --prepare_for_bpe_application \

@@ -35,12 +35,14 @@ do
     if [ -z "$advanced_transformations" ]; then
       python3 preprocessing.py "${rotowire_dir}" --only_set="${f}" \
                                                 extract_summaries \
+                                                --words_limit=160 \
                                                 --output_dir="${out_dir}" \
                                                 --transform_players \
                                                 --prepare_for_bpe_application
     else
       python3 preprocessing.py "${rotowire_dir}" --only_set="${f}" \
                                                  extract_summaries \
+                                                 --words_limit=160 \
                                                  --lowercase \
                                                  --exception_cities \
                                                  --exception_teams \
