@@ -40,6 +40,7 @@ def evaluate( dataset
             , max_sum_size
             , ix_to_tk
             , output_dir
+            , eos
             , encoder
             , decoderRNNCell):
     start = time.time()
@@ -61,9 +62,11 @@ def evaluate( dataset
         for rp, tgt in zip(result_preds, summaries[:, 1:max_sum_size+1]):
             # find the first occurrence of padding
             # one index before it is <<EOS>> token
-            tpl = np.nonzero(tgt == 0)[0]
+            tpl = np.nonzero(tgt == eos)[0]
             ix = tpl[0] if len(tpl) > 0 else max_sum_size
             targets_for_bleu.append([ix_to_tk[i] for i in tgt.numpy()[:ix]])
+            tpl = np.nonzero(rp == eos)[0]
+            ix = tpl[0] if len(tpl) > 0 else ix
             predictions_for_bleu.append([ix_to_tk[i] for i in rp[:ix]])
         if num % ten_percent == 0:
             print("=", end="")

@@ -62,6 +62,7 @@ def train( train_dataset
          , hidden_size
          , learning_rate
          , epochs
+         , eos
          , val_save_path : str = None
          , ix_to_tk : dict = None
          , val_dataset = None
@@ -128,6 +129,7 @@ def train( train_dataset
                 , max_sum_size
                 , ix_to_tk
                 , val_save_path
+                , eos
                 , encoder
                 , decoderRNNCell)
         train_accurracy_metrics.reset_states()
