@@ -7,7 +7,6 @@ import numpy as np
 import time
 import os
 
-
 def eval_step( batch_data
              , encoder
              , decoderRNNCell
@@ -37,7 +36,6 @@ def eval_step( batch_data
 def evaluate( dataset
             , steps
             , batch_size
-            , max_sum_size
             , ix_to_tk
             , output_dir
             , eos
@@ -53,12 +51,13 @@ def evaluate( dataset
     for num, batch_data in enumerate(dataset.take(steps)):
         summaries, *tables = batch_data
         sums = tf.expand_dims(summaries, axis=-1)
+        max_sum_size = summaries.shape[1] - 1
         batch_data = (sums[:, :max_sum_size, :], summaries[:, 1:max_sum_size+1], *tables)
         result_preds =  eval_step( batch_data
-                                  , encoder
-                                  , decoderRNNCell
-                                  , batch_size
-                                  , eval_accuracy_metrics)
+                                 , encoder
+                                 , decoderRNNCell
+                                 , batch_size
+                                 , eval_accuracy_metrics)
         for rp, tgt in zip(result_preds, summaries[:, 1:max_sum_size+1]):
             # find the first occurrence of padding
             # one index before it is <<EOS>> token

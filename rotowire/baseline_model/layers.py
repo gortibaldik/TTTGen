@@ -43,7 +43,7 @@ class MLPEncodingCell(tf.keras.layers.Layer):
         :param input_size: embedding dimension
         """
         super(MLPEncodingCell, self).__init__()
-        self._MLP = tf.keras.layers.Dense(hidden_size)
+        self._MLP = tf.keras.layers.Dense(hidden_size, activation='relu')
         self.hidden_size = hidden_size
         self.input_size = input_size
         self.state_size = tf.TensorShape([self.hidden_size])

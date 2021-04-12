@@ -1,5 +1,6 @@
 from .model import Encoder
 from .layers import DecoderRNNCell, DotAttention, ConcatAttention
+from .evaluation import evaluate
 import tensorflow as tf
 import time
 import os
@@ -23,15 +24,17 @@ class TrainStepWrapper:
                   , decoderRNNCell
                   , decoderRNN
                   , train_accurracy_metrics
-                  , train_scc_metrics):
+                  , train_scc_metrics
+                  , initial_state=None):
         loss = 0
         dec_input, targets, *tables = batch_data
         with tf.GradientTape() as tape:
             enc_outs, *last_hidden_rnn = encoder(tables)
-            initial_state = [last_hidden_rnn[-1], *last_hidden_rnn]
+            if initial_state is None:
+                initial_state = [last_hidden_rnn[-1], *last_hidden_rnn]
             decoderRNNCell.initialize_enc_outs(enc_outs)
 
-            outputs = decoderRNN( dec_input, initial_state=initial_state)
+            outputs, *states = decoderRNN( dec_input, initial_state=initial_state)
             loss += loss_function( outputs
                                  , targets
                                  , loss_object
@@ -45,13 +48,12 @@ class TrainStepWrapper:
         mask = tf.math.logical_not(tf.math.equal(targets, 0))
         train_accurracy_metrics.update_state(targets, outputs, sample_weight=mask)
 
-        return batch_loss
+        return batch_loss, states
 
 def train( train_dataset
          , train_steps_per_epoch
          , checkpoint_dir
          , batch_size
-         , max_sum_size
          , word_emb_dim
          , word_vocab_size
          , tp_emb_dim
@@ -63,6 +65,7 @@ def train( train_dataset
          , learning_rate
          , epochs
          , eos
+         , truncation_size
          , attention_type=ConcatAttention
          , val_save_path : str = None
          , ix_to_tk : dict = None
@@ -94,12 +97,13 @@ def train( train_dataset
         checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
     
     decoderRNN = tf.keras.layers.RNN( decoderRNNCell
-                                    , return_sequences=True)
+                                    , return_sequences=True
+                                    , return_state=True)
     train_accurracy_metrics = tf.keras.metrics.SparseCategoricalAccuracy()
     train_scc_metrics = tf.keras.metrics.SparseCategoricalCrossentropy()
     tsw = TrainStepWrapper()
     for epoch in range(epochs):
-        start = time.time()
+        start_time = time.time()
         print(f"-- started {epoch + 1}. epoch", flush=True)
 
         total_loss = 0
@@ -107,16 +111,34 @@ def train( train_dataset
         for (num, batch_data) in enumerate(train_dataset.take(train_steps_per_epoch)):
             summaries, *tables = batch_data
             sums = tf.expand_dims(summaries, axis=-1)
-            batch_data = (sums[:, :max_sum_size, :], summaries[:, 1:max_sum_size+1], *tables)
-            batch_loss = tsw.train_step( batch_data
-                                       , loss_object
-                                       , optimizer
-                                       , encoder
-                                       , decoderRNNCell
-                                       , decoderRNN
-                                       , train_accurracy_metrics
-                                       , train_scc_metrics)
-            total_loss += batch_loss
+            start = 0
+            length = summaries.shape[1]
+            state = None
+            for end in range(truncation_size, length-1, truncation_size):
+                truncated_data = (sums[:, start:end, :], summaries[:, start+1:end+1], *tables)
+                batch_loss, state =  tsw.train_step( truncated_data
+                                                   , loss_object
+                                                   , optimizer
+                                                   , encoder
+                                                   , decoderRNNCell
+                                                   , decoderRNN
+                                                   , train_accurracy_metrics
+                                                   , train_scc_metrics
+                                                   , initial_state=state)
+                total_loss += batch_loss
+                start = end
+            if length % truncation_size != 0:
+                truncated_data = (sums[:, start:length-1, :], summaries[:, start+1:length], *tables)
+                batch_loss, state = tsw.train_step( truncated_data
+                                                  , loss_object
+                                                  , optimizer
+                                                  , encoder
+                                                  , decoderRNNCell
+                                                  , decoderRNN
+                                                  , train_accurracy_metrics
+                                                  , train_scc_metrics
+                                                  , initial_state=state)
+                total_loss += batch_loss
 
             if num % 50 == 0:
                 print(f'Epoch {epoch + 1} Batch {num} Loss {train_scc_metrics.result():.4f}'+
@@ -124,11 +146,10 @@ def train( train_dataset
 
         # saving the model every epoch
         checkpoint.save(file_prefix=checkpoint_prefix)
-        print(f"Epoch {epoch + 1} duration : {time.time() - start}", flush=True)
+        print(f"Epoch {epoch + 1} duration : {time.time() - start_time}", flush=True)
         evaluate( val_dataset
                 , val_steps
                 , batch_size
-                , max_sum_size
                 , ix_to_tk
                 , val_save_path
                 , eos
