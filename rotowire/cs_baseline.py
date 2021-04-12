@@ -15,6 +15,7 @@ def _create_parser():
     parser.add_argument('--attention_type', type=str, default="dot")
     parser.add_argument('--truncation_size', type=int, default=100)
     parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--dropout_rate', type=float, default=0.5)
     return parser
 
 def _main(args):
@@ -72,6 +73,7 @@ def _main(args):
          , args.epochs
          , eos
          , args.truncation_size
+         , args.dropout_rate
          , attention
          , args.path
          , ix_to_tk

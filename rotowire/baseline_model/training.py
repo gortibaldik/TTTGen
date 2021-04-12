@@ -34,7 +34,9 @@ class TrainStepWrapper:
                 initial_state = [last_hidden_rnn[-1], *last_hidden_rnn]
             decoderRNNCell.initialize_enc_outs(enc_outs)
 
-            outputs, *states = decoderRNN( dec_input, initial_state=initial_state)
+            outputs, *states = decoderRNN( dec_input
+                                         , initial_state=initial_state
+                                         , training=True)
             loss += loss_function( outputs
                                  , targets
                                  , loss_object
@@ -66,6 +68,7 @@ def train( train_dataset
          , epochs
          , eos
          , truncation_size
+         , dropout_rate
          , attention_type=ConcatAttention
          , val_save_path : str = None
          , ix_to_tk : dict = None
@@ -85,7 +88,8 @@ def train( train_dataset
                                    , word_emb_dim
                                    , hidden_size
                                    , batch_size
-                                   , attention=attention_type)
+                                   , attention=attention_type
+                                   , dropout_rate=dropout_rate)
     optimizer = tf.keras.optimizers.Adam()
     loss_object = tf.keras.losses.SparseCategoricalCrossentropy( from_logits=False
                                                                , reduction='none')

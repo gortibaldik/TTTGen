@@ -21,7 +21,9 @@ def eval_step( batch_data
     result_preds = np.zeros(targets.shape, dtype=np.int)
 
     for t in range(targets.shape[1]):
-        pred, initial_state = decoderRNNCell(dec_in, initial_state)
+        pred, initial_state = decoderRNNCell( dec_in
+                                            , initial_state
+                                            , training=False)
         predicted_ids = tf.argmax(pred, axis=1).numpy()
         result_preds[:, t] = predicted_ids
         dec_in = tf.expand_dims(predicted_ids, 1)

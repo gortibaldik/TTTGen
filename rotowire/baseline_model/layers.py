@@ -90,14 +90,17 @@ class DecoderRNNCell(tf.keras.layers.Layer):
                 , word_emb_dim
                 , decoder_rnn_dim
                 , batch_size
-                , attention):
+                , attention
+                , dropout_rate=0):
         super(DecoderRNNCell, self).__init__()
         self._word_emb_dim = word_emb_dim
         self._embedding = tf.keras.layers.Embedding(word_vocab_size, word_emb_dim)
         self._rnn_1 = tf.keras.layers.LSTMCell( decoder_rnn_dim
-                                              , recurrent_initializer='glorot_uniform')
+                                              , recurrent_initializer='glorot_uniform'
+                                              , dropout=dropout_rate)
         self._rnn_2 = tf.keras.layers.LSTMCell( decoder_rnn_dim
-                                              , recurrent_initializer='glorot_uniform')
+                                              , recurrent_initializer='glorot_uniform'
+                                              , dropout=dropout_rate)
         self._fc_1 = tf.keras.layers.Dense( decoder_rnn_dim
                                           , activation='tanh')
         self._fc_2 = tf.keras.layers.Dense( word_vocab_size
@@ -118,13 +121,13 @@ class DecoderRNNCell(tf.keras.layers.Layer):
     def get_last_alignment(self):
         return self._last_alignment
 
-    def call(self, x, states):
+    def call(self, x, states, training=False):
         emb = self._embedding(x)
         emb = tf.squeeze(emb)
         last_hidden_attn, h1, c1, h2, c2 = states
         emb_att = tf.concat([emb, last_hidden_attn], axis=-1)
-        seq_output, (h1, c1) = self._rnn_1( emb_att, (h1, c1))
-        seq_output, (h2, c2) = self._rnn_2( seq_output, (h2, c2))
+        seq_output, (h1, c1) = self._rnn_1( emb_att, (h1, c1), training=training)
+        seq_output, (h2, c2) = self._rnn_2( seq_output, (h2, c2), training=training)
         context, self._last_alignment = self._attention(h2, self._enc_outs)
         concat_ctxt_h2 = tf.concat([context, h2], axis=-1)
         hidden_att = self._fc_1(concat_ctxt_h2)
