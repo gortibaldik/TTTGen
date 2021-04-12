@@ -21,6 +21,7 @@
 - Massive Exploration of Neural Machine Translation Architectures :  https://arxiv.org/pdf/1703.03906.pdf
 - broad tutorial on seq2seq architectures : https://arxiv.org/pdf/1703.01619.pdf
 - Byte Pair Encoding: [blog of Lei Mao](https://leimao.github.io/blog/Byte-Pair-Encoding/), [paper (Sennrich et al.)](https://www.aclweb.org/anthology/P16-1162/), [code released by Sennrich et al.](https://github.com/rsennrich/subword-nmt)
+- teacher forcing, implementation of attention mechanisms in pytorch: [code in pytorch](https://github.com/spro/practical-pytorch/tree/master/seq2seq-translation), [paper about scheduled sampling](https://arxiv.org/pdf/1506.03099.pdf)
 
 ### existing Seq2Seq neural frameworks
 - openNMT, looks like the best solution using tensorflow : https://github.com/OpenNMT/OpenNMT-tf
@@ -37,6 +38,10 @@
 - Neural Text Generation from Structured Data with Application to the Biography Domain : https://www.aclweb.org/anthology/D16-1128.pdf
 - Table-to-text Generation by Structure-aware Seq2seq Learning : [paper](https://arxiv.org/pdf/1711.09724.pdf), [code](https://github.com/tyliupku/wiki2bio), [code in newer tf api](https://github.com/Parth27/Data2Text)
 - table to text : http://www.macs.hw.ac.uk/InteractionLab/E2E/final_papers/E2E-Chen.pdf
+- copyNet code : https://github.com/lspvic/CopyNet/blob/master/copynet.py
+- copyNet paper : https://arxiv.org/abs/1603.06393
+- reference-aware language models : https://arxiv.org/pdf/1611.01628.pdf
+- SO on negative sampling : [SO](https://stackoverflow.com/questions/37671974/tensorflow-negative-sampling), [tf](https://www.tensorflow.org/extras/candidate_sampling.pdf)
 
 ------------------
 
@@ -45,6 +50,7 @@
 - Data-to-Text Generation with Content Selection and Planning [paper](https://arxiv.org/pdf/1809.00582.pdf), [code](https://github.com/ratishsp/data2text-plan-py)
 - Information Extraction from Rotowire summaries [code](https://github.com/ratishsp/data2text-1) 
 - A Hierarchical Model for Data-to-Text Generation [paper](https://arxiv.org/pdf/1912.10011v1.pdf), [code](https://github.com/KaijuML/data-to-text-hierarchical)
+- Reference aware language models - how to encode individual dataset record into a representation understandable by neural net [paper](https://arxiv.org/abs/1611.01628)
 
 ------------------
 
@@ -61,6 +67,8 @@
 - analysis of `tf.function` : [part1](https://pgaleone.eu/tensorflow/tf.function/2019/03/21/dissecting-tf-function-part-1/), [part2](https://pgaleone.eu/tensorflow/tf.function/2019/04/03/dissecting-tf-function-part-2/)
 - discussion about the issue I faced (training multiple independent models using the same `tf.function`) [stack_overflow](https://stackoverflow.com/questions/60704587/training-multiple-models-defined-from-the-same-class-in-tensorflow-2-0-fails-whe)
 - [custom RNN cells](https://www.tensorflow.org/guide/keras/rnn#rnn_layers_and_rnn_cells)
+- [tf keras metrics](https://neptune.ai/blog/keras-metrics)
+- [custom training loop](https://www.tensorflow.org/guide/keras/writing_a_training_loop_from_scratch)
 
 --------------
 
