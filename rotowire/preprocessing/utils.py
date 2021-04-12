@@ -190,7 +190,7 @@ class OccurrenceDict:
 
     @classmethod
     def load(cls, file_path, basic_dict : bool = False):
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf8') as f:
             file_content = f.read().strip().split('\n')
         result = cls()
         for ix, line in enumerate(file_content):
