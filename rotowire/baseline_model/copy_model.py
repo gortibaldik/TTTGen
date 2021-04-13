@@ -6,26 +6,26 @@ class Decoder(tf.keras.Model):
                 , word_vocab_size
                 , word_emb_dim
                 , decoder_rnn_dim
-                , batch_size):
+                , batch_size
+                , attention):
         super(Decoder, self).__init__()
         self._word_vocab_size = word_vocab_size
         self._embedding = tf.keras.layers.Embedding(word_vocab_size, word_emb_dim)
-        self._rnn_1 = tf.keras.layers.LSTM( decoder_rnn_dim
-                                          , return_sequences=True
-                                          , return_state=True
-                                          , recurrent_initializer='glorot_uniform')
-        self._rnn_2 = tf.keras.layers.LSTM( decoder_rnn_dim
-                                          , return_sequences=True
-                                          , return_state=True
-                                          , recurrent_initializer='glorot_uniform')
+        self._rnn_1 = tf.keras.layers.LSTMCell( decoder_rnn_dim
+                                              , recurrent_initializer='glorot_uniform')
+        self._rnn_2 = tf.keras.layers.LSTMCell( decoder_rnn_dim
+                                              , recurrent_initializer='glorot_uniform')
         self._fc_1 = tf.keras.layers.Dense( decoder_rnn_dim
                                           , activation='tanh')
         self._fc_2 = tf.keras.layers.Dense( word_vocab_size
                                           , activation='softmax')
         self._fc_3 = tf.keras.layers.Dense( 1
                                           , activation='sigmoid')
-        self._attention = DotAttention()
+        self._attention = attention()
         self._batch_size = batch_size
+        self._hidden_size = decoder_rnn_dim
+        self._enc_outs = None
+        self.state_size = []
     
     def call(self, encoder_x, x, last_hidden_rnn, last_hidden_att, encoder_outputs):
         encoder_x = tf.one_hot(encoder_x, self._word_vocab_size)
