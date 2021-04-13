@@ -26,7 +26,7 @@ class Encoder(tf.keras.Model):
         self._rnncell = MLPEncodingCell(hidden_size, emb_size)
         self._rnn = tf.keras.layers.RNN(self._rnncell, return_sequences=True, return_state=True)
         self._pooling = tf.keras.layers.AveragePooling1D(pool_size=entity_span)
-        self._linear_transform = tf.keras.layers.Dense(4*hidden_size, use_bias=False)
+        self._linear_transform = tf.keras.layers.Dense(4*hidden_size, use_bias=False, name="linear_transform")
         self._batch_size = batch_size
 
     def change_batch_size(self, new_batch_size : int):

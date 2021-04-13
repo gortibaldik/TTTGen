@@ -12,8 +12,11 @@ def _create_parser():
     parser.add_argument('--tp_emb_dim', type=int, default=600)
     parser.add_argument('--ha_emb_dim', type=int, default=600)
     parser.add_argument('--hidden_size', type=int, default=600)
-    parser.add_argument('--attention_type', type=str, default="concat")
+    parser.add_argument('--attention_type', type=str, default="dot")
+    parser.add_argument('--truncation_size', type=int, default=100)
     parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--dropout_rate', type=float, default=0.5)
+    parser.add_argument('--scheduled_sampling_rate', type=float, default=0.5)
     return parser
 
 def _main(args):
@@ -47,19 +50,18 @@ def _main(args):
 
     checkpoint_dir = os.path.join(args.path, "training_checkpoints/")
 
-    if args.attention_type="concat":
-        attention = ConcatAttention
-    elif args.attention_type="dot":
+    if args.attention_type=="concat":
+        attention = lambda: ConcatAttention(hidden_size)
+    elif args.attention_type=="dot":
         attention = DotAttention
     else:
-        attention = ConcatAttention
+        attention = DotAttention
 
     ix_to_tk = dict([(value, key) for key, value in tk_to_ix.items()])
     train( dataset
          , steps
          , checkpoint_dir
          , batch_size
-         , max_summary_size - 1
          , word_emb_dim
          , word_vocab_size
          , tp_emb_dim
@@ -68,14 +70,17 @@ def _main(args):
          , ha_vocab_size
          , entity_span
          , hidden_size
-         , 1
-         , 5
+         , 1 # right now its just a dummy value
+         , args.epochs
          , eos
-         , attention_type=attention
-         , val_save_path=args.path
-         , ix_to_tk=ix_to_tk
-         , val_dataset=val_dataset
-         , val_steps=val_steps
+         , args.truncation_size
+         , args.dropout_rate
+         , args.scheduled_sampling_rate
+         , attention
+         , args.path
+         , ix_to_tk
+         , val_dataset
+         , val_steps
          , load_last=False)
 
 

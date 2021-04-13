@@ -35,14 +35,14 @@ do
     if [ -z "$advanced_transformations" ]; then
       python3 preprocessing.py "${rotowire_dir}" --only_set="${f}" \
                                                 extract_summaries \
-                                                --words_limit=160 \
+                                                --words_limit=900 \
                                                 --output_dir="${out_dir}" \
                                                 --transform_players \
                                                 --prepare_for_bpe_application
     else
       python3 preprocessing.py "${rotowire_dir}" --only_set="${f}" \
                                                  extract_summaries \
-                                                 --words_limit=160 \
+                                                 --words_limit=900 \
                                                  --lowercase \
                                                  --exception_cities \
                                                  --exception_teams \
@@ -111,7 +111,7 @@ if [ ! -d "${dataset_dir}" ]; then
                                                --output_dir="${dataset_dir}" \
                                                --to_txt
   elif [ "$format" == "np" ]; then
-    python3 preprocessing.py "${rotowire_dir}" --log 
+    python3 preprocessing.py "${rotowire_dir}" --log \
                                                create_dataset \
                                                --preproc_summaries_dir="${out_dir}" \
                                                --output_dir="${dataset_dir}" \

@@ -7,7 +7,6 @@ import numpy as np
 import time
 import os
 
-
 def eval_step( batch_data
              , encoder
              , decoderRNNCell
@@ -16,13 +15,14 @@ def eval_step( batch_data
     dec_inputs, targets, *tables = batch_data
     enc_outs, *last_hidden_rnn = encoder(tables)
     initial_state = [last_hidden_rnn[-1], *last_hidden_rnn]
-    decoderRNNCell.initialize_enc_outs(enc_outs)
     dec_in = dec_inputs[:, 0, :] # start tokens
 
     result_preds = np.zeros(targets.shape, dtype=np.int)
 
     for t in range(targets.shape[1]):
-        pred, initial_state = decoderRNNCell(dec_in, initial_state)
+        pred, initial_state = decoderRNNCell( (dec_in, enc_outs)
+                                            , initial_state
+                                            , training=False)
         predicted_ids = tf.argmax(pred, axis=1).numpy()
         result_preds[:, t] = predicted_ids
         dec_in = tf.expand_dims(predicted_ids, 1)
@@ -37,7 +37,6 @@ def eval_step( batch_data
 def evaluate( dataset
             , steps
             , batch_size
-            , max_sum_size
             , ix_to_tk
             , output_dir
             , eos
@@ -53,12 +52,13 @@ def evaluate( dataset
     for num, batch_data in enumerate(dataset.take(steps)):
         summaries, *tables = batch_data
         sums = tf.expand_dims(summaries, axis=-1)
+        max_sum_size = summaries.shape[1] - 1
         batch_data = (sums[:, :max_sum_size, :], summaries[:, 1:max_sum_size+1], *tables)
         result_preds =  eval_step( batch_data
-                                  , encoder
-                                  , decoderRNNCell
-                                  , batch_size
-                                  , eval_accuracy_metrics)
+                                 , encoder
+                                 , decoderRNNCell
+                                 , batch_size
+                                 , eval_accuracy_metrics)
         for rp, tgt in zip(result_preds, summaries[:, 1:max_sum_size+1]):
             # find the first occurrence of padding
             # one index before it is <<EOS>> token
