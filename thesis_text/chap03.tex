@@ -1,0 +1,23 @@
+\chapter{Neural Network Architectures}
+Why only neural network approach is used - mention many authors and papers which approach the problem of NLG by making use of deep neural networks.
+
+\section{RNN}
+What it is, creating the representation of sequence, etc. etc. Gradient vanishing and gradient explosion problems.
+
+\section{LSTM}
+What it is, how it solves the mentioned problems, cite the paper Massive Exploration of Neural Machine Translation Architectures which experiments with LSTMs, GRUs and vanilla RNNs and shows that LSTMs are the most promising option for the sequence to sequence tasks.
+
+\section{Attention}
+What it is, cite Bahdanau, Luong, possible subsection about the input feeding approach. It should select the most relevant entry from the database of match statistics.
+
+\section{Copy mechanism}
+What it is, right now I've implemented only Joint Copy mechanism, possibly add Conditional Copy
+
+\section{Truncated Backpropagation Through Time}
+Why it is infeasible to generate sequences of average 350 tokens with full backpropagation. Which types of truncated BPTT exist and which I've chosen.
+
+\section{Beam search}
+Why greedy search isn't enough, what is beam search, when is it used.
+
+\section{Transformers}
+Right now I don't think I'll get this far in my exploration and implementation of DNN architectures.

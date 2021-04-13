@@ -1,0 +1,20 @@
+\chapter{Models}
+The main goal is to explore the architectures. Therefore each model is manually implemented making use of the tensorflow library
+
+\section{Tensorflow}
+What is it, mention the paper introducing it, mention other frameworks and motivation why this is the one which is used.
+
+\section{Sequence to Sequence architecture}
+Encoder, decoder. Encoder creates the representation of the input in some meta language, decoder creates the output from the representation.
+
+\section{Encoder}
+Mention the embedding and MLP encoding (the main approach used in the rotowire paper) - MLP is used instead of LSTM in the encoding process, then the 2 initial decoder states are obtained by mean pooling over the MLP encodings of the embedded source records.
+
+\section{Decoder}
+2 layer LSTM, embeddings, dimensionality.
+
+\section{Base Model}
+Seq2Seq architecture with attention, both Luong style Dot Attention and Bahdanau style Concat Attention are used, input feeding approach. Maybe some pictures.
+
+\section{Joint Copy model}
+Uses 2 attention mechanisms. Definitely some pictures.

@@ -1,0 +1,20 @@
+\chapter{The Rotowire dataset}
+Introduced in paper by Wiseman et al... Collected from \href{https://www.rotowire.com/}{rotowire.com}.
+
+\section{The statistics of the dataset}
+General statistics of the dataset before preprocessing - number of tokens, unique tokens, player names, city names. Why we want to make the number of tokens lower while keeping the ability to have rich vocabulary.
+
+\section{Cleaning}
+Lorem Ipsum as one of the summaries, the paper doesn't mention if it's used as augmentation of the dataset or if it's a bug - removed. Player initials "C.J. McCollum" in table "CJ McCollum" in text. 
+
+\section{Transformations of player names, city and team names}
+The motivation - making data denser. In a lot of summaries the player is firstly introduced "It was up to LeBron James to take over for Cleveland" and then referenced only by his surname "James finished with 27 points, 14 assists and 8 rebounds..." Many transformations were ommitted although possible. The text looks more natural if the network learns that Philladelphia is sometimes mentioned as Philly. Those nuances are left in the text.
+
+\section{Byte pair encoding}
+What it is, who introduced it. How it decreases the number of tokens.
+
+\section{Other transformations made to the dataset}
+Here I'll mention lowercasing, number transformations.
+
+\section{The statistics of the transformed dataset}
+What is achieved with the use of all the mentioned transformations. The number of unique tokens decreased almost than 4 times (11 300 to 2 900). The fraction of tokens mentioned more than 5 times increased from 47\% to 89,5\%. Highlight the differences to processing of  
