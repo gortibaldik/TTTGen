@@ -15,13 +15,12 @@ def eval_step( batch_data
     dec_inputs, targets, *tables = batch_data
     enc_outs, *last_hidden_rnn = encoder(tables)
     initial_state = [last_hidden_rnn[-1], *last_hidden_rnn]
-    decoderRNNCell.initialize_enc_outs(enc_outs)
     dec_in = dec_inputs[:, 0, :] # start tokens
 
     result_preds = np.zeros(targets.shape, dtype=np.int)
 
     for t in range(targets.shape[1]):
-        pred, initial_state = decoderRNNCell( dec_in
+        pred, initial_state = decoderRNNCell( (dec_in, enc_outs)
                                             , initial_state
                                             , training=False)
         predicted_ids = tf.argmax(pred, axis=1).numpy()

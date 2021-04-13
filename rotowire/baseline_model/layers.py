@@ -94,7 +94,9 @@ class DecoderRNNCell(tf.keras.layers.Layer):
                 , dropout_rate=0):
         super(DecoderRNNCell, self).__init__()
         self._word_emb_dim = word_emb_dim
+        self._word_vocab_size = word_vocab_size
         self._embedding = tf.keras.layers.Embedding(word_vocab_size, word_emb_dim)
+        self._generator = tf.random.Generator.from_non_deterministic_state()
         self._rnn_1 = tf.keras.layers.LSTMCell( decoder_rnn_dim
                                               , recurrent_initializer='glorot_uniform'
                                               , dropout=dropout_rate)
@@ -108,27 +110,21 @@ class DecoderRNNCell(tf.keras.layers.Layer):
         self._attention = attention()
         self._batch_size = batch_size
         self._hidden_size = decoder_rnn_dim
-        self._enc_outs = None
         self.state_size = [ tf.TensorShape([self._hidden_size]),
                             tf.TensorShape([self._hidden_size]),
                             tf.TensorShape([self._hidden_size]),
                             tf.TensorShape([self._hidden_size]),
                             tf.TensorShape([self._hidden_size])]
 
-    def initialize_enc_outs(self, enc_outs):
-        self._enc_outs = enc_outs
-    
-    def get_last_alignment(self):
-        return self._last_alignment
-
     def call(self, x, states, training=False):
+        x, enc_outs = x
         emb = self._embedding(x)
         emb = tf.squeeze(emb)
         last_hidden_attn, h1, c1, h2, c2 = states
         emb_att = tf.concat([emb, last_hidden_attn], axis=-1)
         seq_output, (h1, c1) = self._rnn_1( emb_att, (h1, c1), training=training)
         seq_output, (h2, c2) = self._rnn_2( seq_output, (h2, c2), training=training)
-        context, self._last_alignment = self._attention(h2, self._enc_outs)
+        context, _ = self._attention(h2, enc_outs)
         concat_ctxt_h2 = tf.concat([context, h2], axis=-1)
         hidden_att = self._fc_1(concat_ctxt_h2)
         result = self._fc_2(hidden_att)

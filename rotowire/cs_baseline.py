@@ -50,7 +50,7 @@ def _main(args):
     checkpoint_dir = os.path.join(args.path, "training_checkpoints/")
 
     if args.attention_type=="concat":
-        attention = ConcatAttention
+        attention = lambda: ConcatAttention(hidden_size)
     elif args.attention_type=="dot":
         attention = DotAttention
     else:
