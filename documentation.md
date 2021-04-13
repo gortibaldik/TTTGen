@@ -22,6 +22,8 @@
 - broad tutorial on seq2seq architectures : https://arxiv.org/pdf/1703.01619.pdf
 - Byte Pair Encoding: [blog of Lei Mao](https://leimao.github.io/blog/Byte-Pair-Encoding/), [paper (Sennrich et al.)](https://www.aclweb.org/anthology/P16-1162/), [code released by Sennrich et al.](https://github.com/rsennrich/subword-nmt)
 - teacher forcing, implementation of attention mechanisms in pytorch: [code in pytorch](https://github.com/spro/practical-pytorch/tree/master/seq2seq-translation), [paper about scheduled sampling](https://arxiv.org/pdf/1506.03099.pdf)
+- Neural Machine Translation with Reconstruction: [paper](https://arxiv.org/pdf/1611.01874.pdf)
+- What is perplexity : https://planspace.org/2013/09/23/perplexity-what-it-is-and-what-yours-is/
 
 ### existing Seq2Seq neural frameworks
 - openNMT, looks like the best solution using tensorflow : https://github.com/OpenNMT/OpenNMT-tf

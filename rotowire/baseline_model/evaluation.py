@@ -77,7 +77,8 @@ def evaluate( dataset
                       , smoothing_function=SmoothingFunction().method4)
     # save the predictions
     with open( os.path.join(output_dir, "predicted" + time.strftime("%Y%m%d%H%M%S") + ".txt")
-             , 'w') as f:
+             , 'w'
+             , encoding='utf8') as f:
         for prediction in predictions_for_bleu:
             print(" ".join(prediction), file=f)
     
