@@ -96,7 +96,6 @@ class DecoderRNNCell(tf.keras.layers.Layer):
         self._word_emb_dim = word_emb_dim
         self._word_vocab_size = word_vocab_size
         self._embedding = tf.keras.layers.Embedding(word_vocab_size, word_emb_dim)
-        self._generator = tf.random.Generator.from_non_deterministic_state()
         self._rnn_1 = tf.keras.layers.LSTMCell( decoder_rnn_dim
                                               , recurrent_initializer='glorot_uniform'
                                               , dropout=dropout_rate)

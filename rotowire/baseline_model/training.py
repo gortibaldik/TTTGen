@@ -1,6 +1,8 @@
 from .model import Encoder
 from .layers import DecoderRNNCell, DotAttention, ConcatAttention
 from .evaluation import evaluate
+
+import numpy as np
 import tensorflow as tf
 import time
 import os
@@ -31,7 +33,8 @@ class TrainStepWrapper:
                   , train_acc_metrics
                   , train_scc_metrics
                   , last_out
-                  , initial_state=None):
+                  , initial_state=None
+                  , scheduled_sampling_rate : float = 0.5):
         print("tracing tf.function with args:", file=sys.stderr)
         print(f"len(batch_data) : {len(batch_data)}", file=sys.stderr)
         for ix, d in enumerate(batch_data):
@@ -45,7 +48,7 @@ class TrainStepWrapper:
             print(f"initial_state[{ix}].shape : {d.shape}", file=sys.stderr)
         print(f"---\n", file=sys.stderr)
         loss = 0
-        dec_in, targets, *tables = batch_data
+        dec_in, targets, gen_or_teach, *tables = batch_data
         with tf.GradientTape() as tape:
             enc_outs, *last_hidden_rnn = encoder(tables)
             if initial_state is None:
@@ -54,7 +57,11 @@ class TrainStepWrapper:
 
             states = initial_state
             for t in range(dec_in.shape[1]):
-                last_out, states = decoderRNNCell( (dec_in[:, t, :], enc_outs)
+                if gen_or_teach[t] > scheduled_sampling_rate:
+                    _input = last_out
+                else:
+                    _input = dec_in[:, t, :]
+                last_out, states = decoderRNNCell( (_input, enc_outs)
                                                  , states=states
                                                  , training=True)
                 loss += loss_function( last_out
@@ -62,6 +69,7 @@ class TrainStepWrapper:
                                      , loss_object
                                      , train_scc_metrics
                                      , train_acc_metrics)
+                last_out = tf.expand_dims(tf.cast(tf.argmax(last_out, axis=1), tf.int16), -1)
 
         batch_loss = loss / int(targets.shape[1])
         variables = [ var for var in encoder.trainable_variables if (initial_state is None) or (var.name != 'encoder/linear_transform/kernel:0')] + decoderRNNCell.trainable_variables
@@ -88,6 +96,7 @@ def train( train_dataset
          , eos
          , truncation_size
          , dropout_rate
+         , scheduled_sampling_rate
          , attention_type=DotAttention
          , val_save_path : str = None
          , ix_to_tk : dict = None
@@ -121,6 +130,7 @@ def train( train_dataset
     train_accurracy_metrics = tf.keras.metrics.SparseCategoricalAccuracy()
     train_scc_metrics = tf.keras.metrics.SparseCategoricalCrossentropy()
     tsw = TrainStepWrapper()
+    _generator = tf.random.Generator.from_non_deterministic_state()
     for epoch in range(epochs):
         start_time = time.time()
         print(f"-- started {epoch + 1}. epoch", flush=True)
@@ -130,15 +140,18 @@ def train( train_dataset
         for (num, batch_data) in enumerate(train_dataset.take(train_steps_per_epoch)):
             summaries, *tables = batch_data
             sums = tf.expand_dims(summaries, axis=-1)
-            last_out = start=tf.one_hot( tf.cast( summaries[:, 0]
-                                                          , tf.int32)
-                                                 , word_vocab_size
-                                                 , axis=-1)
+            last_out = sums[:, 0]
             start = 0
             length = summaries.shape[1]
             state = None
             for end in range(truncation_size, length-1, truncation_size):
-                truncated_data = (sums[:, start:end, :], summaries[:, start+1:end+1], *tables)
+                gen_or_teach = np.zeros(shape=(end-start))
+                for i in range(len(gen_or_teach)):
+                    gen_or_teach[i] = _generator.uniform(shape=(), maxval=1.0)
+                truncated_data = ( sums[:, start:end, :]
+                                 , summaries[:, start+1:end+1]
+                                 , tf.convert_to_tensor(gen_or_teach)
+                                 , *tables)
                 batch_loss, state, last_out =  tsw.train_step( truncated_data
                                                              , loss_object
                                                              , optimizer
@@ -147,11 +160,18 @@ def train( train_dataset
                                                              , train_accurracy_metrics
                                                              , train_scc_metrics
                                                              , last_out
-                                                             , initial_state=state)
+                                                             , initial_state=state
+                                                             , scheduled_sampling_rate=scheduled_sampling_rate)
                 total_loss += batch_loss
                 start = end
             if length % truncation_size != 0:
-                truncated_data = (sums[:, start:length-1, :], summaries[:, start+1:length], *tables)
+                gen_or_teach = np.zeros(shape=(length-1-start))
+                for i in range(len(gen_or_teach)):
+                    gen_or_teach[i] = _generator.uniform(shape=(), maxval=1.0)
+                truncated_data = ( sums[:, start:length-1, :]
+                                 , summaries[:, start+1:length]
+                                 , tf.convert_to_tensor(gen_or_teach)
+                                 , *tables)
                 batch_loss, state, last_out = tsw.train_step( truncated_data
                                                             , loss_object
                                                             , optimizer
@@ -160,7 +180,8 @@ def train( train_dataset
                                                             , train_accurracy_metrics
                                                             , train_scc_metrics
                                                             , last_out
-                                                            , initial_state=state)
+                                                            , initial_state=state
+                                                            , scheduled_sampling_rate=scheduled_sampling_rate)
                 total_loss += batch_loss
 
             if num % 50 == 0:
