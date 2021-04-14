@@ -118,12 +118,14 @@ def train( train_dataset
                                    , batch_size
                                    , attention=attention_type
                                    , dropout_rate=dropout_rate)
-    optimizer = tf.keras.optimizers.Adam()
+    if learning_rate is None:
+        optimizer = tf.keras.optimizers.Adam()
+    else:
+        optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate)
     loss_object = tf.keras.losses.SparseCategoricalCrossentropy( from_logits=False
                                                                , reduction='none')
     checkpoint_prefix = os.path.join(checkpoint_dir, 'ckpt')
-    checkpoint = tf.train.Checkpoint( optimizer=optimizer
-                                    , encoder=encoder
+    checkpoint = tf.train.Checkpoint( encoder=encoder
                                     , decoderRNNCell=decoderRNNCell)
     if load_last:
         checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
@@ -131,6 +133,7 @@ def train( train_dataset
     train_scc_metrics = tf.keras.metrics.SparseCategoricalCrossentropy()
     tsw = TrainStepWrapper()
     _generator = tf.random.Generator.from_non_deterministic_state()
+    last_val_loss = None
     for epoch in range(epochs):
         start_time = time.time()
         print(f"-- started {epoch + 1}. epoch", flush=True)
@@ -192,13 +195,19 @@ def train( train_dataset
         # saving the model every epoch
         checkpoint.save(file_prefix=checkpoint_prefix)
         print(f"Epoch {epoch + 1} duration : {time.time() - start_time}", flush=True)
-        evaluate( val_dataset
-                , val_steps
-                , batch_size
-                , ix_to_tk
-                , val_save_path
-                , eos
-                , encoder
-                , decoderRNNCell)
+        final_val_loss = evaluate( val_dataset
+                                 , val_steps
+                                 , batch_size
+                                 , ix_to_tk
+                                 , val_save_path
+                                 , eos
+                                 , encoder
+                                 , decoderRNNCell)
+        if learning_rate is not None:
+            if (last_val_loss is not None) and (final_val_loss > (last_val_loss + 0.005)):
+                optimizer.learning_rate = 0.5 * optimizer.learning_rate
+                print(f"halving the optimizer.learning rate to {optimizer.learning_rate}")
+            last_val_loss = final_val_loss
+            
         train_accurracy_metrics.reset_states()
         train_scc_metrics.reset_states()
