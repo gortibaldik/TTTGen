@@ -1,5 +1,5 @@
 from .model import Encoder
-from .layers import DecoderRNNCell, DotAttention, ConcatAttention
+from .layers import DecoderRNNCell, DecoderRNNCellJointCopy, DotAttention, ConcatAttention
 from .evaluation import evaluate
 
 import numpy as np
@@ -46,7 +46,6 @@ class TrainStepWrapper:
         else:
           for ix, d in enumerate(initial_state):
             print(f"initial_state[{ix}].shape : {d.shape}", file=sys.stderr)
-        print(f"---\n", file=sys.stderr)
         loss = 0
         dec_in, targets, gen_or_teach, *tables = batch_data
         with tf.GradientTape() as tape:
@@ -54,6 +53,15 @@ class TrainStepWrapper:
             if initial_state is None:
                 initial_state = [ last_hidden_rnn[-1]
                                 , *last_hidden_rnn ]
+            
+            if isinstance(decoderRNNCell, DecoderRNNCellJointCopy):
+                print("using joint copy mechanism !")
+                enc_ins = tf.one_hot(tf.cast(tables[2], tf.int32), decoderRNNCell._word_vocab_size)
+                aux_inputs = (enc_outs, enc_ins) # value portion of the record needs to be copied
+            else:
+                print("using vanilla attention")
+                aux_inputs = (enc_outs,)
+            print(f"---\n", file=sys.stderr) 
 
             states = initial_state
             for t in range(dec_in.shape[1]):
@@ -61,7 +69,7 @@ class TrainStepWrapper:
                     _input = last_out
                 else:
                     _input = dec_in[:, t, :]
-                last_out, states = decoderRNNCell( (_input, enc_outs)
+                last_out, states = decoderRNNCell( (_input, *aux_inputs)
                                                  , states=states
                                                  , training=True)
                 loss += loss_function( last_out
@@ -98,6 +106,7 @@ def train( train_dataset
          , dropout_rate
          , scheduled_sampling_rate
          , attention_type=DotAttention
+         , decoderRNNInit=DecoderRNNCell
          , val_save_path : str = None
          , ix_to_tk : dict = None
          , val_dataset = None
@@ -112,7 +121,7 @@ def train( train_dataset
                      , entity_span
                      , hidden_size
                      , batch_size)
-    decoderRNNCell = DecoderRNNCell( word_vocab_size
+    decoderRNNCell = decoderRNNInit( word_vocab_size
                                    , word_emb_dim
                                    , hidden_size
                                    , batch_size
@@ -195,19 +204,20 @@ def train( train_dataset
         # saving the model every epoch
         checkpoint.save(file_prefix=checkpoint_prefix)
         print(f"Epoch {epoch + 1} duration : {time.time() - start_time}", flush=True)
-        final_val_loss = evaluate( val_dataset
-                                 , val_steps
-                                 , batch_size
-                                 , ix_to_tk
-                                 , val_save_path
-                                 , eos
-                                 , encoder
-                                 , decoderRNNCell)
-        if learning_rate is not None:
-            if (last_val_loss is not None) and (final_val_loss > (last_val_loss + 0.005)):
-                optimizer.learning_rate = 0.5 * optimizer.learning_rate
-                print(f"halving the optimizer.learning rate to {optimizer.learning_rate}")
-            last_val_loss = final_val_loss
+        if val_dataset is not None:
+            final_val_loss = evaluate( val_dataset
+                                    , val_steps
+                                    , batch_size
+                                    , ix_to_tk
+                                    , val_save_path
+                                    , eos
+                                    , encoder
+                                    , decoderRNNCell)
+            if learning_rate is not None:
+                if (last_val_loss is not None) and (final_val_loss > (last_val_loss + 0.005)):
+                    optimizer.learning_rate = 0.5 * optimizer.learning_rate
+                    print(f"halving the optimizer.learning rate to {optimizer.learning_rate}")
+                last_val_loss = final_val_loss
             
         train_accurracy_metrics.reset_states()
         train_scc_metrics.reset_states()

@@ -129,3 +129,72 @@ class DecoderRNNCell(tf.keras.layers.Layer):
         result = self._fc_2(hidden_att)
 
         return result, (hidden_att, h1, c1, h2, c2)
+
+class DecoderRNNCellJointCopy(tf.keras.layers.Layer):
+    def __init__( self
+                , word_vocab_size
+                , word_emb_dim
+                , decoder_rnn_dim
+                , batch_size
+                , attention
+                , dropout_rate=0):
+        super(DecoderRNNCellJointCopy, self).__init__()
+        self._word_emb_dim = word_emb_dim
+        self._word_vocab_size = word_vocab_size
+        self._embedding = tf.keras.layers.Embedding(word_vocab_size, word_emb_dim)
+        self._rnn_1 = tf.keras.layers.LSTMCell( decoder_rnn_dim
+                                              , recurrent_initializer='glorot_uniform'
+                                              , dropout=dropout_rate)
+        self._rnn_2 = tf.keras.layers.LSTMCell( decoder_rnn_dim
+                                              , recurrent_initializer='glorot_uniform'
+                                              , dropout=dropout_rate)
+        self._hidden_transform = tf.keras.layers.Dense( decoder_rnn_dim
+                                          , activation='tanh')
+        self._gen_prob_transform = tf.keras.layers.Dense( word_vocab_size
+                                          , activation='softmax')
+        self._fc_3 = tf.keras.layers.Dense( 1
+                                          , activation='sigmoid')
+        self._attention_copy = attention()
+        self._attention_generate = attention()
+        self._batch_size = batch_size
+        self._hidden_size = decoder_rnn_dim
+        self._last_copy_prob = None
+        self._last_gen_prob = None
+        self._last_switch = None
+        self._i = 0
+        self.state_size = [ tf.TensorShape([self._hidden_size]),
+                            tf.TensorShape([self._hidden_size]),
+                            tf.TensorShape([self._hidden_size]),
+                            tf.TensorShape([self._hidden_size]),
+                            tf.TensorShape([self._hidden_size])]
+    
+    def call(self, x, states, training=False):
+        x, enc_outs, enc_ins = x
+        last_hidden_attn, h1, c1, h2, c2 = states
+        
+        # embedding        
+        emb = self._embedding(x)
+        emb = tf.squeeze(emb)
+        emb_att = tf.concat([emb, last_hidden_attn], axis=-1)
+
+        # 2-layer LSTM decoder
+        seq_output, (h1, c1) = self._rnn_1( emb_att, (h1, c1), training=training)
+        seq_output, (h2, c2) = self._rnn_2( seq_output, (h2, c2), training=training)
+        
+        # attention for generation
+        context, _ = self._attention_generate(h2, enc_outs)
+        concat_ctxt_h2 = tf.concat([context, h2], axis=-1)
+        hidden_att = self._hidden_transform(concat_ctxt_h2)
+        self._last_gen_prob = self._gen_prob_transform(hidden_att)
+        self._last_switch = self._fc_3(hidden_att)
+    
+        # copy probabilities
+        _, alignment = self._attention_copy(h2, enc_outs)
+
+        weighted_ins = enc_ins * tf.expand_dims(alignment, -1)
+        self._last_copy_prob = tf.reduce_sum(weighted_ins, axis=1)
+
+        result = self._last_gen_prob * (tf.ones(shape=[self._batch_size, 1]) - self._last_switch) + \
+                    self._last_copy_prob * self._last_switch
+
+        return result, (hidden_att, h1, c1, h2, c2)

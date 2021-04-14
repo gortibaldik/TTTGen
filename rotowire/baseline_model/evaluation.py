@@ -1,5 +1,5 @@
 from .model import Encoder
-from .layers import DecoderRNNCell
+from .layers import DecoderRNNCell, DecoderRNNCellJointCopy
 from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 
 import tensorflow as tf
@@ -17,13 +17,19 @@ def eval_step( batch_data
     dec_inputs, targets, *tables = batch_data
     enc_outs, *last_hidden_rnn = encoder(tables)
 
+    if isinstance(decoderRNNCell, DecoderRNNCellJointCopy):
+        enc_ins = tf.one_hot(tf.cast(tables[2], tf.int32), decoderRNNCell._word_vocab_size)
+        aux_inputs = (enc_outs, enc_ins) # value portion of the record needs to be copied
+    else:
+        aux_inputs = (enc_outs,)
+
     initial_state = [last_hidden_rnn[-1], *last_hidden_rnn]
     dec_in = dec_inputs[:, 0, :] # start tokens
 
     result_preds = np.zeros(targets.shape, dtype=np.int)
 
     for t in range(targets.shape[1]):
-        pred, initial_state = decoderRNNCell( (dec_in, enc_outs)
+        pred, initial_state = decoderRNNCell( (dec_in, *aux_inputs)
                                             , initial_state
                                             , training=False)
         if not generate:
