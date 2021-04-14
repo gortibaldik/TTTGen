@@ -1,6 +1,6 @@
 from preprocessing.load_dataset import load_tf_record_dataset, load_values_from_config
 from baseline_model.training import train
-from baseline_model.layers import DotAttention, ConcatAttention
+from baseline_model.layers import DotAttention, ConcatAttention, DecoderRNNCell, DecoderRNNCellJointCopy
 from argparse import ArgumentParser
 import os
 
@@ -8,15 +8,17 @@ def _create_parser():
     parser = ArgumentParser()
     parser.add_argument('--path', type=str, required=True)
     parser.add_argument('--batch_size', type=int, default=8)
-    parser.add_argument('--word_emb_dim', type=int, default=600)
-    parser.add_argument('--tp_emb_dim', type=int, default=600)
-    parser.add_argument('--ha_emb_dim', type=int, default=600)
-    parser.add_argument('--hidden_size', type=int, default=600)
+    parser.add_argument('--word_emb_dim', type=int, default=300)
+    parser.add_argument('--tp_emb_dim', type=int, default=300)
+    parser.add_argument('--ha_emb_dim', type=int, default=300)
+    parser.add_argument('--hidden_size', type=int, default=300)
     parser.add_argument('--attention_type', type=str, default="dot")
+    parser.add_argument('--decoder_type', type=str, default="baseline")
     parser.add_argument('--truncation_size', type=int, default=100)
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--dropout_rate', type=float, default=0.5)
-    parser.add_argument('--scheduled_sampling_rate', type=float, default=0.5)
+    parser.add_argument('--scheduled_sampling_rate', type=float, default=1.0)
+    parser.add_argument('--learning_rate', type=float, default=None)
     return parser
 
 def _main(args):
@@ -24,6 +26,8 @@ def _main(args):
     train_path = os.path.join(args.path, "train.tfrecord")
     valid_path = os.path.join(args.path, "valid.tfrecord")
     vocab_path = os.path.join(args.path, "all_vocab.txt")
+    for key, value in vars(args).items():
+        print(f"{key} : {value}")
     max_table_size, max_summary_size = load_values_from_config(config_path)
     batch_size = args.batch_size
     dataset, steps, tk_to_ix, tp_to_ix, ha_to_ix, pad, bos, eos \
@@ -57,6 +61,13 @@ def _main(args):
     else:
         attention = DotAttention
 
+    if args.decoder_type=="baseline":
+        decoder_rnn = DecoderRNNCell
+    elif args.attention_type=="joint":
+        decoder_rnn = DecoderRNNCellJointCopy
+    else:
+        decoder_rnn = DecoderRNNCell
+
     ix_to_tk = dict([(value, key) for key, value in tk_to_ix.items()])
     train( dataset
          , steps
@@ -70,13 +81,14 @@ def _main(args):
          , ha_vocab_size
          , entity_span
          , hidden_size
-         , 1 # right now its just a dummy value
+         , args.learning_rate
          , args.epochs
          , eos
          , args.truncation_size
          , args.dropout_rate
          , args.scheduled_sampling_rate
          , attention
+         , decoder_rnn
          , args.path
          , ix_to_tk
          , val_dataset
