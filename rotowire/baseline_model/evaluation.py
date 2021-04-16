@@ -85,8 +85,7 @@ def evaluate( dataset
 
         if num % bleu_batches == 0:
             for rp, tgt in zip(result_preds, summaries[:, 1:max_sum_size+1]):
-                # find the first occurrence of padding
-                # one index before it is <<EOS>> token
+                # find the first occurrence of <<EOS>> token
                 tpl = np.nonzero(tgt == eos)[0]
                 ix = tpl[0] if len(tpl) > 0 else max_sum_size
                 targets_for_bleu.append([ix_to_tk[i] for i in tgt.numpy()[:ix]])

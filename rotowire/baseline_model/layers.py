@@ -109,6 +109,7 @@ class DecoderRNNCell(tf.keras.layers.Layer):
         self._attention = attention()
         self._batch_size = batch_size
         self._hidden_size = decoder_rnn_dim
+        self._last_alignment = None
         self.state_size = [ tf.TensorShape([self._hidden_size]),
                             tf.TensorShape([self._hidden_size]),
                             tf.TensorShape([self._hidden_size]),
@@ -123,7 +124,7 @@ class DecoderRNNCell(tf.keras.layers.Layer):
         emb_att = tf.concat([emb, last_hidden_attn], axis=-1)
         seq_output, (h1, c1) = self._rnn_1( emb_att, (h1, c1), training=training)
         seq_output, (h2, c2) = self._rnn_2( seq_output, (h2, c2), training=training)
-        context, _ = self._attention(h2, enc_outs)
+        context, self._last_alignment = self._attention(h2, enc_outs)
         concat_ctxt_h2 = tf.concat([context, h2], axis=-1)
         hidden_att = self._fc_1(concat_ctxt_h2)
         result = self._fc_2(hidden_att)

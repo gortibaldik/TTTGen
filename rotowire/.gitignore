@@ -12,3 +12,6 @@ rotowire/
 
 # ignore test files
 test.py
+
+# ignore result files
+results/
