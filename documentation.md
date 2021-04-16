@@ -24,6 +24,7 @@
 - teacher forcing, implementation of attention mechanisms in pytorch: [code in pytorch](https://github.com/spro/practical-pytorch/tree/master/seq2seq-translation), [paper about scheduled sampling](https://arxiv.org/pdf/1506.03099.pdf)
 - Neural Machine Translation with Reconstruction: [paper](https://arxiv.org/pdf/1611.01874.pdf)
 - What is perplexity : https://planspace.org/2013/09/23/perplexity-what-it-is-and-what-yours-is/
+- Regularisation : https://stackoverflow.com/questions/48714407/rnn-regularization-which-component-to-regularize
 
 ### existing Seq2Seq neural frameworks
 - openNMT, looks like the best solution using tensorflow : https://github.com/OpenNMT/OpenNMT-tf
@@ -71,6 +72,7 @@
 - [custom RNN cells](https://www.tensorflow.org/guide/keras/rnn#rnn_layers_and_rnn_cells)
 - [tf keras metrics](https://neptune.ai/blog/keras-metrics)
 - [custom training loop](https://www.tensorflow.org/guide/keras/writing_a_training_loop_from_scratch)
+- [customizing what happens in fit()](https://keras.io/guides/customizing_what_happens_in_fit/)
 
 --------------
 
