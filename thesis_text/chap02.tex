@@ -1,20 +1,46 @@
-\chapter{The Rotowire dataset}
-Introduced in paper by Wiseman et al... Collected from \href{https://www.rotowire.com/}{rotowire.com}.
+\chapter{Data}
 
-\section{The statistics of the dataset}
+One needs a lot of data if he wants to train his neural network. E.g. \citep{sennrich2016} trains the neural machine translation system on 4.2 million English-German sequence pairs. The Data-to-Text generation task má vyššie nároky na kvalitu datasetu. Potrebujeme, aby boli vstupné dáta štandardizované a aby výstupné texty zodpovedali vstupným dátam. Existuje viacero datasetov, ktoré spĺňajú túto podmienku. V tejto kapitole predstavím datasety WikiBIO a Rotowire.
+
+\section{General description}
+
+\showboxdepth=5
+\showboxbreadth=5
+
+Obidva tieto datasety používajú notáciu, ktorá bola predstavená v článku od \citep{liang-etal-2009-learning}, preto ju najprv aj tu zadefinujeme.
+
+Ako vstup používame postupnosť záznamov (recordov) $ \mathbf{s} = \{ r_i \}_{i=1}^{J} $. Každý record $ r $ má svoj typ $ r.t \in \mathcal{T} $. Množina typov $\mathcal{T}$ je dopredu definovaná. Ďalej má typ, množinu hodnôt $ r.v = \{ r.v_1, ... , r.f_m\}$. Napríklad v datasete WeatherGOV: $ r.t == windSpeed $, $ r.v = \{time, min, mean, max, mode\}$. Na základe týchto záznamov následne predpovedáme výstupný text $ \mathbf{w} = \{ w_i\}_{i=1}^{ | \mathbf{w} | }$
+
+\section{WikiBIO dataset}
+
+Štruktúrované dáta vo WikiBIO datasete sú vo forme tabuliek. Encoder-Decoder architektúra však vyžaduje, aby do nej boli dáta vkladané sekvenčne. [potrebujem tu pridať príklad tabuľky, pomocou obrázka]. Preto po vzore \citep{lebret2016neural} je tabuľka sploštená do série recordov.Typy sú anotácie riadkov, napríklad meno, dátum narodenia. Príslušných hodnôt však môže byť variabilne veľa. Preto musia vytvorené recordy reflektovať aj poradie hodnôt, čo dosahujeme tým, že pridáme pozičnú informáciu. Recordy sú teda podávané vo formáte $ name_1 = Frantisek, name_2 = Trebuna, birthplace_1 = Kosice, birthplace_2 = Slovensko \dots$ -- pridať informáciu o odlišných dĺžkach tabuliek -- lepší príklad, než vlastné meno --
+
+\subsection{Statistics of WikiBIO dataset}
+o tomto píšem zajtra
+
+\subsection {Preprocessing of WikiBIO dataset}
+o tomto píšem zajtra
+
+
+\section{Rotowire dataset}
+
+Štruktúrované dáta v RotoWire datasete sú taktiež vo forme tabuľky. Väčšina hodnôt je vo forme čísla, ktoré buď predstavuje informáciu o absolútnom počte nejakej hodnoty (e.g. počet bodov, ktoré hráč strelil) alebo o relatívnom (e.g. percento úspešných pokusov z poľa). Zvyšné hodnoty sú mená miest, tímov a hráčov. Neskôr uvediem, ako som za pomoci preprocessingu zariadil, aby nebola potrebná pozičná informácia ani v týchto prípadoch. Na rozdiel od WikiBIO datasetu, kde všetky hodnoty pojednávali o jednej entite, v RotoWire potrebujeme ešte špeciálnu informáciu. Teda je potrebné pridať $ r.e $
+
+
+\subsection{The statistics of the dataset}
 General statistics of the dataset before preprocessing - number of tokens, unique tokens, player names, city names. Why we want to make the number of tokens lower while keeping the ability to have rich vocabulary.
 
-\section{Cleaning}
+\subsection{Cleaning}
 Lorem Ipsum as one of the summaries, the paper doesn't mention if it's used as augmentation of the dataset or if it's a bug - removed. Player initials "C.J. McCollum" in table "CJ McCollum" in text. 
 
-\section{Transformations of player names, city and team names}
+\subsection{Transformations of player names, city names and \linebreak[4] team names}
 The motivation - making data denser. In a lot of summaries the player is firstly introduced "It was up to LeBron James to take over for Cleveland" and then referenced only by his surname "James finished with 27 points, 14 assists and 8 rebounds..." Many transformations were ommitted although possible. The text looks more natural if the network learns that Philladelphia is sometimes mentioned as Philly. Those nuances are left in the text.
 
-\section{Byte pair encoding}
-What it is, who introduced it. How it decreases the number of tokens.
-
-\section{Other transformations made to the dataset}
+\subsection{Other transformations made to the dataset}
 Here I'll mention lowercasing, number transformations.
 
-\section{The statistics of the transformed dataset}
+\subsection{Byte pair encoding}
+What it is, who introduced it. How it decreases the number of tokens.
+
+\subsection{The statistics of the transformed dataset}
 What is achieved with the use of all the mentioned transformations. The number of unique tokens decreased almost than 4 times (11 300 to 2 900). The fraction of tokens mentioned more than 5 times increased from 47\% to 89,5\%. Highlight the differences to processing of  

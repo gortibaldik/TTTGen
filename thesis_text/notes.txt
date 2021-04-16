@@ -1,0 +1,32 @@
+poznámky k časti o datasete
+
+Na začiatku som čítal blog od Andreja Karpathyho[Zdroj3], kde natrénoval neurónovú sieť s jednou LSTM vrstvou na rôznych textoch (napríklad na konkatenácii všetkých textoch od shakespeara). Následne pomocou tejto siete generoval text, one char at a time, ktorý nápadne pripomínal texty písané Shakespearom. Následne som začal zisťovať, ako by sa dali generované texty lepšie podmieniť. Čo ak by som chcel, aby mal vygenerovaný text smutný podtón, alebo aby vyjadroval nejakú myšlienku, či štatistiku ? Na vytrénovanie neurónovej siete je potrebné veľké množstvo dát. Preto som sa začal obzerať po datasetoch, ktoré obsahujú nejakú podmienku a prirodzený text vytvorený na jej základe. Takto som prišiel na úlohu generovania textu zo štruktúrovaných dát.
+
+Notácia
+- tu musia ísť kvázi matematické rovnice, ktoré popisujú, že ako budeme značiť jednotlivé typy.
+
+Rôzne datasety
+Vybrané datasety vždy obsahujú štruktúrované dáta, slúžiace ako vstup a reprezentáciu v prirodzenom jazyku, slúžiacom ako výstup. Reprezentácia v prirodzenom jazyku nie je nijako anotovaná. Medzi najznámejšie datasety na túto úlohu patrí dataset WeatherGOV [Zdroj1]. Medzi typy patria napríklad teplota, šanca na dážď, rýchlosť vetra. Každý typ má niekoľko hodnôt, napríklad pre rýchlosť vetra sú to time, min, mean, max a mode. Ďalej dataset RoboCup s typmi - nie je lepšie toto celé usporiadať ako tabuľku ?
+
+
+čo to je za dataset ?
+Pri researchi rôznych datasetov na generovanie prirodzeného jazyka zo štruktúrovaných dát som narazil na niekoľko veľmi zaujímavých datasetov. Keďže cieľom je sportcasting, teda generovanie komentárov ku športovým zápasom.
+Pri popise datasetu sa budeme držať definícií, ktoré uviedol Wiseman et al. [zdroj2] na základe práce od Liang et al. [zdroj1] 
+
+
+Zdroj 1: Percy Liang, Michael I Jordan, and Dan Klein. 2009.Learning semantic correspondences with less super-vision. InACL, pages 91–99. Association for Com-putational Linguistics.
+Zdroj 2: Sam Wiseman, Stuart M. Shieber, Alexander M. Rush: Challenges in Data-to-Document Generation.
+Zdroj 3: http://karpathy.github.io/2015/05/21/rnn-effectiveness/
+
+- čo je cieľom bakalárky ?
+    generovať sumáre športových zápasov na základe ich štatistík
+- je to podmnožinou nejakej inej úlohy ?
+    áno, je to podmnožinou generovania prirodzeného jazyka zo štruktúrovaných dát
+- aké rôzne datasety na túto úlohu existujú ?
+    WIKIBIO, RoboCup, WeatherGOV
+- aké sú vlastnosti týchto datasetov ?
+    sumáre sú relatívne krátke => o tomto sa dá napísať celý odsek !
+- čo chceme od datasetu, ktorý použijeme ?
+    dlhšie vety
+    zložitejšie dáta
+    zároveň dáta, ktoré reprezentujú štatistiku
