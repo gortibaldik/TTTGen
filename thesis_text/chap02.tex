@@ -24,7 +24,126 @@ o tomto píšem zajtra
 
 \section{Rotowire dataset}
 
-Štruktúrované dáta v RotoWire datasete sú taktiež vo forme tabuľky. Väčšina hodnôt je vo forme čísla, ktoré buď predstavuje informáciu o absolútnom počte nejakej hodnoty (e.g. počet bodov, ktoré hráč strelil) alebo o relatívnom (e.g. percento úspešných pokusov z poľa). Zvyšné hodnoty sú mená miest, tímov a hráčov. Neskôr uvediem, ako som za pomoci preprocessingu zariadil, aby nebola potrebná pozičná informácia ani v týchto prípadoch. Na rozdiel od WikiBIO datasetu, kde všetky hodnoty pojednávali o jednej entite, v RotoWire potrebujeme ešte špeciálnu informáciu. Teda je potrebné pridať $ r.e $
+Pre samotnú úlohu generovania textového popisu zápasu zo štruktúrovaných dát som si vybral dataset RotoWire \citep{wiseman2017}. Štruktúrované dáta sú vo forme tabuľky. Tabuľka obsahuje jednak hodnoty popisujúce celkové tímové štatistiky, jednak hodnoty, popisujúce štatistiky hráčov. Ako výstupné dáta slúžia sumáre jednotlivých zápasov z portálu venujúcemu sa real-time fantasy sports news \url{https://www.rotowire.com/basketball/} (see below).
+
+\subsection{Structured data}
+
+V tejto podsekcii si rozoberieme, aké dáta sa v tabuľke nachádzajú, a čo z nich sa dá využiť pri vytváraní sumáru.
+
+Z vygenerovaného sumáru má byť mimo iné jasné, ktoré 2 tímy hrali a ktorý z nich vyhral. To sa dá zistiť, z mien tímov a počtu bodov, ktoré každý tím strelil. Lepšie porozumenie tabuľky dovolí napríklad zistiť, či vyhral favorit ( teda či tím, ktorý vyhral má v sezóne lepší pomer výhier a prehier ako jeho súper), či bola výhra šťastná ( nezvykle vysoká úspešnosť streľby z poľa a streľby za 3 body), ktorý tím hral lepšie defenzívne (nižší počet turnoverov) atď. Všetky tieto dáta pomenúvame ako tímové štatistiky. Celkovo obsahuje tabuľka tímových štatistík 15 údajov a v datasete sa označuje ako \emph{line score}. Príkladom môže byť tabuľka \ref{tab_team_stats} vytiahnutá z validačného datasetu.
+
+Štruktúrované dáta ale neobsahujú len tímové štatistiky, ale aj hráčske\linebreak[4]štatistiky. Najjednoduchšie využitie hráčskych štatistík je výber hráča, ktorý strelil najviac bodov v danom tíme. Lepšie pochopenie môže dovoliť vypichnúť hráča s veľkým počtom blokov, alebo stealov pokiaľ hral tím defenzívne, alebo hráča s najväčším počtom trojok, pokiaľ mal tím vysokú úspešnosť spoza trojkového oblúka. Tabuľka hráčskych štatistík obsahuje 24 údajov. Príkladom hráčskych štatistík môže byť tabuľka \ref{tab_player_stats} vytiahnutá z validačného datasetu.
+
+Okrem týchto štatistických údajov ešte vstupná tabuľka obsahuje deň, v ktorý sa zápas hral.
+
+
+\begin{table}[!b]
+    \begin{tabular}{llllllll}
+        \toprule
+        Name    & City         & PTS$_1$ & AST$_2$ & REB$_3$ & TOV$_4$ & Wins & Losses  \dots \\
+        \midrule
+        Raptors & Toronto      & 122 & 22  & 42  & 12  & 11   & 6       \dots \\
+        76ers   & Philadelphia & 95  & 27  & 38  & 14  & 4    & 14      \dots \\
+        \bottomrule
+        \multicolumn{8}{l}{\footnotesize \textit{Note:} The statistics are accumulated across all the team players} \\
+        \multicolumn{8}{l}{\footnotesize $_1$ Points; $_2$ Assists; $_3$ Rebounds; $_4$ Turnovers}
+    \end{tabular}
+    \caption{Príklad tímových štatistík z datasetu Rotowire}\label{tab_team_stats}
+\end{table}
+
+\begin{table}[!b]
+    \begin{tabular}{lllllll}
+        \toprule
+        Name             & Team City    & S\_POS$_1$ & PTS$_2$ & STL$_3$ & BLK$_4$        \dots \\
+        \midrule
+        Kyle Lowry       & Toronto      & G         & 24  & 1   & 0       \dots \\
+        Terrence Ross    & Toronto      & N/A       & 22  & 0   & 0        \dots \\
+        Robert Covington & Philadelphia & G         & 20  & 2   & 0        \dots \\
+        Jahlil Okafor    & Philadelphia & C         & 15  & 0   & 1        \dots \\
+        \bottomrule
+        \multicolumn{6}{l}{\footnotesize \textit{Note:} $N/A$ means that the statistic couldn't be collected because it is undefined} \\
+        \multicolumn{6}{l}{\footnotesize (e.g. player didn't appear on starting roster therefore his starting position is undefined)} \\
+        \multicolumn{6}{l}{\footnotesize $_1$ Starting position ; $_2$ Points; $_3$ Steals; $_4$ Blocks}
+    \end{tabular}
+    \caption{Príklad hráčskych štatistík z datasetu Rotowire}\label{tab_player_stats}
+\end{table}
+
+\subsection{Summaries}
+
+Kladieme vysoké nároky na sumáre. Jednak musia súvisieť s tabuľkou, jednak nechceme neurónovú sieť učiť niečo, čo by sa dalo rýchlo napísať pomocou jednoduchej šablóny. Preto potrebujeme sumáre, ktoré dokážu vytiahnuť z tabuľky hlbšie štatistiky a správne s nimi pracovať. Ako už vysvetľuje \citep{wiseman2017} obyčajné športové spravodajstvo zo stránok \url{https://www.sbnation.com/nba} nespĺňa tieto kritériá, keďže obsahuje priveľa informácií, ktoré sú založené na iných kontextoch, ako sú dáta v zápasovej tabuľke. Práve preto je zaujímavé sledovať fenomén fantasy športov.
+
+
+\subsubsection{Fantasy sports}
+
+Podľa \citep{Tozzi1999} môžeme datovať počiatky fenoménu fantasy športu do\linebreak[4]šesťdesiatych rokov dvadsiateho storočia. Podľa stránky RotoWire\footnote[1]{\url{https://www.rotowire.com/basketball/advice/}} je základom fantasy športu vytvorenie tímov reálnych hráčov z ligy a získavanie bodov na základe ich výkonov v skutočných zápasoch. Bodovanie berie do úvahy, či ide o defenzívneho, alebo ofenzívneho hráča a je nutné vybrať hráča na každú pozíciu v hre. (čím sa zaručuje, že nemôžu existovať fantasy tímy, ktoré majú len point guardov). Disponujete obmedzenými zdrojmi na nákup hráčov a hráči, u ktorých je pravdepodobnejšie, že skórujú viac bodov, resp. získajú viac lôpt a tak podobne, stoja viac. Skutočné pravidlá sú jemne zložitejšie a tí, ktorých by fantasy ligy zaujímali odporúčame na dané stránky\footnote[1].
+
+\subsubsection{Fantasy sports news}
+
+Na to, aby hráč mohol uspieť vo fantasy lige, potrebuje mať dokonalý prehľad o štatistikách hráčov, o trendoch, o zraneniach, o tímoch, ktorým sa darí aj o tých, ktorým sa možno začne dariť neskôr. Práve preto už od začiatku organizovania fantasy líg existujú formy spravodajstva, ktoré sa špecializujú práve na hráčov fantasy športov. Podľa legendy popísanej \citep{Tozzi1999} sa hráči jednej z prvých fantasy líg schádzali v reštaurácii La Rotisserie Francaise, a podľa tejto reštaurácie je pomenovaná aj stránka špecializujúca sa na spracovávanie štatistík pre fanúšikov fantasy líg, \url{https://www.rotowire.com/}. Články písané o zápasoch oveľa viac berú do úvahy, čo sa v zápase udialo a zároveň poskytujú aj hlbší náhľad do kontextu zápasu. Preto ako píše \citep{wiseman2017} je pre generačné systémy ideálnejšie učiť sa generovať práve články podobné tým z RotoWire. 
+
+\subsection{Relation of summaries and tables}
+\definecolor{lightblue}{rgb}{.15,.77,.90}
+
+V tejto kapitole na jednoduchom príklade ukážem, ako sú štatistiky z tabuľky previazané so sumárom z RotoWire. Vo figure \ref{fig:samplesummary} je krásne vidieť, že väčšina údajov zo sumáru pochádza z tabuľky. Napriek tomu však text obsahuje niektoré údaje ( \sethlcolor{yellow} \hl{zvýraznené žltou farbou} ), ktoré v tabuľke vôbec nie sú a niektoré údaje (\sethlcolor{lightblue} \hl{zvýraznené modrou farbou} ), ktoré sú v tabuľke len implicitne a je ich potrebné odvodiť. Zatiaľ čo fakt, že keďže Terrence Ross má nedefinovanú štartovaciu pozíciu, tak musel nastúpiť do zápasu z lavičky je celkom zrejmý, informácia o tom, že Joel Embiid nehrá je dôležitá len vtedy, pokiaľ je Joel Embiid natoľko dôležitý hráč pre tím, že stojí za zmienku ho spomenúť. To je však kontext, ktorý v tabuľke spomenutý nie je a navyše informácia o tom, prečo nehrá nemôže byť jasná ani z kontextu celého korpusu dát.
+
+\definecolor{lightgreen}{rgb}{.7,.9,.1}
+
+\begin{figure*}
+\centering
+\scalebox{0.85}{
+\begin{tikzpicture}
+
+
+\node(tables)[draw, inner sep=5pt, rounded corners, text width=39em]{
+    \small
+    \begin{center}
+        \begin{tabular}{lcccccc}
+        \toprule
+        {}      & WIN & LOSS & PTS$_1$ & FG\_PCT$_2$ & REB$_3$ & AST$_4$ \ldots \\
+        TEAM    &     &      &     &         &    &           \\
+        \midrule
+        Raptors & 11  & 6    & 122 & 55      & 42 & 22        \\
+        76ers   & 4   & 14   & 95  & 42      & 38 & 27        \\
+        \bottomrule
+        \end{tabular}
+        \vspace{0.5cm}
+
+        \begin{tabular}{llllllll}
+            \toprule
+            {}                & City         & PTS$_1$ & AST$_4$ & REB$_3$ & FG$_5$  & FGA$_6$ & S\_POS$_1$ $\ldots$ \\
+            PLAYER            &              &     &     &     &     &     &                 \\
+            \midrule
+            Kyle Lowry        & Toronto      & 24  & 8   & 4   & 7   & 9   & G               \\
+            Terrence Ross     & Toronto      & 22  & 0   & 3   & 8   & 11  & N/A             \\
+            Robert Covington  & Philadelphia & 20  & 2   & 5   & 7   & 11  & G               \\
+            Jahlil Okafor     & Philadelphia & 15  & 0   & 5   & 7   & 14  & C               \\
+            DeMar DeRozan     & Toronto      & 14  & 5   & 5   & 4   & 13  & G               \\
+            Jonas Valanciunas & Toronto      & 12  & 0   & 11  & 6   & 12  & C               \\
+            Ersan Ilyasova    & Philadelphia & 11  & 3   & 6   & 4   & 8   & F               \\
+            Sergio Rodriguez  & Philadelphia & 11  & 7   & 3   & 4   & 7   & G               \\
+            Richaun Holmes    & Philadelphia & 11  & 1   & 9   & 4   & 10  & N/A             \\
+            Nik Stauskas      & Philadelphia & 11  & 2   & 0   & 4   & 9   & N/A             \\
+            Joel Embiid       & Philadelphia & N/A & N/A & N/A & N/A & N/A & N/A             \\
+            \ldots
+        \end{tabular}
+    \end{center}
+}; % end of node
+\node(summary) [rectangle, draw,thick,fill=blue!0,text width=39em, rounded corners, inner sep =8pt, minimum height=1em, below=-2mm of tables]{
+    \baselineskip=100pt
+    \small
+    The host Toronto Raptors defeated the Philadelphia 76ers , 122 - 95 , \sethlcolor{yellow} \hl{at Air Canada Center on Monday} . \sethlcolor{lightblue} \hl{The Raptors came into this game as a monster favorite} and they did n't leave any doubt with this result . Toronto just continuously piled it on , as they won each quarter by at least four points . The Raptors were lights - out shooting , as they went 55 percent from the field and 68 percent from three - point range . They also held the Sixers to just 42 percent from the field and dominated the defensive rebounding , 34 - 26 . Fastbreak points was a huge difference as well , with Toronto winning that battle , 21 - 6 . \sethlcolor{lightblue} \hl{Philadelphia ( 4 - 14 ) had to play this game without Joel Embiid }\sethlcolor{yellow} \hl{( rest )} and they clearly did n't have enough to compete with a potent Raptors squad . Robert Covington \sethlcolor{lightblue} \hl{had one of his best games of the season though} , tallying 20 points , five rebounds , two assists and two steals on 7 - of - 11 shooting . Jahlil Okafor \sethlcolor{lightblue} \hl{got the start for Embiid} and finished with 15 points and five rebounds . Sergio Rodriguez , Ersan Ilyasova , Nik Stauskas and Richaun Holmes all finished with 11 points a piece . \sethlcolor{yellow} \hl{The Sixers will return to action on Wednesday , when they host the Sacramento Kings for their next game .} Toronto ( 11 - 6 ) left very little doubt in this game who the more superior team is . Kyle Lowry carried the load for the Raptors , accumulating 24 points , four rebounds and eight assists . \sethlcolor{lightblue} \hl{Terrence Ross was great off the bench , scoring 22 points on 8 - of - 11 shooting .} DeMar DeRozan finished with 14 points , five rebounds and five assists . Jonas Valanciunas recorded a double - double , totaling 12 points and 11 rebounds . \sethlcolor{yellow} \hl{The Raptors next game will be on Wednesday , when they host the defensively - sound Memphis Grizzlies .} 
+    \par
+};
+\node[rectangle, below=2mm of summary, text width=40em] {
+    \footnotesize \textit{Note:} $_1$ Points; $_2$ Field Goal Percentage; $_3$ Rebounds; $_4$ Assists; $_5$ Field Goals; $_6$ Field Goals Attempted;
+    \footnotesize $N/A$ means undefined value
+};
+\end{tikzpicture}
+}
+\caption{ \small Príklad vstupných tabuliek a zlatého sumáru z datasetu. Žltou sú zvýraznené informácie nenachádzajúce sa v tabuľke, zatiaľ čo modrou sú zvýraznené informácie, ktoré z tabuľky a celého korpusu vyplývajú len implicitne.
+}
+\label{fig:samplesummary}
+\end{figure*}
 
 
 \subsection{The statistics of the dataset}

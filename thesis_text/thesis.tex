@@ -50,6 +50,22 @@
 \usepackage{booktabs}       % improved horizontal lines in tables
 \usepackage{paralist}       % improved enumerate and itemize
 \usepackage{xcolor}         % typesetting in color
+\usepackage{soulutf8}			% highlighting text
+
+% -----
+% just some workarounds for soul to cooperate with xcolor
+% taken from https://tex.stackexchange.com/questions/48501/soul-broken-highlighting-with-xcolor-when-using-selectcolormodel
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd{\SOUL@ulunderline}{\dimen@}{\SOUL@dimen}{}{}
+\patchcmd{\SOUL@ulunderline}{\dimen@}{\SOUL@dimen}{}{}
+\patchcmd{\SOUL@ulunderline}{\dimen@}{\SOUL@dimen}{}{}
+\newdimen\SOUL@dimen
+\makeatother
+% -----
+
+\usepackage{tikz}
+\usetikzlibrary{positioning}
 
 %%% Basic information on the thesis
 
