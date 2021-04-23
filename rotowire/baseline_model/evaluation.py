@@ -57,7 +57,8 @@ def evaluate( dataset
             , output_dir
             , eos
             , encoder
-            , decoderRNNCell):
+            , decoderRNNCell
+            , bleu_batches=43): # each bleu_batches steps the batch will be generated not teacher forced
     start = time.time()
     print(f"-- started evaluation --", flush=True)
     eval_accuracy_metrics = tf.keras.metrics.Accuracy()
@@ -66,7 +67,6 @@ def evaluate( dataset
     predictions_for_bleu = []
     print("[", end="")
     ten_percent = steps // 10
-    bleu_batches = 43
     for num, batch_data in enumerate(dataset.take(steps)):
         summaries, *tables = batch_data
         sums = tf.expand_dims(summaries, axis=-1)
@@ -111,7 +111,7 @@ def evaluate( dataset
                 print(" ".join(line_tokens), file=f)
     
     save_arr(predictions_path, predictions_for_bleu)
-    save_arr(targets_path, targets_for_bleu)
+    save_arr(targets_path, [ t[0] for t in targets_for_bleu] )
         
     final_val_loss = eval_scc_metrics.result()
     print(f"accurracy : {eval_accuracy_metrics.result()} loss : {final_val_loss} bleu : {bleu}")
