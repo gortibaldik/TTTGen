@@ -88,7 +88,7 @@ def evaluate( dataset
                 # find the first occurrence of <<EOS>> token
                 tpl = np.nonzero(tgt == eos)[0]
                 ix = tpl[0] if len(tpl) > 0 else max_sum_size
-                targets_for_bleu.append([ix_to_tk[i] for i in tgt.numpy()[:ix]])
+                targets_for_bleu.append([[ix_to_tk[i] for i in tgt.numpy()[:ix]]])
                 tpl = np.nonzero(rp == eos)[0]
                 ix = tpl[0] if len(tpl) > 0 else ix
                 predictions_for_bleu.append([ix_to_tk[i] for i in rp[:ix]])
