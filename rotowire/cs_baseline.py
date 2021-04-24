@@ -15,6 +15,7 @@ def _create_parser():
     parser.add_argument('--attention_type', type=str, default="dot")
     parser.add_argument('--decoder_type', type=str, default="baseline")
     parser.add_argument('--truncation_size', type=int, default=100)
+    parser.add_argument('--truncation_skip_step', type=int, default=50)
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--dropout_rate', type=float, default=0.5)
     parser.add_argument('--scheduled_sampling_rate', type=float, default=1.0)
@@ -63,7 +64,7 @@ def _main(args):
 
     if args.decoder_type=="baseline":
         decoder_rnn = DecoderRNNCell
-    elif args.attention_type=="joint":
+    elif args.decoder_type=="joint":
         decoder_rnn = DecoderRNNCellJointCopy
     else:
         decoder_rnn = DecoderRNNCell
@@ -84,15 +85,16 @@ def _main(args):
          , args.learning_rate
          , args.epochs
          , eos
-         , args.truncation_size
          , args.dropout_rate
          , args.scheduled_sampling_rate
-         , attention
-         , decoder_rnn
-         , args.path
-         , ix_to_tk
-         , val_dataset
-         , val_steps
+         , truncation_size=args.truncation_size
+         , truncation_skip_step=args.truncation_skip_step
+         , attention_type=attention
+         , decoderRNNInit=decoder_rnn
+         , val_save_path=args.path
+         , ix_to_tk=ix_to_tk
+         , val_dataset=val_dataset
+         , val_steps=val_steps
          , load_last=False)
 
 

@@ -34,7 +34,8 @@ class TrainStepWrapper:
                   , train_scc_metrics
                   , last_out
                   , initial_state=None
-                  , scheduled_sampling_rate : float = 0.5):
+                  , scheduled_sampling_rate : float = 0.5
+                  , return_state_n=None):
         print("tracing tf.function with args:", file=sys.stderr)
         print(f"len(batch_data) : {len(batch_data)}", file=sys.stderr)
         for ix, d in enumerate(batch_data):
@@ -48,6 +49,8 @@ class TrainStepWrapper:
             print(f"initial_state[{ix}].shape : {d.shape}", file=sys.stderr)
         loss = 0
         dec_in, targets, gen_or_teach, *tables = batch_data
+        final_state = None
+        final_last_out = None
         with tf.GradientTape() as tape:
             enc_outs, *last_hidden_rnn = encoder(tables)
             if initial_state is None:
@@ -65,6 +68,9 @@ class TrainStepWrapper:
 
             states = initial_state
             for t in range(dec_in.shape[1]):
+                if (return_state_n is not None) and (t == return_state_n):
+                    final_state = states
+                    final_last_out = last_out
                 if gen_or_teach[t] > scheduled_sampling_rate:
                     _input = last_out
                 else:
@@ -85,7 +91,11 @@ class TrainStepWrapper:
         gradients = tape.gradient(loss, variables)
         optimizer.apply_gradients(zip(gradients, variables))
 
-        return batch_loss, states, last_out
+        if (return_state_n is None) or (return_state_n == dec_in.shape[1]):
+            final_state = states
+            final_last_out = last_out
+
+        return batch_loss, final_state, final_last_out
 
 def train( train_dataset
          , train_steps_per_epoch
@@ -102,9 +112,10 @@ def train( train_dataset
          , learning_rate
          , epochs
          , eos
-         , truncation_size
          , dropout_rate
          , scheduled_sampling_rate
+         , truncation_size
+         , truncation_skip_step
          , attention_type=DotAttention
          , decoderRNNInit=DecoderRNNCell
          , val_save_path : str = None
@@ -112,6 +123,11 @@ def train( train_dataset
          , val_dataset = None
          , val_steps = None
          , load_last : bool = False):
+
+    if truncation_skip_step > truncation_size:
+        raise RuntimeError(f"truncation_skip_step ({truncation_skip_step}) shouldn't be bigger"+
+                           f"truncation_size ({truncation_size})")
+
     encoder = Encoder( word_vocab_size
                      , word_emb_dim
                      , tp_vocab_size
@@ -156,7 +172,7 @@ def train( train_dataset
             start = 0
             length = summaries.shape[1]
             state = None
-            for end in range(truncation_size, length-1, truncation_size):
+            for end in range(truncation_size, length-1, truncation_skip_step):
                 gen_or_teach = np.zeros(shape=(end-start))
                 for i in range(len(gen_or_teach)):
                     gen_or_teach[i] = _generator.uniform(shape=(), maxval=1.0)
@@ -173,10 +189,11 @@ def train( train_dataset
                                                              , train_scc_metrics
                                                              , last_out
                                                              , initial_state=state
-                                                             , scheduled_sampling_rate=scheduled_sampling_rate)
+                                                             , scheduled_sampling_rate=scheduled_sampling_rate
+                                                             , return_state_n=truncation_skip_step)
                 total_loss += batch_loss
-                start = end
-            if length % truncation_size != 0:
+                start += truncation_skip_step
+            if length % truncation_skip_step != 0:
                 gen_or_teach = np.zeros(shape=(length-1-start))
                 for i in range(len(gen_or_teach)):
                     gen_or_teach[i] = _generator.uniform(shape=(), maxval=1.0)
@@ -206,13 +223,13 @@ def train( train_dataset
         print(f"Epoch {epoch + 1} duration : {time.time() - start_time}", flush=True)
         if val_dataset is not None:
             final_val_loss = evaluate( val_dataset
-                                    , val_steps
-                                    , batch_size
-                                    , ix_to_tk
-                                    , val_save_path
-                                    , eos
-                                    , encoder
-                                    , decoderRNNCell)
+                                     , val_steps
+                                     , batch_size
+                                     , ix_to_tk
+                                     , val_save_path
+                                     , eos
+                                     , encoder
+                                     , decoderRNNCell)
             if learning_rate is not None:
                 if (last_val_loss is not None) and (final_val_loss > (last_val_loss + 0.005)):
                     optimizer.learning_rate = 0.5 * optimizer.learning_rate
