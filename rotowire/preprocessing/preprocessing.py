@@ -119,7 +119,7 @@ team_names = [
     "Timberwolves",
     "Jazz",
     "Knicks",
-    "Wizzards",
+    "Wizards",
     "Pistons",
     "Heat",
     "Hawks",
@@ -541,12 +541,15 @@ def extract_players_from_summaries( matches
                                   , exception_cities=False
                                   , exception_teams=False):
     def dict_to_set(dct):
+        not_names = ["IV", "II", "III", "Jr.", "Jr"]
         result = set(dct.keys())
         for k in list(result):
             pieces = k.split()
             if len(pieces) > 1:
+                if pieces[-1] in not_names:
+                    result.add(" ".join(pieces[:-1]))
                 for piece in pieces:
-                    if len(piece) > 1 and piece not in ["II", "III", "Jr.", "Jr"]:
+                    if len(piece) > 1 and piece not in not_names:
                         result.add(piece)
         return result
 
@@ -561,9 +564,31 @@ def extract_players_from_summaries( matches
     # important for extraction of player entities
     player_set = dict_to_set(player_dict)
 
+    def add_modifier(candidate):
+        players_with_modifiers = [
+            "Kelly Oubre Jr.",
+            "Ronald Roberts Jr.",
+            "Wade Baldwin IV",
+            "Johnny O'Bryant III",
+            "Otto Porter Jr.",
+            "Larry Drew II",
+            "Glenn Robinson III",
+            "James Ennis III",
+            "Derrick Jones, Jr.",
+            "Tim Hardaway Jr.",
+            "Larry Nance Jr.",
+            "John Lucas III",
+            "Perry Jones III"
+        ]
+        for p in players_with_modifiers:
+            if candidate in p:
+                logger(f"{candidate} -> {p}")
+                return p
+        return candidate
+
     # collect all the players mentioned in unique summaries
     # collect all the parts of their name
-    for match in matches:
+    for ix, match in enumerate(matches):
         candidates_from_summary = set()
         unique_candidates_from_summary = set()
         # get all the entities from the summary
@@ -582,14 +607,14 @@ def extract_players_from_summaries( matches
                 # try to substitute the token with entity name from the summary
                 candidates_from_summary.remove(candidate)
                 for c in candidates_from_summary:
-                    if tokens[0] in c:
+                    if tokens[0] in  " ".join(c.split()[1:]):
                         found = True
                 candidates_from_summary.add(candidate)
 
                 # try to substitute the token with entity name from table statistics
                 if not found:
                     for c in box_players:
-                        if candidate in c:
+                        if candidate in " ".join(c.split()[1:]):
                             unique_candidates_from_summary.add(c)
                             found = True
                             break
@@ -603,16 +628,15 @@ def extract_players_from_summaries( matches
         for candidate in entities:
             if candidate in unique_candidates_from_summary:
                 if candidate not in transformations:
-                    transformations[candidate] = "_".join(candidate.strip().split())
+                    transformations[candidate] = "_".join(add_modifier(candidate).strip().split())
                 player_in_summary_dict.add(transformations[candidate])
             else:
                 for c in unique_candidates_from_summary:
-                    if candidate in c:
+                    if candidate in " ".join(c.split()[1:]):
                         if candidate not in transformations:
-                            transformations[candidate] = "_".join(c.strip().split())
+                            transformations[candidate] = "_".join(add_modifier(c).strip().split())
                         player_in_summary_dict.add(transformations[candidate])
                         break
-
         #TODO : DRY
         if prepare_for_bpe_training:
             for key in transformations.keys():
