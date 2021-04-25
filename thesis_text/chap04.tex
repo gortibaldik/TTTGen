@@ -1,20 +1,23 @@
-\chapter{Models}
-The main goal is to explore the architectures. Therefore each model is manually implemented making use of the tensorflow library
+\chapter{Neural Network Architectures}
+Why only neural network approach is used - mention many authors and papers which approach the problem of NLG by making use of deep neural networks.
 
-\section{Tensorflow}
-What is it, mention the paper introducing it, mention other frameworks and motivation why this is the one which is used.
+\section{RNN}
+What it is, creating the representation of sequence, etc. etc. Gradient vanishing and gradient explosion problems.
 
-\section{Sequence to Sequence architecture}
-Encoder, decoder. Encoder creates the representation of the input in some meta language, decoder creates the output from the representation.
+\section{LSTM}
+What it is, how it solves the mentioned problems, cite the paper Massive Exploration of Neural Machine Translation Architectures which experiments with LSTMs, GRUs and vanilla RNNs and shows that LSTMs are the most promising option for the sequence to sequence tasks.
 
-\section{Encoder}
-Mention the embedding and MLP encoding (the main approach used in the rotowire paper) - MLP is used instead of LSTM in the encoding process, then the 2 initial decoder states are obtained by mean pooling over the MLP encodings of the embedded source records.
+\section{Attention}
+What it is, cite Bahdanau, Luong, possible subsection about the input feeding approach. It should select the most relevant entry from the database of match statistics.
 
-\section{Decoder}
-2 layer LSTM, embeddings, dimensionality.
+\section{Copy mechanism}
+What it is, right now I've implemented only Joint Copy mechanism, possibly add Conditional Copy
 
-\section{Base Model}
-Seq2Seq architecture with attention, both Luong style Dot Attention and Bahdanau style Concat Attention are used, input feeding approach. Maybe some pictures.
+\section{Truncated Backpropagation Through Time}
+Why it is infeasible to generate sequences of average 350 tokens with full backpropagation. Which types of truncated BPTT exist and which I've chosen.
 
-\section{Joint Copy model}
-Uses 2 attention mechanisms. Definitely some pictures.
+\section{Beam search}
+Why greedy search isn't enough, what is beam search, when is it used.
+
+\section{Transformers}
+Right now I don't think I'll get this far in my exploration and implementation of DNN architectures.

@@ -1,23 +1,87 @@
-\chapter{Neural Network Architectures}
-Why only neural network approach is used - mention many authors and papers which approach the problem of NLG by making use of deep neural networks.
+\chapter{Preprocessing and Statistics of the Datasets}
 
-\section{RNN}
-What it is, creating the representation of sequence, etc. etc. Gradient vanishing and gradient explosion problems.
+Ako hlavný spôsob riešenia problému generovania prirodzeného textu zo\linebreak[4]štruktúrovaných dát volíme RNN. RNN sú uspôsobené na spracúvanie \linebreak[4]sekvenčných, 1D dát, avšak my potrebujeme spracovať 2D tabuľky. V tejto kapitole popíšem spôsob, ako sa s týmto problémom vyrovnávam, pričom sa pokúsim vysvetliť, prečo je postup rozdielny pre dataset WikiBIO a RotoWire. Ďalej budem rozprávať o tom, ako som ďalej upravoval vstupné a výstupné dáta a dôvody pre každú z aplikovaných zmien.
 
-\section{LSTM}
-What it is, how it solves the mentioned problems, cite the paper Massive Exploration of Neural Machine Translation Architectures which experiments with LSTMs, GRUs and vanilla RNNs and shows that LSTMs are the most promising option for the sequence to sequence tasks.
+\section{Transforming Tables to Records}
 
-\section{Attention}
-What it is, cite Bahdanau, Luong, possible subsection about the input feeding approach. It should select the most relevant entry from the database of match statistics.
+Najprv sa pokúsim ukázať aký cieľ chcem naplniť pri transformácii tabuľky na sekvenčný vstup. Zadefinujme si tabuľku, s ktorou budeme pracovať. Povedzme, že stĺpce budú označovať typy hodnôt a riadky budú označovať entity. (ako v príklade - referencia na tabuľku). Chceme, aby čo najviac informácií ostalo v dátach. Konkrétne to znamená, že v sekvenčnom vstupe by malo ostať zachované, jednak ku ktorej entite daný vstup patrí, jednak aký typ hodnoty prislúchajúci k danej entite vyjadruje.
 
-\section{Copy mechanism}
-What it is, right now I've implemented only Joint Copy mechanism, possibly add Conditional Copy
+\subsection{Notation}
 
-\section{Truncated Backpropagation Through Time}
-Why it is infeasible to generate sequences of average 350 tokens with full backpropagation. Which types of truncated BPTT exist and which I've chosen.
+Podľa \citep{liang-etal-2009-learning} zavádzam notáciu, ktorú budem ďalej používať.\linebreak[4]Tabuľku $\mathcal{T}$ transformujeme na postupnosť záznamov $ \mathbf{s} = \{ r_i \}_{i=1}^{J} $, kde $r_i$ označuje i-ty záznam. Vzhľadom na ciele stanovené vyššie, každý záznam položku $r.f$ označujúcu typ hodnoty, položku $r.v$ označujúcu hodnotu daného záznamu,\linebreak[4]prípadne položku $r.e$, označujúcu entitu, ktorej prislúcha.
 
-\section{Beam search}
-Why greedy search isn't enough, what is beam search, when is it used.
+\section{WikiBIO}
 
-\section{Transformers}
-Right now I don't think I'll get this far in my exploration and implementation of DNN architectures.
+V tejto sekcii najprv ukážem, na aké záznamy sa transformuje infobox z WikiBIO datasetu. Následne predstavím štatistiky a preprocessing, ktorý používam.
+
+\subsection{Transformation of Infoboxes}
+
+Každý infobox sa týka práve jednej entity. Jeden typ však môže mať rôznorodý počet hodnôt. Napríklad pre typ definujúci počet rokov v úrade \emph{office} je\linebreak[4]možnosťou \emph{from 9.3.1999 to 27.5.2021}, \emph{1999 - 2021}, \emph{march 1999 - may 2021} \dots
+
+Existujú minimálne dve možnosti ako sa s tým vysporiadať. Prvou je vyhlásiť hodnotu prislúchajúcu jednomu typu za jeden token a prípadne vytvoriť viacero typov lepšie reprezentujúcich to, čo sa v tabuľke nachádza. To je však vzhľadom na veľkosť datasetu (okolo 730 000 párov infobox-sumár, viac ako 7000 rôznych typov) nevhodný prístup. Druhou možnosťou je pridať do záznamu aj pozičnú informáciu. To je prístup, ktorý zvolili aj tvorcovia datasetu, \citep{lebret2016neural}, či autori state of the art riešenia \citep{liu2017tabletotext}.
+
+Konkrétne, ku každému záznamu pridáme hodnotu $r.pos$, ktorá vyjadruje poradie vrámci hodnôt prislúchajúcich typu, číslované od 1. Jednoduché pozorovanie ukazuje, že je vhodné pridať ešte aj informáciu o poradí od konca. Napríklad pokiaľ chceme povedať, že niekto skončil svoju činnosť v 2021, je jednoduchšie informáciu vybrať z recordu s typom $r.f == office$, ako určiť, že je potrebné vybrať record s $r.pos == 3$ (1. a 2. príklad), prípadne $r.pos == 5$ (3. príklad). Preto je ku každému záznamu pridaná ešte pozícia od konca $r.rpos$. Takto stačí pre všetky tri prípady vybrať record, kde $r.f == office$ a $r.rpos == 1$.
+
+\subsection{Dataset statistics}
+
+Pre tréning neurónovej siete používam origiálny train-valid-test split od autorov, teda 582~659 trénovacích infobox-sumár párov, 72~831 validačných a 72~831 testovacích.
+
+Sumáre obsahujú celkovo 493~878 unikátnych tokenov, celkovo 18~981~222 tokenov. Tabuľky obsahujú 7~200 unikátnych typov. 
+
+\subsection{Preprocessing}
+
+Jednotlivé sety (train, valid, test) ešte prefiltrujem tak, aby žiadna tabuľka nebola dlhšia ako 100 recordov a žiadny sumár nebol dlhší ako 75 tokenov. (urobené na základe štatistík v tabuľke \emph{tu bude odkaz na tabuľku}) Keďže tento dataset nie je nosným datasetom tejto práce, rozhodol som sa neexperimentovať s preprocessingom a použil som hodnoty hyperparametrov, ktoré zvolili \citep{liu2017tabletotext}.
+
+V krátkosti zhrniem, čo konkrétne používam. Celý dataset je lowercaseovaný, čiarky, zátvorky, bodky \dots sú považované za samostatné tokeny. Všetky okrem najčastejších 20 000 tokenov vybraných \citep{liu2017tabletotext} v sumároch a hodnotách tabuliek nahradím špeciálnymi UNK tokenmi. Rovnako všetky, okrem najčastejších 1480 typov nahradím UNK tokenmi.
+
+\section{RotoWire}
+
+Na rozdiel od datasetu WikiBIO, v tabuľke charakterizujúcej jeden zápas NBA (teda vo vstupe pre generačný model) sa vyskytuje viacero entít a dokonca viacero druhov entít (tímy, hráči). Tieto fakty je potrebné zobrať do úvahy pri spracúvaní tabuliek a ich transformácii na sekvenčný vstup pre RNN.
+
+\subsection{Transformations of Input Tables}
+
+Ako je spomenuté v sekcii \ref{structured_data_rotowire}, hodnoty v tabuľke môžu byť buď mená tímov, hráčov, miest, alebo celé číslo oznamujúce percentuálnu, či absolútnu hodnotu nejakej štatistiky.
+
+Preto má zmysel použiť rozdielny prístup ku spracovaniu hodnôt ako pri datasete WikiBIO. Konkrétne budeme každú hodnotu považovať za jeden token. Väčšina hodnôt je číselná (konkrétne $\frac{13}{15}$ z typov charakterizujúcich tímy a $\frac{19}{25}$ z typov charakterizujúcich hráčov. Následne mená tímov sú väčšinou dlhé práve jeden token, až na jednu výnimku, z ktorej sa vyrobí jeden token ( \emph{Trail Blazers $\rightarrow$ Trail\_Blazers}). Podobne pre mená tímov a výnimky ( \emph{Oklahoma City $\rightarrow$ Oklahoma\_City}, \emph{Golden State $\rightarrow$ Golden\_State}, \dots).
+
+\subsubsection{Transformations of Player Names} \label{trans_p_nms}
+
+Mená hráčov sú všetky, až na jednu výnimku (\emph{Nene}) viac-tokenové a autori, ktorých prístup ku danému datasetu som bral za referenciu (\citep{wiseman2017}, \citep{puduppully2019datatotext}) zvolili odlišný prístup ako ten, ktorý používam ja.
+
+Referenčný prístup používa 2 špeciálne typy, \emph{first\_name} a \emph{last\_name}. Vďaka nim sa úloha pochopiť, či token \emph{James} odkazuje na krstné meno hviezdneho \emph{James Harden}, alebo na priezvisko legendy \emph{LeBron James} necháva na generačný systém. (Tu by malo význam pridať porovnanie toho, ako to vyzerá u mňa a u nich)
+
+Môj prístup je založený na myšlienke, že už na tak veľmi ťažkom datasete je dôležité vytvoriť čo najjednoduchšiu úlohu pre neurónovú sieť. Preto transformujem sumáre tak, aby meno každého hráča bolo reprezentované práve jedným tokenom. Práve preto strácajú typy \emph{first\_name} a \emph{last\_name} zmysel a vo vstupnej tabuľke ich nemám.
+
+\subsubsection{Entities}
+
+Keďže vstupná tabuľka obsahuje informácie o obidvoch hrajúcich tímoch a\linebreak[4]všetkých hráčoch na súpiskách, každý záznam musí obsahovať aj hodnotu~$r.e$ popisujúcu, ktorú entitu záznam charakterizuje. Vďaka transformácii mien\linebreak[4]hráčov a tímov, môžeme ako entitu použiť názov tímu, resp. meno hráča. Okrem toho však ku každému záznamu pridáme špeciálnu položku $r.ha$, ktorá symbolizuje, či sa záznam vzťahuje ku domácemu, alebo hosťujúcemu tímu. 
+
+\subsubsection{Record Format}
+
+Nakoniec teda používam záznamy, ktoré obsahujú položky $r.f$ - typ záznamu, $r.e$ - entita, $r.v$ - hodnota a $r.ha$ - domáci/hostia. (tu by mal byť pridaný príklad, ako to vyzerá)
+
+\subsection{Transformations of Summaries}
+
+Pri transformácii sumárov vychádzame z dvoch predpokladov:
+\begin{itemize}
+\item Predpokladáme, že neurónová sieť sa môže naučiť generovať určitý token, pokiaľ sa v tréningových dátach aspoň päťkrát.
+\item Predpokladáme, že je jednoduchšou úlohou kopírovať dáta z tabuľky, ako generovať zo skrytého stavu.
+\end{itemize}
+
+Kvôli tomu vykonávame také transformácie, aby sa jednak vyskytovalo čo najviac tokenov čo najčastejšie, a aby v sumároch boli používané rovnaké tokeny ako v tabuľke.
+
+\subsubsection{Number Transformations}
+
+Rovnako ako \citep{wiseman2017} a \citep{puduppully2019datatotext}, reprezentujeme čísla len pomocou číslic. Táto transformácia je motivovaná druhým predpokladom a teda tým, že dúfame, že väčšinu čísel bude neurónová sieť kopírovať a nie generovať. To znamená, že napríklad token $five$ transformujeme na $5$. Používame na to knižnicu text2num \footnote[1]{\url{https://github.com/allo-media/text2num}}. Niektoré čísla však majú v basketbalovej terminológii špeciálny význam. Špecificky teda netransformujeme číslo $three$, pretože sa často vyskytuje ako súčasť slovných spojení \emph{three pointer, three pt range \dots}
+
+\subsubsection{Player name transformations}
+
+Ako už vyplýva z \ref{trans_p_nms} a z predpokladov, ktoré sme si stanovili, chceme v texte reprezentovať jednoho hráča práve jedným tokenom. To platí aj pre extrémne prípady ako \emph{Luc Richard Mbah a Moute}, ktorý bol v datasete reprezentovaný šiestimi rôznymi kombináciami elíps v jeho mene. Najčastejšie však vychádza, že v texte sa najprv hráč spomenie a následne sa už oslovuje len priezviskom a až na 17 prípadov (čo činí 2.4\% zo 668 hráčov spomenutých aspoň v jednej tabuľke) je meno hráča vždy zložené z 2 tokenov. (jeden prípad \emph{Nene} je jednotokenový, ostatných 16 je 3 a viac tokenových). (tu pôjde algoritmus, ako vyhľadávam meno hráča)
+
+\subsection{Dataset Statistics}
+
+Keďže transformácie sumárov sú výrazne ovplyvnené štatistikami datasetu, najprv si dovolím predstaviť to, ako vyzerajú tieto štatistiky. 
+
+\subsection{Byte Pair Encoding}
+
+Tu by som chcel predstaviť, o čo ide, ako vyzerá algoritmus, koho implementáciu používam, a ako mi to pomôže v úlohách, ktoré som si stanovil.

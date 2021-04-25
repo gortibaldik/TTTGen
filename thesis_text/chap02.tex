@@ -17,7 +17,7 @@ Na to, aby som vedel rozoznať, čím je generovanie popisu športového zápasu
 
 \subsection{Structured Data}
 
-Charakteristikou tohoto datasetu je, že vstupná tabuľka je výrazne rôznorodá. Vyplýva to z toho, že osoby s inou kariérou majú výrazne iné charakteristiky.  U niekoho hovoríme o titule, u iného o povolaní, u niekoho spomenieme významné práce, u niekoho tímy, v ktorých hraje. Zatiaľ čo zrejme pri každej osobe sa vyskytne napríklad položka "dátum narodenia", pri žijúcich sa zrejme nevyskytne "dátum úmrtia". Dá sa teda povedať, že štruktúrované dáta z tohoto datasetu sú veľmi ťažké, pretože generačný systém nemôže predpokladať štruktúru, ale musí sa naučiť rozoznať ju. Príkladom môže byť infobox pre T.G. Masaryka \ref{img01:masaryk_infobox}.
+Vstupné štruktúrované dáta sú vo forme infoboxu z Wikipedie. Infobox je tabuľka faktov opisujúca život osoby. Charakteristickou vlastnosťou infoboxov je ich rôznorodosť. Vyplýva to z toho, že osoby s inou kariérou majú výrazne iné charakteristiky.  U niekoho hovoríme o titule, u iného o povolaní, u niekoho spomenieme významné práce, u niekoho tímy, v ktorých hraje. Zatiaľ čo zrejme pri každej osobe sa vyskytne napríklad položka "dátum narodenia", pri žijúcich sa zrejme nevyskytne "dátum úmrtia". Dá sa teda povedať, že štruktúrované dáta z tohoto datasetu sú veľmi ťažké, pretože generačný systém nemôže predpokladať štruktúru, ale musí sa naučiť rozoznať ju. Príkladom môže byť infobox pre T.G. Masaryka \ref{img01:masaryk_infobox}.
 
 \begin{figure}[hb!]
 \centering
@@ -43,7 +43,7 @@ Ako sumár infoboxu slúži prvá veta z článku na wikipedii, ku ktorému pris
 
 Pre samotnú úlohu generovania textového popisu zápasu zo štruktúrovaných dát som si vybral dataset RotoWire \citep{wiseman2017}. Štruktúrované dáta sú vo forme tabuľky. Tabuľka obsahuje jednak hodnoty popisujúce celkové tímové štatistiky, jednak hodnoty, popisujúce štatistiky hráčov. Ako výstupné dáta slúžia sumáre jednotlivých zápasov z portálu venujúcemu sa real-time fantasy sports news \url{https://www.rotowire.com/basketball/} (see below).
 
-\subsection{Structured Data}
+\subsection{Structured Data} \label{structured_data_rotowire}
 
 V tejto podsekcii si rozoberieme, aké dáta sa v tabuľke nachádzajú, a čo z nich sa dá využiť pri vytváraní sumáru. Pre prehľadnosť ich rozdelím na tri časti, kontextové údaje, tímové údaje a štatistiky a hráčske údaje a štatistiky. Keďže kontextové údaje sú vo vstupnej tabuľke zastúpené len ako informácia v ktorý deň sa zápas konal a vo väčšine sumárov táto informácia nie je použitá, rozhodol som sa ju tiež úplne vynechať z trénovacích dát. Všetky číselné údaje v tabuľkách sú tvorcami datasetu upravené na celočíselné hodnoty.
 

@@ -1,23 +1,20 @@
-\chapter{Experiments}
-This chapter should present the observations about the generated data and the steps taken to improve the generations.
+\chapter{Models}
+The main goal is to explore the architectures. Therefore each model is manually implemented making use of the tensorflow library
 
-\section{BLEU}
-What it is, why do I use such a metric for evaluating the data.
+\section{Tensorflow}
+What is it, mention the paper introducing it, mention other frameworks and motivation why this is the one which is used.
 
-\section{Manual evaluation}
-How the summaries for manual evaluation are chosen, how many people do evaluate the predicted summaries.
+\section{Sequence to Sequence architecture}
+Encoder, decoder. Encoder creates the representation of the input in some meta language, decoder creates the output from the representation.
 
-\section{Other evaluation approaches}
-Which approaches are presented in the read papers, which improvements should be made.
+\section{Encoder}
+Mention the embedding and MLP encoding (the main approach used in the rotowire paper) - MLP is used instead of LSTM in the encoding process, then the 2 initial decoder states are obtained by mean pooling over the MLP encodings of the embedded source records.
 
-\section{Results of the baseline model}
-Learned which teams play, what are the greatest stars of each team, although the summaries diverge, only first few sentences from the generated summaries are relevant.
+\section{Decoder}
+2 layer LSTM, embeddings, dimensionality.
 
-\section{Dropout}
-What it is, where I apply the dropout - on the decoder LSTM cells.
+\section{Base Model}
+Seq2Seq architecture with attention, both Luong style Dot Attention and Bahdanau style Concat Attention are used, input feeding approach. Maybe some pictures.
 
-\section{Scheduled Sampling}
-What it is, how it solves the divergence of the summaries.
-
-\section{Copy methods}
-How do they help the model to choose more relevant data from the table, how do they fare in the concurrence of the baseline model.
+\section{Joint Copy model}
+Uses 2 attention mechanisms. Definitely some pictures.
