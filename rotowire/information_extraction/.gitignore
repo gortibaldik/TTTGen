@@ -1,6 +1,0 @@
-# ignore all the files which aim at preprocessing data for information extraction
-# keep in only modules helpful for outside world
-dummy.py
-README.md
-__pycache__/
-create_data_for_extraction.py

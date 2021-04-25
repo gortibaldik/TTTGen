@@ -1,6 +1,7 @@
 # ignore cloned git repositories
 boxscore-data/
 rotowire/
+data2text-plan-py/
 
 # ignore tmp files
 **.json
