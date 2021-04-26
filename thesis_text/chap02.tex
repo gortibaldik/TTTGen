@@ -1,15 +1,8 @@
 \chapter{Data}
 
-One needs a lot of data if he wants to train his neural network. E.g. \citep{sennrich2016} trains the neural machine translation system on 4.2 million English-German sequence pairs. The Data-to-Text generation task má vyššie nároky na kvalitu datasetu. Potrebujeme, aby boli vstupné dáta štandardizované a aby výstupné texty zodpovedali vstupným dátam. Existuje viacero datasetov, ktoré spĺňajú túto podmienku. V tejto kapitole predstavím datasety WikiBIO a Rotowire.
+One needs a lot of data if he wants to train his neural network. E.g. \citep{sennrich2016} trains the neural machine translation system on 4.2 million English-German sequence pairs. The Data-to-Text generation task má vyššie nároky na kvalitu datasetu. Potrebujeme, aby boli vstupné dáta štandardizované a aby výstupné texty zodpovedali vstupným dátam. Existuje viacero datasetov, ktoré spĺňajú túto podmienku. V tejto kapitole predstavím datasety WikiBIO a Rotowire, ktoré používam pre svoje experimenty.
 
-\section{General description}
-
-\showboxdepth=5
-\showboxbreadth=5
-
-Obidva tieto datasety používajú notáciu, ktorá bola predstavená v článku od \citep{liang-etal-2009-learning}, preto ju najprv aj tu zadefinujeme.
-
-Ako vstup používame postupnosť záznamov (recordov) $ \mathbf{s} = \{ r_i \}_{i=1}^{J} $. Každý record $ r $ má svoj typ $ r.t \in \mathcal{T} $. Množina typov $\mathcal{T}$ je dopredu definovaná. Ďalej má typ, množinu hodnôt $ r.v = \{ r.v_1, ... , r.f_m\}$. Napríklad v datasete WeatherGOV: $ r.t == windSpeed $, $ r.v = \{time, min, mean, max, mode\}$. Na základe týchto záznamov následne predpovedáme výstupný text $ \mathbf{w} = \{ w_i\}_{i=1}^{ | \mathbf{w} | }$
+Tréning prebieha v plne supervised režime, teda potrebujeme ako vstupné štruktúrované dáta, tak aj výstupné sumáre. Zatiaľ čo vstupné štruktúrované dáta sú vo forme tabuliek, ktoré sú v preprocessingu (viac v kapitole \ref{chapPreproc}) upravené na formu, ktorá sa dá použiť ako vstup pre generačný systém, výstupné dáta sú vo forme tokenizovaných textov.
 
 \section{WikiBIO dataset}
 
@@ -17,7 +10,7 @@ Na to, aby som vedel rozoznať, čím je generovanie popisu športového zápasu
 
 \subsection{Structured Data}
 
-Vstupné štruktúrované dáta sú vo forme infoboxu z Wikipedie. Infobox je tabuľka faktov opisujúca život osoby. Charakteristickou vlastnosťou infoboxov je ich rôznorodosť. Vyplýva to z toho, že osoby s inou kariérou majú výrazne iné charakteristiky.  U niekoho hovoríme o titule, u iného o povolaní, u niekoho spomenieme významné práce, u niekoho tímy, v ktorých hraje. Zatiaľ čo zrejme pri každej osobe sa vyskytne napríklad položka "dátum narodenia", pri žijúcich sa zrejme nevyskytne "dátum úmrtia". Dá sa teda povedať, že štruktúrované dáta z tohoto datasetu sú veľmi ťažké, pretože generačný systém nemôže predpokladať štruktúru, ale musí sa naučiť rozoznať ju. Príkladom môže byť infobox pre T.G. Masaryka \ref{img01:masaryk_infobox}.
+Vstupné štruktúrované dáta sú vo forme infoboxu z Wikipedie. Infobox je tabuľka faktov opisujúca život osoby. Charakteristickou vlastnosťou infoboxov je ich rôznorodosť. Vyplýva to z toho, že osoby s inou kariérou majú výrazne iné charakteristiky.  U niekoho hovoríme o titule, u iného o povolaní, u niekoho spomenieme významné práce, u niekoho tímy, v ktorých hraje. Zatiaľ čo zrejme pri každej osobe sa vyskytne napríklad položka "dátum narodenia", pri žijúcich sa zrejme nevyskytne "dátum úmrtia". Dá sa teda povedať, že štruktúrované dáta z tohoto datasetu sú veľmi ťažké, pretože generačný systém nemôže predpokladať štruktúru, ale musí sa naučiť rozoznať ju. Príkladom môže byť infobox pre T.G. Masaryka \ref{masaryk_infobox}.
 
 \begin{figure}[hb!]
 \centering
@@ -32,12 +25,12 @@ Vstupné štruktúrované dáta sú vo forme infoboxu z Wikipedie. Infobox je ta
 };
 \end{tikzpicture}
 \caption{Príklad z trénovacích dát datasetu WikiBIO}
-\label{img01:masaryk_infobox}
+\label{masaryk_infobox}
 \end{figure}
 
 \subsection{Summaries}
 
-Ako sumár infoboxu slúži prvá veta z článku na wikipedii, ku ktorému prislúcha daná tabuľka. Z pozorovaní vstupných dát vyplýva, že prvá veta väčšinou obsahuje meno, dátum narodenia, prípadne dátum úmrtia a najdôležitejšie činnosti a úspechy osoby, ktorej sa infobox týka. Už z pozorovaní tvorcov datasetu \citep{lebret2016neural} vyplýva, že okolo tretiny tokenov nachádzajúcich sa v prvej vete pochádza z tabuľky. Generačný systém pracujúci s týmto datasetom teda bude musieť správne určiť, kedy sa spoľahnúť na jazykové zručnosti a kedy kopírovať. Ako príklad možno použiť sumár prislúchajúci k infoboxu \ref{img01:masaryk_infobox}.
+Ako sumár infoboxu slúži prvá veta z článku na wikipedii, ku ktorému prislúcha daná tabuľka. Z pozorovaní vstupných dát vyplýva, že prvá veta väčšinou obsahuje meno, dátum narodenia, prípadne dátum úmrtia a najdôležitejšie činnosti a úspechy osoby, ktorej sa infobox týka. Už z pozorovaní tvorcov datasetu \citep{lebret2016neural} vyplýva, že okolo tretiny tokenov nachádzajúcich sa v prvej vete pochádza z tabuľky. Generačný systém pracujúci s týmto datasetom teda bude musieť správne určiť, kedy sa spoľahnúť na jazykové zručnosti a kedy kopírovať. Ako príklad možno použiť sumár prislúchajúci k infoboxu \ref{masaryk_infobox}.
 
 \section{Rotowire dataset}
 
@@ -62,7 +55,7 @@ Medzi tímové údaje rátam jednak mená klubov, mestá, kde kluby sídlia. \li
         \multicolumn{8}{l}{\footnotesize \textit{Note:} The statistics are accumulated across all the team players} \\
         \multicolumn{8}{l}{\footnotesize $_1$ Points; $_2$ Assists; $_3$ Rebounds; $_4$ Turnovers}
     \end{tabular}
-    \caption{Príklad tímových štatistík z datasetu Rotowire}\label{tab_team_stats}
+    \caption{Príklad tímových štatistík z datasetu Rotowire} \label{tab_team_stats}
 \end{table}
 
 \subsubsection{Player statistics}
