@@ -79,7 +79,7 @@ Druhou možnosťou je prístup, ktorý zvolili aj tvorcovia datasetu \citep{lebr
 
 \subsection{Preprocessing}
 
-Jednotlivé sety (train, valid, test) ešte prefiltrujem tak, aby žiadna tabuľka nebola dlhšia ako 100 recordov a žiadny sumár nebol dlhší ako 75 tokenov. (urobené na základe štatistík v tabuľke \emph{tu bude odkaz na tabuľku}) Keďže tento dataset nie je nosným datasetom tejto práce, rozhodol som sa neexperimentovať s preprocessingom a použil som hodnoty hyperparametrov, ktoré zvolili \citep{liu2017tabletotext}. V krátkosti zhrniem, čo konkrétne používam.
+Jednotlivé sety (train, valid, test) ešte prefiltrujem tak, aby žiadna tabuľka nebola dlhšia ako 100 recordov a žiadny sumár nebol dlhší ako 75 tokenov. (urobené na základe štatistík v tabuľke \ref{stats_filtering_wb}) Keďže tento dataset nie je nosným datasetom tejto práce, rozhodol som sa neexperimentovať s preprocessingom a použil som hodnoty hyperparametrov, ktoré zvolili \citep{liu2017tabletotext}. V krátkosti zhrniem, čo konkrétne používam.
 
 \subsubsection{General}
 
@@ -117,18 +117,107 @@ Všetky záznamy, kde by hodnota činila \emph{none}, resp. nevalidné hodnoty v
     \caption{Length statistics of  summaries}
     \footnotesize \textit{Note:} $_1$ Number of tokens in a summary \\ $_2$ Percentage of summaries with lower number of tokens
 \end{subfigure}
-\caption{Statistics of the WikiBIO dataset} \label{stats_filtering_wb}
+\captionof{table}{Statistics of the WikiBIO dataset} \label{stats_filtering_wb}
 \end{figure}
 
 \section{RotoWire}
 
 Na rozdiel od datasetu WikiBIO, v tabuľke charakterizujúcej jeden zápas NBA (teda vo vstupe pre generačný model) sa vyskytuje viacero entít a dokonca viacero druhov entít (tímy, hráči). Tieto fakty je potrebné zobrať do úvahy pri spracúvaní tabuliek a ich transformácii na sekvenčný vstup pre RNN.
 
-\subsection{Dataset Statistics}
+\subsection{Dataset Statistics} \label{assumptions_ref}
 
-Keďže transformácie sumárov sú výrazne ovplyvnené štatistikami datasetu, najprv si dovolím predstaviť to, ako vyzerajú tieto štatistiky. 
+Keďže transformácie sumárov sú výrazne ovplyvnené štatistikami datasetu, najprv si dovolím predstaviť to, ako vyzerajú tieto štatistiky. Rovnako ako pri datasete WikiBIO, aj teraz používam originálny train-valid-test split (3397, 727, 728). Pri spracovaní datasetu vychádzam z 2 predpokladov:
+\begin{itemize}
+\item Neurónová sieť sa môže naučiť generovať určitý token, pokiaľ sa v\linebreak[4]tréningových dátach vyskytuje aspoň päťkrát.
+\item Je jednoduchšou úlohou kopírovať dáta z tabuľky, ako generovať zo skrytého stavu.
+\end{itemize}
 
-\subsection{Transformations of Input Tables}
+Prezentované štatistiky sú s preprocessingom, ktorý používa \citep{wiseman2017} \footnote{V datasete sa však vyskytla jedna nezdokumentovaná chyba, ktorú som odstránil, jeden sumár bol známym textom Lorem Ipsum, ten je z datasetu, ktorý používam odstránený a teda trénovacie dáta obsahujú 3397 položiek a nie 3398, ako uvádza \citep{wiseman2017} \label{footnote_wis_fault_li}}, neskôr, v sekcii \ref{bpeSection} ukážem štatistiky, ktoré sú po aplikácii všetkých úprav na datasete.
+
+\subsubsection{Length-wise Statistics}
+
+Jeden hráč je v tabuľke zastúpený 24 záznamami, jeden tím 15 záznamami. Každá tabuľka obsahuje záznamy o 2 tímoch. Podľa dát z tabuľky \ref{stats_tables_orig_rw} teda ostáva 528 až 720 záznamov o hráčoch, teda v jednej tabuľke sa hovorí o 22 - 30 hráčoch. Z toho vyplýva, že generačný systém nemá úlohu ešte sťaženú rôznorodosťou tabuliek, keďže úseky, kde sa rozpráva o hráčoch a o tímoch sú relatívne rovnaké vo všetkých tabuľkách.
+
+\begin{table}[h!]
+    \centering
+    \begin{tabular}{ccccc}
+        \toprule
+        {}    & \textbf{Max} & \textbf{Min} & \textbf{Avegage}& {} \\
+        \textbf{Set} & \textbf{Summary} & \textbf{Summary} & \textbf{Summary} & \textbf{Size} \\
+        {} & \textbf{Length} & \textbf{Length} & \textbf{Length} & {} \\
+        \midrule
+        train      & 750 & 558 & 644.65 & 3397  \\
+        validation & 702 & 582 & 644.66 & 727 \\
+        test       & 702 & 558 & 645.03 & 728
+    \end{tabular}
+    \caption{Statistics of tables as used by \citep{wiseman2017}\textsuperscript{\ref{footnote_wis_fault_li}}} \label{stats_tables_orig_rw}
+\end{table}
+
+Na rozdiel od vstupných tabuliek, výstupné sumáre sú čo sa týka dĺžky oveľa rôznorodejšie (ako je vidieť v tabuľke \ref{stats_sums_orig_rw}). Tu je podstatné hlavne to, že priemerná dĺžka sumáru je viac ako 330 tokenov a pokiaľ chceme generačný systém trénovať aj na dlhších sumároch, tak dĺžka tabuľky a sumáru nám vytvorí netriviálne pamäťové nároky na grafickú kartu a na RAM. (\emph{tu by mohol byť odkaz na sekciu o implementačných problémoch})
+
+\begin{table}[h!]
+    \centering
+    \begin{tabular}{ccccc}
+        \toprule
+        {}    & \textbf{Max} & \textbf{Min} & \textbf{Avegage}& {} \\
+        \textbf{Set} & \textbf{Summary} & \textbf{Summary} & \textbf{Summary} & \textbf{Size} \\
+        {} & \textbf{Length} & \textbf{Length} & \textbf{Length} & {} \\
+        \midrule
+        train      & 762 & 149 & 334.41 & 3397  \\
+        validation & 813 & 154 & 339.97 & 727 \\
+        test       & 782 & 149 & 346.83 & 728
+    \end{tabular}
+    \caption{Statistics of summaries as used by \citep{wiseman2017}\textsuperscript{\ref{footnote_wis_fault_li}}} \label{stats_sums_orig_rw}
+\end{table}
+
+
+\subsubsection{Frequency of Unique Tokens}
+
+Teraz sa zameriam na štatistiky dôležité pre pochopenie motivácie pre ďalšie transformácie datasetu vzhľadom k skôr prezentovaným predpokladom \ref{assumptions_ref}. V tabuľke \ref{stats_occur_rw} je vidieť, že viac ako 61\% tokenov, ktoré nie sú číslami, menami hráčov, tímov, alebo miest sa v tréningovom datasete vyskytne menej ako 5-krát. Z toho sme usúdili, že je zrejme potrebné urobiť ďalšie transformácie na datasete, čím by sme zvýšili pravdepodobnosť, že sa generačný systém lepšie datasetu uspôsobí. 
+
+\begin{table}[h!]
+    \centering
+    \begin{tabular}{cccc}
+        \toprule
+        {}    & \textbf{Unique} & \textbf{$>= 5$} & \textbf{$>= 5$} \\
+        \pulrad{\textbf{Set}} & \textbf{Tokens} & \textbf{Absolute} & \textbf{Relative}\\
+        \midrule
+        train      & 9779 & 4158 & 42.52\% \\
+        train\_wop$_1$ & 8604 & 3296 & 38.31\% \\
+        train\_wopl$_2$ & 8031 & 3119 & 38.84\% \\
+        \bottomrule
+        \multicolumn{4}{l}{\footnotesize \textit{Note:} $_1$ train\_wop is training set with all the player names, city names, } \\
+        \multicolumn{4}{l}{\footnotesize team names and numbers extracted $_2$ train\_wopl is train\_wop lowercased}
+    \end{tabular}
+    \caption{Occurrences of tokens in summaries from dataset RotoWire} \label{stats_occur_rw}
+\end{table}
+
+Podobné závery možno urobiť aj zo štatistík prekryvu slovníkov trénovacích a validačných (resp. testovacích) dát.
+
+\begin{table}[h!]
+    \centering
+    \begin{tabular}{cccc}
+        \toprule
+        {}    &  \textbf{Unique} &\textbf{Train} & \textbf{Train$_{>=5}$} \\
+        \pulrad{\textbf{Set}} & \textbf{Tokens} &\textbf{Overlap} & \textbf{Overlap} \\
+        \midrule
+        valid      & 5625 & 88.18\% & 66.63\% \\
+        test       & 5741 & 87.46\% & 65.72\% \\
+        \hline
+        valid\_wop$_1$      & 4714 & 86.36\% & 61.92\% \\
+        test\_wop$_2$       & 4803 & 86.03\% & 61.13\% \\
+        \hline
+        valid\_wopl$_3$      & 4442 & 86.74\% & 62.36\% \\
+        test\_wopl$_4$       & 4531 & 86.32\% & 61.37\% \\
+        \bottomrule
+        \multicolumn{4}{l}{\footnotesize \textit{Note:} train$_{>=5}$ is a set of all the tokens with more than} \\
+        \multicolumn{4}{l}{\footnotesize 5 occurrences in the train dataset summaries $_1$, $_2$, $_3$, $_4$} \\
+        \multicolumn{4}{l}{\footnotesize have the same meaning as in table \ref{stats_occur_rw}}
+    \end{tabular}
+    \caption{Overlap of train dataset summaries and valid/test dataset summaries} \label{stats_overlap_rw}
+\end{table}
+
+\subsection{Transformations of Input Tables} \label{trans_in_tb_rw}
 
 Ako je spomenuté v sekcii \ref{structured_data_rotowire}, hodnoty v tabuľke môžu byť buď mená tímov, hráčov, miest, alebo celé číslo oznamujúce percentuálnu, či absolútnu hodnotu nejakej štatistiky.
 
@@ -138,7 +227,7 @@ Preto má zmysel použiť rozdielny prístup ku spracovaniu hodnôt ako pri data
 
 Mená hráčov sú všetky, až na jednu výnimku (\emph{Nene}) viac-tokenové a autori, ktorých prístup ku danému datasetu som bral za referenciu (\citep{wiseman2017}, \citep{puduppully2019datatotext}) zvolili odlišný prístup ako ten, ktorý používam ja.
 
-Referenčný prístup používa 2 špeciálne typy, \emph{first\_name} a \emph{last\_name}. Vďaka nim sa úloha pochopiť, či token \emph{James} odkazuje na krstné meno hviezdneho \emph{James Harden}, alebo na priezvisko legendy \emph{LeBron James} necháva na generačný systém. (Tu by malo význam pridať porovnanie toho, ako to vyzerá u mňa a u nich)
+Referenčný prístup používa 2 špeciálne typy, \emph{first\_name} a \emph{last\_name}. Vďaka nim sa úloha pochopiť, či token \emph{James} odkazuje na krstné meno hviezdneho \emph{James Harden}, alebo na priezvisko legendy \emph{LeBron James} necháva na generačný systém.
 
 Môj prístup je založený na myšlienke, že už na tak veľmi ťažkom datasete je dôležité vytvoriť čo najjednoduchšiu úlohu pre neurónovú sieť. Preto transformujem sumáre tak, aby meno každého hráča bolo reprezentované práve jedným tokenom. Práve preto strácajú typy \emph{first\_name} a \emph{last\_name} zmysel a vo vstupnej tabuľke ich nemám.
 
@@ -150,24 +239,45 @@ Keďže vstupná tabuľka obsahuje informácie o obidvoch hrajúcich tímoch a\l
 
 Nakoniec teda používam záznamy, ktoré obsahujú položky $r.f$ - typ záznamu, $r.e$ - entita, $r.v$ - hodnota a $r.ha$ - domáci/hostia. (tu by mal byť pridaný príklad, ako to vyzerá)
 
-\subsection{Transformations of Summaries}
-
-Pri transformácii sumárov vychádzame z dvoch predpokladov:
-\begin{itemize}
-\item Predpokladáme, že neurónová sieť sa môže naučiť generovať určitý token, pokiaľ sa v tréningových dátach aspoň päťkrát.
-\item Predpokladáme, že je jednoduchšou úlohou kopírovať dáta z tabuľky, ako generovať zo skrytého stavu.
-\end{itemize}
-
 Kvôli tomu vykonávame také transformácie, aby sa jednak vyskytovalo čo najviac tokenov čo najčastejšie, a aby v sumároch boli používané rovnaké tokeny ako v tabuľke.
 
-\subsubsection{Number Transformations}
+\subsubsection{Number Transformations} \label{num_trans_rw}
 
 Rovnako ako \citep{wiseman2017} a \citep{puduppully2019datatotext}, reprezentujeme čísla len pomocou číslic. Táto transformácia je motivovaná druhým predpokladom a teda tým, že dúfame, že väčšinu čísel bude neurónová sieť kopírovať a nie generovať. To znamená, že napríklad token $five$ transformujeme na $5$. Používame na to knižnicu text2num \footnote[1]{\url{https://github.com/allo-media/text2num}}. Niektoré čísla však majú v basketbalovej terminológii špeciálny význam. Špecificky teda netransformujeme číslo $three$, pretože sa často vyskytuje ako súčasť slovných spojení \emph{three pointer, three pt range \dots}
 
 \subsubsection{Player name transformations}
 
-Ako už vyplýva z \ref{trans_p_nms} a z predpokladov, ktoré sme si stanovili, chceme v texte reprezentovať jednoho hráča práve jedným tokenom. To platí aj pre extrémne prípady ako \emph{Luc Richard Mbah a Moute}, ktorý bol v datasete reprezentovaný šiestimi rôznymi kombináciami elíps v jeho mene. Najčastejšie však vychádza, že v texte sa najprv hráč spomenie a následne sa už oslovuje len priezviskom a až na 17 prípadov (čo činí 2.4\% zo 668 hráčov spomenutých aspoň v jednej tabuľke) je meno hráča vždy zložené z 2 tokenov. (jeden prípad \emph{Nene} je jednotokenový, ostatných 16 je 3 a viac tokenových). (tu pôjde algoritmus, ako vyhľadávam meno hráča)
+Ako už vyplýva z \ref{trans_p_nms} a z predpokladov, ktoré sme si stanovili, chceme v texte reprezentovať jednoho hráča práve jedným tokenom. To platí aj pre extrémne prípady ako \emph{Luc Richard Mbah a Moute}, ktorý bol v datasete reprezentovaný šiestimi rôznymi kombináciami elíps v jeho mene. Najčastejšie však vychádza, že v texte sa najprv hráč spomenie a následne sa už oslovuje len priezviskom a až na 17 prípadov (čo činí 2.4\% zo 668 hráčov spomenutých aspoň v jednej tabuľke) je meno hráča vždy zložené z 2 tokenov. Na transformáciu mien hráčov používam jednoduchý algoritmus, ktorý napriek tomu, že nerieši všetky referencie úplne presne, dosahuje na oko slušnú presnosť.
 
-\subsection{Byte Pair Encoding}
+\begin{figure}[!h]
+\centering
+\usetikzlibrary{shapes.multipart}
+\begin{tikzpicture}
+\node (original) [defStyleWikiBIOEx, text width = 0.95*\columnwidth] {
+    While King James struggled , James Harden was busy putting up a triple - double on the Detroit Pistons on Friday
+};
+\node (transformed) [defStyleWikiBIOEx, text width = 0.95*\columnwidth, below=5mm of original]{
+    while king LeBron\_James struggled , James\_Harden was busy putting up a triple - double on the Detroit Pistons on friday.
+};
+\draw [->] (original) edge (transformed);
+\end{tikzpicture}
+\caption{Example of transformation of player names leveraging the knowledge of players on the rosters} \label{cmp_original_vs_mine}
+\end{figure}
 
-Tu by som chcel predstaviť, o čo ide, ako vyzerá algoritmus, koho implementáciu používam, a ako mi to pomôže v úlohách, ktoré som si stanovil.
+Transformácia prebieha v troch krokoch. Teraz sa ich pokúsim popísať na príklade transformácie vety z figure \ref{cmp_original_vs_mine}:
+\begin{itemize}
+    \item \textbf{1. Extrakcia mien hráčov zo sumáru} \hfill \\
+    Vytiahneme zo sumáru mená \emph{James} a \emph{James Harden}, ktoré sú súčasťou mena nejakého z hráčov, ktorí sú známi z korpusu
+    \item \textbf{2. Vyriešenie referencií pre daný sumár a vytvorenie slovníka transformácií} \hfill \\
+    Pokúsime sa zistiť, na čo odkazuje jednotokenové meno \emph{James}. Explicitne zakazujeme, aby sa vnímalo ako krstné meno a v boxscore daného zápasu nájdeme, že doň zasiahol niekto s menom \emph{LeBron James}. Do slovníka transformácií teda umiestnime transformáciu \emph{James $\rightarrow$ LeBron\_James}. \emph{James Harden} je viac tokenové meno, ktoré sme v prvom kroku rozoznali ako meno hráča, teda do slovníka pridáme len prepis \emph{James Harden $\rightarrow$ James\_Harden}
+    \item 3. Aplikácia transformácií na sumár \hfill \\
+    Prechádzame text a na najdlhšiu namatchovanú postupnosť aplikujeme transformáciu.
+\end{itemize}
+
+\subsection{Byte Pair Encoding} \label{bpeSection}
+
+Zatiaľ čo predchádzajúce transformácie hlavne riešia to, aby sa mohol generačný systém čo najjednoduchšie naučiť kopírovať, Byte Pair Encoding má za úlohu vyriešiť problém, o ktorom som hovoril v sekcii \ref{assumptions_ref}.
+
+\subsubsection{Algorithm}
+
+Algoritmus bol predstavený ako riešenie na out of vocabulary problém \citep{sennrich2016}. Pokiaľ by sme sa totiž rozhodli, že ako slovník použijeme len slová, ktoré systém pozná z tréningového datasetu, museli by sme nahradiť viac ako 10\% slovníka validačného aj testovacieho datasetu špeciálnymi \emph{UNK} tokenmi. Namiesto toho preto použijeme prístup, keď 
