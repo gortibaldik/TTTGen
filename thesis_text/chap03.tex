@@ -276,8 +276,116 @@ Transformácia prebieha v troch krokoch. Teraz sa ich pokúsim popísať na prí
 
 \subsection{Byte Pair Encoding} \label{bpeSection}
 
-Zatiaľ čo predchádzajúce transformácie hlavne riešia to, aby sa mohol generačný systém čo najjednoduchšie naučiť kopírovať, Byte Pair Encoding má za úlohu vyriešiť problém, o ktorom som hovoril v sekcii \ref{assumptions_ref}.
+Pokiaľ by sme sa rozhodli, že ako slovník použijeme len slová, ktoré generačný systém pozná z tréningového datasetu, museli by sme nahradiť viac ako 10\% unikátnych slov z validačného, či testovacieho datasetu špeciálnymi \emph{UNK} tokenmi. Namiesto toho, sme sa rozhodli použiť prístup, ktorý predstavil \citep{sennrich2016}. Najprv popíšeme algoritmus, následne ukážeme, ako pomohol prekonať problém, o ktorom rozprávame.
 
 \subsubsection{Algorithm}
 
-Algoritmus bol predstavený ako riešenie na out of vocabulary problém \citep{sennrich2016}. Pokiaľ by sme sa totiž rozhodli, že ako slovník použijeme len slová, ktoré systém pozná z tréningového datasetu, museli by sme nahradiť viac ako 10\% slovníka validačného aj testovacieho datasetu špeciálnymi \emph{UNK} tokenmi. Namiesto toho preto použijeme prístup, keď 
+Používame implementáciu algoritmu priamo od autorov\footnote{\url{https://github.com/rsennrich/subword-nmt}}, ktorá sa dá stiahnuť aj ako samostatný python package. Minimálny príklad možnej implementácie v pythone je ukázaný ako algoritmus \ref{bpe-algorithm}. 
+
+Ako prvý krok sa každé slovo rozdelí na znaky a na koniec každého slova sa pridá špeciálny znak  \emph{\textless eow\textgreater}, ktorý umožní detokenizáciu na pôvodný text. Vstupný slovník sa inicializuje na množinu unikátnych znakov v texte (okrem bielych znakov, algoritmus sa týka len slov). Algoritmus mnohokrát prechádza text a pri každom prechode nájde najčastejšiu dvojicu za sebou idúcich znakov a spojí ju do jednoho nového znaku. Tento znak sa pridá do slovníka a všetky výskyty daných dvoch znakov za sebou sa nahradia novým znakom. 
+
+Veľkosť výstupného slovníka je teda počet unikátnych znakov v pôvodnom texte ($+1$ kvôli \emph{\textless eow\textgreater} tokenu) $+$ počet prebehnutých iterácií.
+
+Algoritmus má teda jeden hyperparameter a to počet iterácií, a teda veľkosť výstupného slovníka.
+
+\subsubsection{Statistics of Transformed Dataset}
+
+Vyskúšali sme tri možnosti nastavenia hyperparametru BPE\footnote{Možnosti nastavenia počtu iterácií BPE spolu so štatistikami s nimi spojenými sú prístupné na \url{https://github.com/gortibaldik/TTTGen/blob/master/rotowire/dataset_stats.md}}. Nakoniec sme zvolili 2000 iterácií algoritmu. Z procesu spájania tokenov sú vybrané čísla a mená hráčov, keďže chceme, aby tieto tokeny generačný systém priamo kopíroval zo vstupnej tabuľky. Tým pádom prienik tréningového a validačného (resp. testovacieho) datasetu nie je 100\%.\footnote{Konkrétne spolu 92 tokenov (31 unikátnych tokenov) z validačného a 87 tokenov (34 unikátnych tokenov) je nahradených UNK tokenom vo validačných dátach.}Výsledné štatistiky po všetkých transformáciách sú v tabuľkách \ref{table_train_final_rw} a \ref{table_vt_final_rw}.
+
+\begin{table}[h!]
+    \centering
+    \small
+    \begin{tabular}{cccc}
+        \toprule
+        {}    & \textbf{Unique} & \textbf{$>= 5$} & \textbf{$>= 5$} \\
+        \pulrad{\textbf{Set}} & \textbf{Tokens} & \textbf{Absolute} & \textbf{Relative}\\
+        \midrule
+        train      & 2839 & 2531 & 89.15\%
+    \end{tabular}
+    \caption{\small Occurrences of tokens in transformed summaries from dataset RotoWire} \label{table_train_final_rw}
+\end{table}
+
+\begin{table}[h!]
+    \centering
+    \small
+    \begin{tabular}{cccc}
+        \toprule
+        {}    &  \textbf{Unique} &\textbf{Train} & \textbf{Train$_{>=5}$} \\
+        \pulrad{\textbf{Set}} & \textbf{Tokens} &\textbf{Overlap} & \textbf{Overlap} \\
+        \midrule
+        valid                & 2582 & 98.80\% & 95.70\% \\
+        test                 & 5741 & 98.69\% & 95.45\%
+    \end{tabular}
+    \caption{\small Overlap of transformed train dataset summaries and valid/test dataset summaries} \label{table_vt_final_rw}
+\end{table}
+
+% nice formatting of python code
+% https://tex.stackexchange.com/questions/105662/default-value-for-basicstyle-in-lstlisting/122916#122916
+\lstdefinestyle{shared}
+{
+    numbers=left,
+    numbersep=1em,
+    numberstyle=\tiny\color{red},
+    frame=single,
+    framesep=\fboxsep,
+    framerule=\fboxrule,
+    rulecolor=\color{red!20},
+    linewidth=13.7cm,
+    breaklines=true,
+    tabsize=2,
+    columns=flexible,
+}
+
+\lstdefinestyle{python}
+{
+    style=shared,
+    escapechar=\^,
+    language={Python},
+    basicstyle=\small\tt,
+    keywordstyle=\color{blue},
+    commentstyle=\color[rgb]{0.13,0.54,0.13},
+    backgroundcolor=\color{cyan!5},
+}
+
+\lstnewenvironment{python}
+{\lstset{style=python}}
+{}
+
+\begin{algorithm}[!h]
+\begin{python}
+import re, collections
+
+def get_stats(vocab):
+    pairs = collections.defaultdict(int)
+    for word, freq in vocab.items():
+    symbols = word.split()
+    for i in range(len(symbols)-1):
+        pairs[symbols[i],symbols[i+1]] += freq
+    return pairs
+
+def merge_vocab(pair, v_in):
+    v_out = {}
+    bigram = re.escape(' '.join(pair))
+    p = re.compile(r'(?<!\S)' + bigram + r'(?!\S)')
+    for word in v_in:
+    w_out = p.sub(''.join(pair), word)
+    v_out[w_out] = v_in[word]
+    return v_out
+
+vocab = {'l o w </w>' : 5, 'l o w e r </w>' : 2,
+            'n e w e s t </w>':6, 'w i d e s t </w>':3}
+num_merges = 10
+for i in range(num_merges):
+    pairs = get_stats(vocab)
+    best = max(pairs, key=pairs.get)
+    vocab = merge_vocab(best, vocab)
+    print(best)
+
+> r ^$\cdot$^ ^$\rightarrow$^ r^$\cdot$^
+> l o ^$\rightarrow$^ lo
+> lo w ^$\rightarrow$^ low
+> e r^$\cdot$^ ^$\rightarrow$^ er^$\cdot$^
+\end{python}
+\caption{Learn BPE operations \\ Extract from paper \textbf{Neural Machine Translation of Rare Words with Subword Units} by \citep{sennrich2016}}
+\label{bpe-algorithm}
+\end{algorithm}

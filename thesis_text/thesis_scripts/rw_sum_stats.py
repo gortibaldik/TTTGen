@@ -37,9 +37,14 @@ def main(args):
       print(f"relative overlap with train of {name} : {len(overlap_dict)*100/len(unique_tokens)}")
       print(f"relative overlap with train_mt5 of {name} : {len(mt5)*100/len(unique_tokens)}")
 
+      if args.print_out:
+        for key in [key for key in unique_tokens.keys() if key not in unique_train_tokens]:
+          print(key)
+
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("train", type=str)
     parser.add_argument("valid", type=str)
     parser.add_argument("test", type=str)
+    parser.add_argument("--print_out", help="Print tokens, which are in dataset but not in train split", action='store_true')
     main(parser.parse_args())
