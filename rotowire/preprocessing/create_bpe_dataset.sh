@@ -110,29 +110,29 @@ echo "creating ${format} dataset"
 dataset_dir="${out_dir}_${format}"
 if [ ! -d "${dataset_dir}" ]; then
   mkdir "${dataset_dir}"
-  if [ "$format" == "tfrecord" ]; then
-    python3 preprocessing.py "${rotowire_dir}" --log \
-                                               create_dataset \
-                                               --preproc_summaries_dir="${out_dir}" \
-                                               --output_dir="${dataset_dir}" \
-                                               --to_tfrecord
-  elif [ "$format" == "txt" ]; then
-    python3 preprocessing.py "${rotowire_dir}" --log \ 
-                                               create_dataset \
-                                               --preproc_summaries_dir="${out_dir}" \
-                                               --output_dir="${dataset_dir}" \
-                                               --to_txt
-  elif [ "$format" == "np" ]; then
-    python3 preprocessing.py "${rotowire_dir}" --log \
-                                               create_dataset \
-                                               --preproc_summaries_dir="${out_dir}" \
-                                               --output_dir="${dataset_dir}" \
-                                               --to_npy
-  else
-    echo "Invalid format specified!"
-  fi
- cp "${out_dir}/config.txt" "${dataset_dir}/config.txt"
 fi
+if [ "$format" == "tfrecord" ]; then
+  python3 preprocessing.py "${rotowire_dir}" --log \
+                                              create_dataset \
+                                              --preproc_summaries_dir="${out_dir}" \
+                                              --output_dir="${dataset_dir}" \
+                                              --to_tfrecord
+elif [ "$format" == "txt" ]; then
+  python3 preprocessing.py "${rotowire_dir}" --log \ 
+                                              create_dataset \
+                                              --preproc_summaries_dir="${out_dir}" \
+                                              --output_dir="${dataset_dir}" \
+                                              --to_txt
+elif [ "$format" == "np" ]; then
+  python3 preprocessing.py "${rotowire_dir}" --log \
+                                              create_dataset \
+                                              --preproc_summaries_dir="${out_dir}" \
+                                              --output_dir="${dataset_dir}" \
+                                              --to_npy
+else
+  echo "Invalid format specified!"
+fi
+cp "${out_dir}/config.txt" "${dataset_dir}/config.txt"
 
 echo "cleaning"
 rm "${out_dir}/tmp_vocab.txt"

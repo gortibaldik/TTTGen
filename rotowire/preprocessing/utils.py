@@ -1,5 +1,6 @@
 from collections import defaultdict
 from functools import total_ordering
+from constants import BoxScoreEntries, LineScoreEntries # pylint: disable=import-error
 
 import sys
 
@@ -193,7 +194,7 @@ class OccurrenceDict:
         with open(file_path, 'r', encoding='utf8') as f:
             file_content = f.read().strip().split('\n')
         result = cls()
-        for ix, line in enumerate(file_content):
+        for _, line in enumerate(file_content):
             if basic_dict:
                 tokens = line.strip().split()
                 word = tokens[0]
@@ -242,3 +243,34 @@ class Logger:
     def __call__(self, message, file=sys.stderr):
         if self._log:
             print(message, file=file)
+
+def set_home_away(home_city, away_city, actual_city):
+    if actual_city == home_city:
+        return "HOME"
+    elif actual_city == away_city:
+        return "AWAY"
+    else:
+        raise RuntimeError(f"NON VALID CITY NAME! {actual_city} : {home_city} : {away_city}")
+
+city_transform_dict = { "Los Angeles" : "Los_Angeles", "LA" : "Los_Angeles" }
+
+def transform_city_name(city_name):
+    if city_name in city_transform_dict.keys():
+        return city_transform_dict[city_name]
+    return city_name
+
+player_transform_dict = { "T.J. McConnell" : "TJ McConnell"}
+
+def transform_player_name(player_name):
+    if player_name in player_transform_dict:
+        return player_transform_dict[player_name]
+    return player_name
+
+def create_tp_vocab():
+    type_dict = OccurrenceDict()
+
+    for tp in BoxScoreEntries:
+        type_dict.add(tp.value)
+    for tp in LineScoreEntries:
+        type_dict.add(tp.value)
+    return type_dict
