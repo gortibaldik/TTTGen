@@ -22,6 +22,12 @@ def create_dataset_parser(subparsers):
         required=True
     )
     create_dataset_parser.add_argument(
+        '--content_plan_dir',
+        help="path to directory with content plans created by Puduppully et al. 2019",
+        type=str,
+        default=None
+    )
+    create_dataset_parser.add_argument(
         "--to_npy",
         help="save the output to .npy format (indices in npy arrays)",
         action="store_true"
@@ -52,14 +58,18 @@ def create_prepare(args, set_names, input_paths):
 
     # prepare input paths
     for ix, pth in enumerate(set_names):
-        input_paths[ix] = (os.path.join(args.preproc_summaries_dir, pth + "_prepared.txt"), input_paths[ix])
+        if (pth == "test") or (args.content_plan_dir == None):
+            cplan = None
+        else:
+            cplan = os.path.join(args.content_plan_dir, pth + ".txt")
+        input_paths[ix] = (os.path.join(args.preproc_summaries_dir, pth + "_prepared.txt"), input_paths[ix], cplan)
 
     # prepare output paths
     output_paths = []
     for ix, pth in enumerate(set_names):
         pth = os.path.join(args.output_dir, pth)
         if suffix != ".tfrecord":
-            output_paths.append((pth + "_in" + suffix, pth + "_target" + suffix))
+            output_paths.append((pth + "_in" + suffix, pth + "_target" + suffix, pth + "_cp" + suffix))
         else:
             output_paths.append([pth + suffix])
 
@@ -81,7 +91,13 @@ def create_prepare(args, set_names, input_paths):
     with open(os.path.join(args.preproc_summaries_dir, "config.txt"), 'r') as f:
         tokens = [int(n) for n in f.read().strip().split('\n')]
         mlt, mls = tokens[0], tokens[1]
-    return input_paths, output_paths, tk_vocab, mlt, mls
+
+    # get max content plan length
+    mlcp = 0
+    if args.content_plan_dir is not None:
+        with open(os.path.join(args.content_plan_dir, "config.txt"), 'r') as f:
+            mlcp = int(f.read().strip().split('\n')[0])
+    return input_paths, output_paths, tk_vocab, mlt, mls, mlcp
 
 def create_ha_vocab():
     _vocab = OccurrenceDict()
@@ -89,80 +105,142 @@ def create_ha_vocab():
     _vocab.add("AWAY")
     return _vocab
 
+def create_content_plan_ids( content_plan_path
+                           , max_plan_length
+                           , pad_token
+                           , tables
+                           , logger):
+    plan_ids = np.full(shape=(len(tables), max_plan_length), fill_value=pad_token, dtype=np.int16)
+    with open(content_plan_path, 'r', encoding='utf8') as f:
+        logger(f"Working with {content_plan_path}")
+        lines = f.read().strip().split('\n')
+        for ixt, (line, table) in enumerate(zip(lines, tables)):
+            records = line.strip().split()
+            for ixr, record in enumerate(records):
+                ha, tp, ent, val = record.split('|')
+                resolved_id = -1
+                for ixx, r in enumerate(table):
+                    if (r.ha == ha) and (r.type == tp) and \
+                       (r.entity == ent) and (r.value == val):
+                        resolved_id = ixx
+                        break
+                if resolved_id == -1:
+                    raise RuntimeError(f"{ha}, {tp}, {ent}, {val}")
+                plan_ids[ixt, ixr] = resolved_id
+    return plan_ids
 
-def create_dataset( summary_path : str
-                  , json_path : str
+
+def save_np_to_txt( _np_in: np.ndarray
+                  , _np_target: np.ndarray
+                  , cplan_ids: np.ndarray
+                  , _out_paths
+                  , _logger
+                  , summary_path
+                  , json_path):
+    _out_in_path = _out_paths[0]
+    _out_target_path = _out_paths[1]
+    _out_cp_path = _out_paths[2]
+    if cplan_ids is not None:
+        _logger(f"content plans -> {_out_cp_path}")
+    _logger(f"summaries {summary_path} -> {_out_target_path}")
+    _logger(f"tables {json_path} -> {_out_in_path}")
+    _logger("--- saving to .txt")
+    with open(_out_in_path, 'w') as f:
+        for _m_ix in range(_np_in.shape[0]):
+            for _t_ix in range(_np_in.shape[2]):
+                for _v_ix in range(_np_in.shape[1]):
+                    print(_np_in[_m_ix, _v_ix, _t_ix], end="|", file=f)
+                print(end=" ", file=f)
+            print(file=f)
+
+    with open(_out_target_path, 'w') as f:
+        for _m_ix in range(_np_target.shape[0]):
+            for _s_ix in range(_np_target.shape[1]):
+                print(_np_target[_m_ix, _s_ix], end=" ", file=f)
+            print(file=f)
+    
+    if cplan_ids is not None:
+        with open(_out_cp_path, 'w') as f:
+            for _m_ix in range(cplan_ids.shape[0]):
+                for _s_ix in range(cplan_ids.shape[1]):
+                    print(cplan_ids[_m_ix, _s_ix], end=" ", file=f)
+                print(file=f)
+
+def save_np_to_tfrecord( _np_in: np.ndarray
+                       , _np_target: np.ndarray
+                       , cplan_ids: np.ndarray
+                       , _out_path
+                       , _logger
+                       , summary_path
+                       , json_path):
+    if cplan_ids is not None:
+        _logger(f"content plans -> {_out_path}")
+    _logger(f"summaries {summary_path} -> {_out_path}")
+    _logger(f"tables {json_path} ->> {_out_path}")
+    if cplan_ids is None:
+        data = tf.data.Dataset.from_tensor_slices(
+            ( _np_target
+            , _np_in[:, 0, :]
+            , _np_in[:, 1, :]
+            , _np_in[:, 2, :]
+            , _np_in[:, 3, :])
+        )
+    else:
+        data = tf.data.Dataset.from_tensor_slices(
+            ( _np_target
+            , cplan_ids
+            , _np_in[:, 0, :]
+            , _np_in[:, 1, :]
+            , _np_in[:, 2, :]
+            , _np_in[:, 3, :])          
+        )
+
+    # code from https://stackoverflow.com/questions/61720708/how-do-you-save-a-tensorflow-dataset-to-a-file
+    def write_map_fn(_summary, types, entities, values, has):
+        return tf.io.serialize_tensor(tf.concat([_summary, types, entities, values, has], -1))
+    
+    def write_map_fn_cp(_summary, _cp, types, entities, values, has):
+        return tf.io.serialize_tensor(tf.concat([_summary, _cp, types, entities, values, has], -1))
+    
+    if cplan_ids is None:
+        data = data.map(write_map_fn)
+    else:
+        data = data.map(write_map_fn_cp)
+    writer = tf.data.experimental.TFRecordWriter(_out_path)
+    writer.write(data)
+
+
+def assign_ix_or_unk(dct, key, unk_stat):
+    if key in dct:
+        return dct[key]
+    else:
+        unk_stat.increment_unk_stat()
+        return dct[unk_stat.get_unk()]
+
+
+class UnkStat:
+    def __init__(self, tk_vocab):
+        self._unk_stat = 0
+        self._unk_token = tk_vocab.get_unk()
+
+    def increment_unk_stat(self):
+        self._unk_stat += 1
+    
+    def get_unk_stat(self):
+        return self._unk_stat
+    
+    def get_unk(self):
+        return self._unk_token
+
+
+def create_dataset( in_paths
                   , out_paths : str
                   , tk_vocab
+                  , max_plan_length
                   , max_summary_length
                   , max_table_length
                   , logger):
-
-    def save_np_to_txt( _np_in: np.ndarray
-                      , _np_target: np.ndarray
-                      , _out_paths
-                      , _logger):
-        _out_in_path = _out_paths[0]
-        _out_target_path = _out_paths[1]
-        _logger(f"summaries {summary_path} -> {out_paths[1]}")
-        _logger(f"tables {json_path} -> {out_paths[0]}")
-        _logger("--- saving to .txt")
-        with open(_out_in_path, 'w') as f:
-            for _m_ix in range(_np_in.shape[0]):
-                for _t_ix in range(_np_in.shape[2]):
-                    for _v_ix in range(_np_in.shape[1]):
-                        print(_np_in[_m_ix, _v_ix, _t_ix], end=" ", file=f)
-                    print(end=";", file=f)
-                print(file=f)
-
-        with open(_out_target_path, 'w') as f:
-            for _m_ix in range(_np_target.shape[0]):
-                for _s_ix in range(_np_target.shape[1]):
-                    print(_np_target[_m_ix, _s_ix], end=" ", file=f)
-                print(file=f)
-
-    def save_np_to_tfrecord( _np_in: np.ndarray
-                           , _np_target: np.ndarray
-                           , _out_path
-                           , _logger):
-        logger(f"summaries {summary_path} -> {out_paths[0]}")
-        logger(f"tables {json_path} ->> {out_paths[0]}")
-        data = tf.data.Dataset.from_tensor_slices(
-            (_np_target,
-             _np_in[:, 0, :],
-             _np_in[:, 1, :],
-             _np_in[:, 2, :],
-             _np_in[:, 3, :])
-        )
-
-        # code from https://stackoverflow.com/questions/61720708/how-do-you-save-a-tensorflow-dataset-to-a-file
-        def write_map_fn(_summary, types, entities, values, has):
-            return tf.io.serialize_tensor(tf.concat([_summary, types, entities, values, has], -1))
-        data = data.map(write_map_fn)
-        writer = tf.data.experimental.TFRecordWriter(_out_path)
-        writer.write(data)
-    
-    class UnkStat:
-        def __init__(self):
-            self._unk_stat = 0
-            self._unk_token = tk_vocab.get_unk()
-
-        def increment_unk_stat(self):
-            self._unk_stat += 1
-        
-        def get_unk_stat(self):
-            return self._unk_stat
-        
-        def get_unk(self):
-            return self._unk_token
-
-
-    def assign_ix_or_unk(dct, key, unk_stat):
-        if key in dct:
-            return dct[key]
-        else:
-            unk_stat.increment_unk_stat()
-            return dct[unk_stat.get_unk()]
+    summary_path, json_path, cplan_path = in_paths
 
     tables = [ m.records for m in extract_matches_from_json( json_path
                                                            , word_dict=None
@@ -170,6 +248,7 @@ def create_dataset( summary_path : str
 
     with open(summary_path, 'r') as f:
         file_content = f.read().strip().split('\n')
+
 
     summaries = []
     for line in file_content:
@@ -186,11 +265,19 @@ def create_dataset( summary_path : str
     pad_value = tk_to_ix[tk_vocab.get_pad()]
     if pad_value != tp_to_ix[tp_vocab.get_pad()] or pad_value != ha_to_ix[ha_vocab.get_pad()]:
         raise RuntimeError("Different padding values in type and token vocabs!")
+    
+    cplan_ids = None
+    if cplan_path is not None:
+        cplan_ids = create_content_plan_ids( cplan_path
+                                           , max_plan_length
+                                           , pad_value
+                                           , tables
+                                           , logger)
 
     np_in = np.full(shape=[len(tables), 4, max_table_length], fill_value=pad_value, dtype=np.int16)
     # add space for special tokens
     np_target = np.full(shape=[len(tables), max_summary_length + 2], fill_value=pad_value, dtype=np.int16)
-    unk_stat = UnkStat()
+    unk_stat = UnkStat(tk_vocab)
 
     for m_ix, (table, summary) in enumerate(zip(tables, summaries)):
         for t_ix, record in enumerate(table):
@@ -214,12 +301,26 @@ def create_dataset( summary_path : str
 
     extension = os.path.splitext(out_paths[0])[1]
     if extension == ".txt":
-        save_np_to_txt(np_in, np_target, out_paths, logger)
+        save_np_to_txt( np_in
+                      , np_target
+                      , cplan_ids
+                      , out_paths
+                      , logger
+                      , summary_path
+                      , json_path)
     elif extension == ".npy":
         logger(f"summaries {summary_path} -> {out_paths[1]}")
         logger(f"tables {json_path} -> {out_paths[0]}")
         logger("--- saving to .npy")
         np.save(out_paths[0], np_in)
         np.save(out_paths[1], np_target)
+        if cplan_ids is not None:
+            np.save(out_paths[2], cplan_ids)
     elif extension == ".tfrecord":
-        save_np_to_tfrecord(np_in, np_target, out_paths[0], logger)
+        save_np_to_tfrecord( np_in
+                           , np_target
+                           , cplan_ids
+                           , out_paths[0]
+                           , logger
+                           , summary_path
+                           , json_path)

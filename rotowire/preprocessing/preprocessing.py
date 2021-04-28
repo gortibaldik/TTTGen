@@ -508,8 +508,8 @@ def _main():
     if args.activity == _extract_activity_descr:
         output_paths, all_named_entities, cell_dict_overall, max_table_length = _prepare_for_extract(args, set_names)
     elif args.activity == _create_dataset_descr:
-        input_paths, output_paths, total_vocab, \
-            max_table_length, max_summary_length= create_prepare(args, set_names, input_paths)
+        input_paths, output_paths, total_vocab, max_table_length, \
+            max_summary_length, max_plan_length = create_prepare(args, set_names, input_paths)
     elif args.activity == _gather_stats_descr:
         output_paths = set_names
 
@@ -543,13 +543,11 @@ def _main():
             else:
                 gather_json_stats(input_path, logger, train_dict, transform_player_names=args.transform_players)
         elif args.activity == _create_dataset_descr:
-            summary_path = input_path[0]
-            json_path = input_path[1]
             create_dataset(
-                summary_path,
-                json_path,
+                input_path,
                 output_path,
                 total_vocab,
+                max_plan_length=max_plan_length,
                 max_summary_length=max_summary_length,
                 max_table_length=max_table_length,
                 logger=logger
