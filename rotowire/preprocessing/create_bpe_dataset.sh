@@ -43,24 +43,36 @@ do
       python3 preprocessing.py "${rotowire_dir}" --only_set="${f}" \
                                                  extract_summaries \
                                                  --words_limit=900 \
-                                                 --lowercase \
-                                                 --exception_cities \
-                                                 --exception_teams \
                                                  --output_dir="${out_dir}" \
                                                  --transform_players \
-                                                 --prepare_for_bpe_application
+                                                 --prepare_for_bpe_application \
+                                                 --lowercase \
+                                                 --exception_cities \
+                                                 --exception_teams
     fi
   fi
 done
 
-# create ${out_dir}/{train, valid, test}_prepared.txt
-# files segmented in right way, prepared as the input for neural net
-# also create vocabs
-for f in "train" "valid" "test"
+# at first apply bpe to train dataset, get vocab
+subword-nmt apply-bpe -c "${out_dir}/codes_train_${num_merges}.txt" \
+                      -i "${out_dir}/train_pfa.txt" \
+                      --glossaries "<<<[^>]*>>>|[0-9]+" |
+                      sed -r 's/<<<([^>]*)>>>/\1/g' > "${out_dir}/train_prepared.txt"
+
+subword-nmt get-vocab -o "${out_dir}/train_pfbpe_vocab_${num_merges}.txt" \
+                      -i "${out_dir}/train_prepared.txt"
+print_info "${out_dir}/train_pfbpe_vocab_${num_merges}.txt"
+
+# create ${out_dir}/{valid, test}_prepared.txt
+# files segmented in such a way, that apply-bpe would produce only subwords appearing in the 
+# train set, therefore no OOV will be produced
+for f in "valid" "test"
 do
   echo "applying bpe to ${f} dataset"
   subword-nmt apply-bpe -c "${out_dir}/codes_train_${num_merges}.txt" \
                         -i "${out_dir}/${f}_pfa.txt" \
+                        --vocabulary "${out_dir}/train_pfbpe_vocab_${num_merges}.txt" \
+                        --vocabulary-threshold 2 \
                         --glossaries "<<<[^>]*>>>|[0-9]+" |
                         sed -r 's/<<<([^>]*)>>>/\1/g' > "${out_dir}/${f}_prepared.txt"
 
