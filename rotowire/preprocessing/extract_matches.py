@@ -1,6 +1,9 @@
 import json
 from collections import OrderedDict
-from match_stat_class import MatchStat # pylint: disable=import-error
+try:
+    from match_stat_class import MatchStat # pylint: disable=import-error
+except:
+    from .match_stat_class import MatchStat
 
 def extract_matches_from_json(json_file_path, **kwargs):
     matches = []

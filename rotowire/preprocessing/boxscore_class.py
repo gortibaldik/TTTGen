@@ -1,6 +1,13 @@
-from constants import BoxScoreEntries, name_transformations # pylint: disable=import-error
-from utils import EnumDict, OccurrenceDict, set_home_away, transform_city_name, join_strings, transform_player_name # pylint: disable=import-error
-from record_class import Record # pylint: disable=import-error
+try:
+    from constants import BoxScoreEntries, name_transformations # pylint: disable=import-error
+    from utils import EnumDict, OccurrenceDict, set_home_away, transform_city_name, join_strings, \
+        resolve_player_name_faults# pylint: disable=import-error
+    from record_class import Record # pylint: disable=import-error
+except:
+    from .constants import BoxScoreEntries, name_transformations
+    from .utils import EnumDict, OccurrenceDict, set_home_away, transform_city_name, join_strings, \
+        resolve_player_name_faults
+    from .record_class import Record
 
 class BoxScore:
     def __init__( self
@@ -41,21 +48,17 @@ class BoxScore:
                            , cell_dict : OccurrenceDict):
         records = []
         player_name = dct[BoxScoreEntries.player_name][player_number]
-        player_name_transformed = ""
-        for token in player_name.strip().split():
-            if token in name_transformations:
-                player_name_transformed = join_strings(player_name_transformed, *name_transformations[token])
-            else:
-                player_name_transformed = join_strings(player_name_transformed, token)
-        player_name = player_name_transformed
+        player_name = resolve_player_name_faults(player_name)
         entity_dict.add(player_name)
+        if home_city == away_city:
+            print(f"Couldn't resolve home_away ! ({home_city})")
         home_away = set_home_away(home_city, away_city, dct[BoxScoreEntries.team_city][player_number])
 
         # transform Los Angeles to Los_Angeles -> done after setting home_away, because
         # in the dataset LA and Los Angeles are used as different names for
         # Lakers and Clippers
         dct.mapmap(BoxScoreEntries.team_city, player_number, transform_city_name)
-        dct.mapmap(BoxScoreEntries.player_name, player_number, transform_player_name)
+        dct[BoxScoreEntries.player_name][player_number] = player_name
 
         for key in dct.keys():
             value = "_".join(dct[BoxScoreEntries(key)][player_number].strip().split())

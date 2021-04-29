@@ -1,7 +1,10 @@
 from collections import defaultdict
 from functools import total_ordering
-from constants import BoxScoreEntries, LineScoreEntries # pylint: disable=import-error
 
+try:
+    from constants import BoxScoreEntries, LineScoreEntries, name_transformations # pylint: disable=import-error
+except:
+    from .constants import BoxScoreEntries, LineScoreEntries, name_transformations
 import sys
 
 
@@ -261,10 +264,19 @@ def transform_city_name(city_name):
 
 player_transform_dict = { "T.J. McConnell" : "TJ McConnell"}
 
-def transform_player_name(player_name):
-    if player_name in player_transform_dict:
-        return player_transform_dict[player_name]
-    return player_name
+# def transform_player_name(player_name):
+#     if player_name in player_transform_dict:
+#         return player_transform_dict[player_name]
+#     return player_name
+
+def resolve_player_name_faults(player_name):
+    player_name_transformed = ""
+    for token in player_name.strip().split():
+        if token in name_transformations:
+            player_name_transformed = join_strings(player_name_transformed, *name_transformations[token])
+        else:
+            player_name_transformed = join_strings(player_name_transformed, token)
+    return player_name_transformed
 
 def create_tp_vocab():
     type_dict = OccurrenceDict()
@@ -274,3 +286,9 @@ def create_tp_vocab():
     for tp in LineScoreEntries:
         type_dict.add(tp.value)
     return type_dict
+
+def create_ha_vocab():
+    _vocab = OccurrenceDict()
+    _vocab.add("HOME")
+    _vocab.add("AWAY")
+    return _vocab

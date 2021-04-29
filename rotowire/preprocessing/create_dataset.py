@@ -1,5 +1,9 @@
-from utils import OccurrenceDict, create_tp_vocab # pylint: disable=import-error
-from extract_matches import extract_matches_from_json # pylint: disable=import-error
+try:
+    from utils import OccurrenceDict, create_tp_vocab, create_ha_vocab # pylint: disable=import-error
+    from extract_matches import extract_matches_from_json # pylint: disable=import-error
+except:
+    from .utils import OccurrenceDict, create_tp_vocab, create_ha_vocab
+    from .extract_matches import extract_matches_from_json
 
 import os
 import numpy as np
@@ -62,6 +66,7 @@ def create_prepare(args, set_names, input_paths):
             cplan = None
         else:
             cplan = os.path.join(args.content_plan_dir, pth + ".txt")
+            input(f"content plan from {cplan}")
         input_paths[ix] = (os.path.join(args.preproc_summaries_dir, pth + "_prepared.txt"), input_paths[ix], cplan)
 
     # prepare output paths
@@ -97,36 +102,38 @@ def create_prepare(args, set_names, input_paths):
     if args.content_plan_dir is not None:
         with open(os.path.join(args.content_plan_dir, "config.txt"), 'r') as f:
             mlcp = int(f.read().strip().split('\n')[0])
+    input(f"max content plan length : {mlcp}")
     return input_paths, output_paths, tk_vocab, mlt, mls, mlcp
-
-def create_ha_vocab():
-    _vocab = OccurrenceDict()
-    _vocab.add("HOME")
-    _vocab.add("AWAY")
-    return _vocab
 
 def create_content_plan_ids( content_plan_path
                            , max_plan_length
-                           , pad_token
+                           , pad_value
                            , tables
                            , logger):
-    plan_ids = np.full(shape=(len(tables), max_plan_length), fill_value=pad_token, dtype=np.int16)
+    input(f"Creating content plans, padding to {max_plan_length} with {pad_value}")
+    plan_ids = np.full(shape=(len(tables), max_plan_length), fill_value=pad_value, dtype=np.int16)
     with open(content_plan_path, 'r', encoding='utf8') as f:
         logger(f"Working with {content_plan_path}")
         lines = f.read().strip().split('\n')
+        if len(lines) != len(tables):
+            raise RuntimeError(f"len(lines) : {len(lines)}; len(tables) : {len(tables)}")
         for ixt, (line, table) in enumerate(zip(lines, tables)):
             records = line.strip().split()
             for ixr, record in enumerate(records):
-                ha, tp, ent, val = record.split('|')
+                val, ent, tp, ha = record.split(chr(65512))
                 resolved_id = -1
                 for ixx, r in enumerate(table):
                     if (r.ha == ha) and (r.type == tp) and \
-                       (r.entity == ent) and (r.value == val):
-                        resolved_id = ixx
+                       ("_".join(r.entity.split()) == ent) and (r.value == val):
+                        resolved_id = ixx + 1
                         break
                 if resolved_id == -1:
-                    raise RuntimeError(f"{ha}, {tp}, {ent}, {val}")
+                    for rr in table:
+                        if rr.type == "PLAYER_NAME":
+                            print(f"{rr.ha}, {rr.entity}, {rr.value}")
+                    raise RuntimeError(f"line {ixt}, file {content_plan_path}, record: {ha}, {tp}, {ent}, {val}")
                 plan_ids[ixt, ixr] = resolved_id
+    input(f"content plans from {content_plan_path} resolved!")
     return plan_ids
 
 

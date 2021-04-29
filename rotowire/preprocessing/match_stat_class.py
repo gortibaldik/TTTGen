@@ -1,8 +1,15 @@
-from constants import MatchStatEntries # pylint: disable=import-error
-from utils import EnumDict, OccurrenceDict # pylint: disable=import-error
-from summary_class import Summary # pylint: disable=import-error
-from boxscore_class import BoxScore # pylint: disable=import-error
-from linescore_class import LineScore # pylint: disable=import-error
+try:
+    from constants import MatchStatEntries # pylint: disable=import-error
+    from utils import EnumDict, OccurrenceDict # pylint: disable=import-error
+    from summary_class import Summary # pylint: disable=import-error
+    from boxscore_class import BoxScore # pylint: disable=import-error
+    from linescore_class import LineScore # pylint: disable=import-error
+except:
+    from .constants import MatchStatEntries
+    from .utils import EnumDict, OccurrenceDict
+    from .summary_class import Summary
+    from .boxscore_class import BoxScore
+    from .linescore_class import LineScore
 
 class MatchStat:
     _placeholder_dict = OccurrenceDict()

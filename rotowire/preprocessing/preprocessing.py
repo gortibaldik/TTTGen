@@ -2,28 +2,14 @@ from enum import Enum
 from text_to_num import text2num
 from collections import OrderedDict
 if __name__ == '__main__':
-    from constants import MatchStatEntries, LineScoreEntries, BoxScoreEntries, \
-        number_words, name_transformations, city_names, team_names # pylint: disable=import-error
-    from utils import EnumDict, join_strings, OccurrenceDict, Logger, \
-        set_home_away, transform_city_name, transform_player_name, create_tp_vocab # pylint: disable=import-error
-    from summary_class import Summary # pylint: disable=import-error
-    from boxscore_class import BoxScore # pylint: disable=import-error
-    from linescore_class import LineScore # pylint: disable=import-error
-    from match_stat_class import MatchStat # pylint: disable=import-error
-    from record_class import Record # pylint: disable=import-error
+    from constants import city_names, team_names # pylint: disable=import-error
+    from utils import OccurrenceDict, Logger, create_tp_vocab # pylint: disable=import-error
     from extract_matches import extract_matches_from_json # pylint: disable=import-error
     from create_dataset import create_prepare, create_dataset, \
         create_dataset_parser, _create_dataset_descr # pylint: disable=import-error
 else:
-    from .constants import MatchStatEntries, LineScoreEntries, BoxScoreEntries, \
-        number_words, name_transformations, city_names, team_names
-    from .utils import EnumDict, join_strings, OccurrenceDict, Logger, \
-        set_home_away, transform_city_name, transform_player_name, create_tp_vocab
-    from .summary_class import Summary
-    from .boxscore_class import BoxScore
-    from .linescore_class import LineScore
-    from .match_stat_class import MatchStat
-    from .record_class import Record
+    from .constants import city_names, team_names
+    from .utils import OccurrenceDict, Logger, create_tp_vocab
     from .extract_matches import extract_matches_from_json
     from .create_dataset import create_prepare, create_dataset, \
         create_dataset_parser, _create_dataset_descr
@@ -31,12 +17,12 @@ else:
 
 import nltk.tokenize as nltk_tok
 import numpy as np
+import os
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3") # Report only TF errors by default
 import tensorflow as tf
 import json
 import argparse
-import os
 
-os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2") # Report only TF errors by default
 
 
 def extract_players_from_summaries( matches

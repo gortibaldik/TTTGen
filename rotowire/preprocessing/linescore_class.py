@@ -1,6 +1,11 @@
-from constants import LineScoreEntries # pylint: disable=import-error
-from utils import EnumDict, OccurrenceDict, set_home_away, transform_city_name # pylint: disable=import-error
-from record_class import Record # pylint: disable=import-error
+try:
+    from constants import LineScoreEntries # pylint: disable=import-error
+    from utils import EnumDict, OccurrenceDict, set_home_away, transform_city_name # pylint: disable=import-error
+    from record_class import Record # pylint: disable=import-error
+except:
+    from .constants import LineScoreEntries
+    from .utils import EnumDict, OccurrenceDict, set_home_away, transform_city_name
+    from .record_class import Record
 
 class LineScore:
     def __init__( self

@@ -1,6 +1,9 @@
-from constants import number_words, name_transformations # pylint: disable=import-error
-from utils import join_strings, OccurrenceDict # pylint: disable=import-error
-
+try:
+    from constants import number_words, name_transformations # pylint: disable=import-error
+    from utils import join_strings, OccurrenceDict # pylint: disable=import-error
+except:
+    from .constants import number_words, name_transformations
+    from .utils import join_strings, OccurrenceDict
 from text_to_num import text2num
 import nltk.tokenize as nltk_tok
 

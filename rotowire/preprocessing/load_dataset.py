@@ -1,7 +1,6 @@
 import tensorflow as tf
 
-from preprocessing.utils import OccurrenceDict
-from preprocessing.preprocessing import create_tp_vocab, create_ha_vocab
+from preprocessing.utils import OccurrenceDict, create_ha_vocab, create_tp_vocab
 
 def load_values_from_config(config_path):
     with open(config_path, 'r') as f:
@@ -17,11 +16,20 @@ def load_tf_record_dataset( path
                           , batch_size : int
                           , shuffle : bool
                           , preprocess_table_size : int
-                          , preprocess_summary_size : int):
+                          , preprocess_summary_size : int
+                          , preprocess_cp_size : int = None
+                          , with_content_plans : bool = False):
     bound_1 = preprocess_summary_size
     bound_2 = bound_1 + preprocess_table_size
     bound_3 = bound_2 + preprocess_table_size
     bound_4 = bound_3 + preprocess_table_size
+
+    if with_content_plans:
+        cpbound_1 = preprocess_summary_size
+        cpbound_2 = cpbound_1 + preprocess_cp_size
+        cpbound_3 = cpbound_2 + preprocess_table_size
+        cpbound_4 = cpbound_3 + preprocess_table_size
+        cpbound_5 = cpbound_4 + preprocess_table_size
 
     # code from https://stackoverflow.com/questions/61720708/how-do-you-save-a-tensorflow-dataset-to-a-file
     def read_map_fn(x):
@@ -30,8 +38,21 @@ def load_tf_record_dataset( path
         #      summary       types                  entities               values                 home/away
         return xp[:bound_1], xp[bound_1 : bound_2], xp[bound_2 : bound_3], xp[bound_3 : bound_4], xp[bound_4:]
 
+    def read_map_fn_cp(x):
+        xp = tf.io.parse_tensor(x, tf.int16)
+        xp.set_shape([cpbound_5 + preprocess_table_size])
+        return xp[:cpbound_1] \
+             , xp[cpbound_1: cpbound_2] \
+             , xp[cpbound_2:cpbound_3] \
+             , xp[cpbound_3:cpbound_4] \
+             , xp[cpbound_4:cpbound_5] \
+             , xp[cpbound_5:] 
+
     # prepare dataset
-    data = tf.data.TFRecordDataset(path).map(read_map_fn)
+    if not with_content_plans:
+        data = tf.data.TFRecordDataset(path).map(read_map_fn)
+    else:
+        data = tf.data.TFRecordDataset(path).map(read_map_fn_cp)
     print("data loading : created dataset!", flush=True)
     BUFFER_SIZE = 1000
     print("data loading : created dataset!", flush=True)
