@@ -24,6 +24,7 @@ if [ ! -f "${out_dir}/train_pfa.txt" ]; then
   echo "${out_dir}/train_pfa.txt doesn't exist, it is going to be created!"
 
   if [ -z "$advanced_transformations" ]; then
+    echo "pfa and pfbpe train basic"
     python3 preprocessing.py "${rotowire_dir}" --only_train \
                                                extract_summaries \
                                                --words_limit=900 \
@@ -34,6 +35,7 @@ if [ ! -f "${out_dir}/train_pfa.txt" ]; then
                                                --cell_vocab_path="${out_dir}/cell_vocab.txt" \
                                                --config_path="${out_dir}/config.txt"
   else
+    echo "pfa and pfbpe with advanced transformations"
     python3 preprocessing.py "${rotowire_dir}" --only_train \
                                                extract_summaries \
                                                --words_limit=900 \

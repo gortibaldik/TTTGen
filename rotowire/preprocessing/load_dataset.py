@@ -2,14 +2,19 @@ import tensorflow as tf
 
 from preprocessing.utils import OccurrenceDict, create_ha_vocab, create_tp_vocab
 
-def load_values_from_config(config_path):
+def load_values_from_config( config_path
+                           , load_cp : bool = False):
     with open(config_path, 'r') as f:
         contents = f.read().strip().split('\n')
-    if len(contents) != 2:
-        raise RuntimeError("Invalid config dir")
+    if (load_cp and len(contents) != 3) or (not load_cp and len(contents) != 2):
+        raise RuntimeError(f"Invalid config dir {config_path}, len(contents) : {len(contents)}")
     max_table_size = int(contents[0])
     max_summary_size = int(contents[1]) + 2 # eos and bos tokens
-    return max_table_size, max_summary_size
+    if load_cp:
+        max_cp_size = int(contents[2])
+    else:
+        max_cp_size = 0
+    return max_table_size, max_summary_size, max_cp_size
 
 def load_tf_record_dataset( path
                           , vocab_path

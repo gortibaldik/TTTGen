@@ -8,11 +8,31 @@ print_info() {
   grep -nh '5$' "${file}" | tail -1 | cut -f1 -d:
 }
 
-advanced_transformations=$5
-format=$4
+advanced_transformations=""
 rotowire_dir=$3
 out_dir=$2
 num_merges=$1
+
+# parse optional arguments
+while :; do
+    case $4 in
+        --tfrecord) tfrecord="SET"
+                    format="tfrecord"
+        ;;
+        --npy) npy="SET"
+               format="npy"
+        ;;
+        --txt) to_txt="SET"
+               format="txt"
+        ;;
+        --adv) advanced_transformations="SET"
+        ;;
+        --content_plan) content_plan="SET"
+        ;;
+        *) break
+    esac
+    shift
+done
 
 DELETE_VOCAB=0
 # if codes for bpe weren't learnt yet
@@ -33,6 +53,7 @@ do
   if [ ! -f "${out_dir}/${f}_pfa.txt" ]; then
     echo "preparing the summaries for bpe application (${out_dir}/${f}_pfa.txt)"
     if [ -z "$advanced_transformations" ]; then
+      echo "preparing ${f}_bpa basic"
       python3 preprocessing.py "${rotowire_dir}" --only_set="${f}" \
                                                 extract_summaries \
                                                 --words_limit=900 \
@@ -40,6 +61,7 @@ do
                                                 --transform_players \
                                                 --prepare_for_bpe_application
     else
+      echo "preparing ${f}_bpa with advanced transformations"
       python3 preprocessing.py "${rotowire_dir}" --only_set="${f}" \
                                                  extract_summaries \
                                                  --words_limit=900 \
@@ -96,7 +118,7 @@ echo "collecting biggest summary stat"
 
 # do not modify config.txt if it already contains all the needed data
 file_name="${out_dir}/config.txt"
-if [ $(wc -l "${out_dir}/config.txt" | cut -f1 -d' ') -eq 2 ]; then
+if [ $(wc -l "${out_dir}/config.txt" | cut -f1 -d' ') -ge 2 ]; then
   file_name="/dev/null"
 fi
 
@@ -105,33 +127,48 @@ python3 word_count.py --log \
                       "${out_dir}/valid_prepared.txt" \
                       "${out_dir}/test_prepared.txt" >> "${file_name}"
 
-# create tfrecord dataset
+# create dataset in specified format
 echo "creating ${format} dataset"
 dataset_dir="${out_dir}_${format}"
+script="python3 preprocessing.py \"${rotowire_dir}\" --log \
+        create_dataset \
+        --preproc_summaries_dir=\"${out_dir}\""
+
+if [ "$format" == "tfrecord" ]; then
+  script="${script} --to_tfrecord"
+elif [ "$format" == "txt" ]; then
+  script="${script} --to_txt"
+elif [ "$format" == "npy" ]; then
+  script="${script} --to_npy"
+else
+  echo "Invalid format"
+fi
+
+if [ ! -z "${content_plan}" ]; then
+  # check if content plans are present
+  if [ ! -d "${rotowire_dir}/content_plans" ]; then
+    echo "${rotowire_dir}/content_plans must be part of the dataset to be able to create dataset with it"
+    exit 1
+  fi
+  script="${script} --content_plans_dir=\"${rotowire_dir}/content_plans\""
+  dataset_dir="${dataset_dir}_cp"
+
+  # append length information to config file
+  file_name="${out_dir}/config.txt"
+  if [ $(wc -l "${out_dir}/config.txt" | cut -f1 -d' ') -ge 3 ]; then
+    file_name="/dev/null"
+  fi
+  python3 word_count.py "${rotowire_dir}/content_plans/train.txt" \
+                        "${rotowire_dir}/content_plans/valid.txt" >> "${file_name}"
+fi
+
 if [ ! -d "${dataset_dir}" ]; then
   mkdir "${dataset_dir}"
 fi
-if [ "$format" == "tfrecord" ]; then
-  python3 preprocessing.py "${rotowire_dir}" --log \
-                                              create_dataset \
-                                              --preproc_summaries_dir="${out_dir}" \
-                                              --output_dir="${dataset_dir}" \
-                                              --to_tfrecord
-elif [ "$format" == "txt" ]; then
-  python3 preprocessing.py "${rotowire_dir}" --log \ 
-                                              create_dataset \
-                                              --preproc_summaries_dir="${out_dir}" \
-                                              --output_dir="${dataset_dir}" \
-                                              --to_txt
-elif [ "$format" == "np" ]; then
-  python3 preprocessing.py "${rotowire_dir}" --log \
-                                              create_dataset \
-                                              --preproc_summaries_dir="${out_dir}" \
-                                              --output_dir="${dataset_dir}" \
-                                              --to_npy
-else
-  echo "Invalid format specified!"
-fi
+
+# execute the final python script
+eval "$script --output_dir=\"${dataset_dir}\""
+
 cp "${out_dir}/config.txt" "${dataset_dir}/config.txt"
 
 echo "cleaning"

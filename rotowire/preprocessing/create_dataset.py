@@ -26,7 +26,7 @@ def create_dataset_parser(subparsers):
         required=True
     )
     create_dataset_parser.add_argument(
-        '--content_plan_dir',
+        '--content_plans_dir',
         help="path to directory with content plans created by Puduppully et al. 2019",
         type=str,
         default=None
@@ -62,11 +62,10 @@ def create_prepare(args, set_names, input_paths):
 
     # prepare input paths
     for ix, pth in enumerate(set_names):
-        if (pth == "test") or (args.content_plan_dir == None):
+        if (pth == "test") or (args.content_plans_dir == None):
             cplan = None
         else:
-            cplan = os.path.join(args.content_plan_dir, pth + ".txt")
-            input(f"content plan from {cplan}")
+            cplan = os.path.join(args.content_plans_dir, pth + ".txt")
         input_paths[ix] = (os.path.join(args.preproc_summaries_dir, pth + "_prepared.txt"), input_paths[ix], cplan)
 
     # prepare output paths
@@ -99,10 +98,9 @@ def create_prepare(args, set_names, input_paths):
 
     # get max content plan length
     mlcp = 0
-    if args.content_plan_dir is not None:
-        with open(os.path.join(args.content_plan_dir, "config.txt"), 'r') as f:
+    if args.content_plans_dir is not None:
+        with open(os.path.join(args.content_plans_dir, "config.txt"), 'r') as f:
             mlcp = int(f.read().strip().split('\n')[0])
-    input(f"max content plan length : {mlcp}")
     return input_paths, output_paths, tk_vocab, mlt, mls, mlcp
 
 def create_content_plan_ids( content_plan_path
@@ -110,7 +108,6 @@ def create_content_plan_ids( content_plan_path
                            , pad_value
                            , tables
                            , logger):
-    input(f"Creating content plans, padding to {max_plan_length} with {pad_value}")
     plan_ids = np.full(shape=(len(tables), max_plan_length), fill_value=pad_value, dtype=np.int16)
     with open(content_plan_path, 'r', encoding='utf8') as f:
         logger(f"Working with {content_plan_path}")
@@ -133,7 +130,6 @@ def create_content_plan_ids( content_plan_path
                             print(f"{rr.ha}, {rr.entity}, {rr.value}")
                     raise RuntimeError(f"line {ixt}, file {content_plan_path}, record: {ha}, {tp}, {ent}, {val}")
                 plan_ids[ixt, ixr] = resolved_id
-    input(f"content plans from {content_plan_path} resolved!")
     return plan_ids
 
 
