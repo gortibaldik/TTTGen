@@ -16,7 +16,7 @@ def loss_function( x
     """ use only the non-pad values """
     mask = tf.math.logical_not(tf.math.equal(y, 0))
     loss_ = loss_object(y, x)
-    mask = tf.cast(mask, dtype=loss_.dtype)
+    mask = tf.cast(mask, loss_.dtype)
     loss_ *= mask
     train_scc_metrics.update_state(y, x, sample_weight=mask)
     train_acc_metrics.update_state(y, x, sample_weight=mask)
