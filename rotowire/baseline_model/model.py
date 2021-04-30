@@ -1,7 +1,6 @@
 import tensorflow as tf
 from baseline_model.layers import Embedding, MLPEncodingCell, ContentSelectionCell
 
-
 class Encoder(tf.keras.Model):
     def __init__( self
                 , word_vocab_size
@@ -31,7 +30,7 @@ class Encoder(tf.keras.Model):
 
     def change_batch_size(self, new_batch_size : int):
         self._batch_size = new_batch_size
-    
+
     def call(self, inputs):
         embedded = self._embedding(inputs)
         embedded = tf.concat(embedded, axis=2)
@@ -72,10 +71,11 @@ class EncoderCS(tf.keras.Model):
 
     def change_batch_size(self, new_batch_size : int):
         self._batch_size = new_batch_size
-    
+
     def call(self, inputs):
         embedded = self._embedding(inputs)
         embedded = tf.concat(embedded, axis=2)
         all_states, _ = self._rnn(embedded)
         content_selected, *_ = self._cs_rnn(all_states, initial_state=(all_states, tf.zeros((), dtype=tf.int32)))
-        return content_selected
+        avg = tf.reduce_mean(content_selected, axis=1)
+        return content_selected, avg

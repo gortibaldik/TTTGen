@@ -78,6 +78,29 @@ class ContentSelectionCell(tf.keras.layers.Layer):
     content_selected = att * x
     return content_selected, (enc_outs, actual_step)
 
+class ContentPlanDecoderCell(tf.keras.layers.Layer):
+    def __init__( self
+                , hidden_size
+                , attention_type
+                , batch_size
+                , dropout_rate=0):
+        super(ContentPlanDecoderCell, self).__init__()
+        self._rnn = tf.keras.layers.LSTMCell( hidden_size
+                                            , recurrent_initializer='glorot_uniform'
+                                            , dropout=dropout_rate)
+        self._attention = attention_type()
+        self._batch_size = batch_size
+        self.state_size = [ tf.TensorShape([hidden_size])
+                          , tf.TensorShape([hidden_size])]
+
+    def call( self, x, states, training=False):
+        x, enc_outs = x
+        h, c = states
+        output, (h, c) = self._rnn(x, (h, c), training=training)
+        context, alignment = self._attention( output
+                                            , enc_outs)
+        return (context, alignment), (h, c)
+
 class DotAttention(tf.keras.layers.Layer):
     def __init__( self):
         super(DotAttention, self).__init__()
