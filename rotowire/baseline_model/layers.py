@@ -54,6 +54,30 @@ class MLPEncodingCell(tf.keras.layers.Layer):
         outputs = self._MLP(inputs)
         return outputs, outputs
 
+class ContentSelectionCell(tf.keras.layers.Layer):
+  def __init__( self
+              , attention_type
+              , max_timesteps
+              , hidden_size
+              , input_size):
+    super(ContentSelectionCell, self).__init__()
+    self._attention = attention_type()
+    self._non_linearity = tf.keras.layers.Dense(hidden_size, activation='sigmoid')
+    self._last_alignment = None
+    self.hidden_size= hidden_size
+    self.input_size = input_size
+    self.state_size = [tf.TensorShape((max_timesteps, input_size)), tf.TensorShape(())]
+
+  def call(self, x, states, training=False):
+    enc_outs, actual_step = states
+    context, self._last_alignment = self._attention( x
+                                                   , enc_outs
+                                                   , mask_step=actual_step)
+    actual_step += 1
+    att = self._non_linearity(tf.concat([x, context], axis=-1))
+    content_selected = att * x
+    return content_selected, (enc_outs, actual_step)
+
 class DotAttention(tf.keras.layers.Layer):
     def __init__( self):
         super(DotAttention, self).__init__()
@@ -71,7 +95,7 @@ class DotAttention(tf.keras.layers.Layer):
                              , on_value=0.0
                              , off_value=1.0)
         else:
-            mask = tf.ones(all_encs.shape, dtype=tf.float32)
+            mask = tf.ones(score.shape, dtype=tf.float32)
         # for softmax to not consider value at all, tf.float32.min must be
         # substitued, then the output of softmax would sum up to 1 and
         # output at the place of masked value would be 0
