@@ -57,13 +57,25 @@ class MLPEncodingCell(tf.keras.layers.Layer):
 class DotAttention(tf.keras.layers.Layer):
     def __init__( self):
         super(DotAttention, self).__init__()
-    
+
     def call( self
             , actual_hidden
-            , all_encs):
+            , all_encs
+            , mask_step : int = None):
         actual_hidden = tf.expand_dims(actual_hidden, 1)
         score = tf.matmul(actual_hidden, all_encs, transpose_b=True)
         score = tf.squeeze(score, [1])
+        if mask_step is not None:
+            mask = tf.one_hot(tf.ones(all_encs.shape[0], dtype=tf.int32) * mask_step
+                             , all_encs.shape[1]
+                             , on_value=0.0
+                             , off_value=1.0)
+        else:
+            mask = tf.ones(all_encs.shape, dtype=tf.float32)
+        # for softmax to not consider value at all, tf.float32.min must be
+        # substitued, then the output of softmax would sum up to 1 and
+        # output at the place of masked value would be 0
+        score = tf.where(mask==0.0, tf.float32.min, score)
         alignment = tf.nn.softmax(score)
         context = tf.reduce_sum(tf.expand_dims(alignment, -1) * all_encs, axis=1)
         return context, alignment
@@ -75,14 +87,27 @@ class ConcatAttention(tf.keras.layers.Layer):
         self.W2 = tf.keras.layers.Dense(units)
         self.V = tf.keras.layers.Dense(1)
 
-    def call(self, actual_hidden, enc_hidden):
-        actual_hidden_extended = tf.expand_dims(actual_hidden, 1)
+    def call( self
+            , actual_hidden
+            , all_encs
+            , mask_step=None):
+        actual_hidden = tf.expand_dims(actual_hidden, 1)
         score = self.V(tf.nn.tanh(
-                      self.W1(actual_hidden_extended) + self.W2(enc_hidden)))
-        alignment_vector = tf.nn.softmax(score, axis=1)
-        context_vector = tf.reduce_sum(alignment_vector * enc_hidden, axis=1)
+                      self.W1(actual_hidden) + self.W2(all_encs)))
+        score = tf.squeeze(score, [2])
+        if mask_step is not None:
+            mask = tf.one_hot(tf.ones(all_encs.shape[0], dtype=tf.int32) * mask_step
+                             , all_encs.shape[1]
+                             , on_value=0.0
+                             , off_value=1.0)
+        else:
+            mask = tf.ones(all_encs.shape, dtype=tf.float32)
+        
+        score = tf.where(mask==0.0, tf.float32.min, score)
+        alignment = tf.nn.softmax(score, axis=1)
+        context = tf.reduce_sum(tf.expand_dims(alignment, -1) * all_encs, axis=1)
 
-        return context_vector, alignment_vector
+        return context, alignment
 
 class DecoderRNNCell(tf.keras.layers.Layer):
     def __init__( self
