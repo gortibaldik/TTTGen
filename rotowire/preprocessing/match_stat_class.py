@@ -4,12 +4,14 @@ try:
     from summary_class import Summary # pylint: disable=import-error
     from boxscore_class import BoxScore # pylint: disable=import-error
     from linescore_class import LineScore # pylint: disable=import-error
+    from record_class import Record # pyling: disable=import-error
 except:
     from .constants import MatchStatEntries
     from .utils import EnumDict, OccurrenceDict
     from .summary_class import Summary
     from .boxscore_class import BoxScore
     from .linescore_class import LineScore
+    from .record_class import Record
 
 class MatchStat:
     _placeholder_dict = OccurrenceDict()
@@ -39,7 +41,13 @@ class MatchStat:
         )
         self.home_name = dct[MatchStatEntries.home_name]
         self.vis_name = dct[MatchStatEntries.vis_name]
-        self.records = self.box_score.records + self.home_line.records + self.vis_line.records
+        od = OccurrenceDict()
+        bos_value = od.get_bos()
+        eos_value = od.get_eos()
+        bos_record = Record(bos_value, bos_value, bos_value, bos_value)
+        eos_record = Record(eos_value, eos_value, eos_value, eos_value)
+        self.records = [bos_record] + self.box_score.records +\
+            self.home_line.records + self.vis_line.records + [eos_record]
         if process_summary:
             self.summary = Summary( dct[MatchStatEntries.summary]
                                   , word_dict

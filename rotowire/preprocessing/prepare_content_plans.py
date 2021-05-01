@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 import os
+from utils import OccurrenceDict # pylint: disable=import-error
 
 if __name__ == "__main__":
   from utils import resolve_player_name_faults # pylint: disable=import-error
@@ -11,7 +12,7 @@ else:
 def resolve_record(record):
   val, ent, tp, ha = record.split(chr(65512))
   try:
-    t = BoxScoreEntries(tp)
+    _ = BoxScoreEntries(tp)
     # we know it is a player record, preprocess the entity the same
     # way as we preprocess .jsons
     ent = "_".join(resolve_player_name_faults(" ".join(ent.split("_"))).split())
@@ -26,15 +27,18 @@ def resolve_record(record):
 def main(s, to_be_left, args):
   max_length = 0
   new_lines = []
+  od = OccurrenceDict()
+  bos = od.get_bos()
+  eos = od.get_eos()
   with open(os.path.join(args.content_plans_dir, s), 'r', encoding='utf8') as f:
     lines = f.read().strip().split('\n')
     for ix, line in enumerate(lines):
       # jumping over one content plan which is connected to wrong data
       if ix in to_be_left:
-        print(line)
+        print(line+"\n")
         continue
       records = line.strip().split()
-      new_records = []
+      new_records = [ f"{chr(65512)}".join([bos for _ in range(4)]) ]
       ixr = 0
       while ixr < len(records):
         record = records[ixr]
@@ -64,6 +68,7 @@ def main(s, to_be_left, args):
           tp = "PLAYER_NAME"
 
         new_records.append(f"{chr(65512)}".join([val, ent, tp, ha]))
+      new_records.append(f"{chr(65512)}".join([eos for _ in range(4)]))
       if len(new_records) > max_length:
         max_length = len(new_records)
       new_lines.append(new_records)
