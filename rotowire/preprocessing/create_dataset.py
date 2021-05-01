@@ -122,7 +122,7 @@ def create_content_plan_ids( content_plan_path
                 for ixx, r in enumerate(table):
                     if (r.ha == ha) and (r.type == tp) and \
                        ("_".join(r.entity.split()) == ent) and (r.value == val):
-                        resolved_id = ixx + 1
+                        resolved_id = ixx + 1 # pad
                         break
                 if resolved_id == -1:
                     for rr in table:

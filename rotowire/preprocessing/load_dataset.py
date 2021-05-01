@@ -46,6 +46,7 @@ def load_tf_record_dataset( path
     def read_map_fn_cp(x):
         xp = tf.io.parse_tensor(x, tf.int16)
         xp.set_shape([cpbound_5 + preprocess_table_size])
+        # summary content_plan types entities values home/away
         return xp[:cpbound_1] \
              , xp[cpbound_1: cpbound_2] \
              , xp[cpbound_2:cpbound_3] \
