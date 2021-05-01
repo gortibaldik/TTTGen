@@ -74,7 +74,7 @@ class ContentSelectionCell(tf.keras.layers.Layer):
                                                    , enc_outs
                                                    , mask_step=actual_step)
     actual_step += 1
-    att = self._non_linearity(tf.concat([x, context], axis=-1))
+    att = self._non_linearity(tf.concat([x, context], axis=-1)) # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
     content_selected = att * x
     return content_selected, (enc_outs, actual_step)
 
@@ -193,11 +193,11 @@ class DecoderRNNCell(tf.keras.layers.Layer):
         emb = self._embedding(x)
         emb = tf.squeeze(emb)
         last_hidden_attn, h1, c1, h2, c2 = states
-        emb_att = tf.concat([emb, last_hidden_attn], axis=-1)
+        emb_att = tf.concat([emb, last_hidden_attn], axis=-1) # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
         seq_output, (h1, c1) = self._rnn_1( emb_att, (h1, c1), training=training)
         seq_output, (h2, c2) = self._rnn_2( seq_output, (h2, c2), training=training)
         context, self._last_alignment = self._attention(h2, enc_outs)
-        concat_ctxt_h2 = tf.concat([context, h2], axis=-1)
+        concat_ctxt_h2 = tf.concat([context, h2], axis=-1) # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
         hidden_att = self._fc_1(concat_ctxt_h2)
         result = self._fc_2(hidden_att)
 
@@ -248,7 +248,7 @@ class DecoderRNNCellJointCopy(tf.keras.layers.Layer):
         # embedding        
         emb = self._embedding(x)
         emb = tf.squeeze(emb)
-        emb_att = tf.concat([emb, last_hidden_attn], axis=-1)
+        emb_att = tf.concat([emb, last_hidden_attn], axis=-1) # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
 
         # 2-layer LSTM decoder
         seq_output, (h1, c1) = self._rnn_1( emb_att, (h1, c1), training=training)
@@ -256,7 +256,7 @@ class DecoderRNNCellJointCopy(tf.keras.layers.Layer):
         
         # attention for generation
         context, _ = self._attention_generate(h2, enc_outs)
-        concat_ctxt_h2 = tf.concat([context, h2], axis=-1)
+        concat_ctxt_h2 = tf.concat([context, h2], axis=-1) # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
         hidden_att = self._hidden_transform(concat_ctxt_h2)
         self._last_gen_prob = self._gen_prob_transform(hidden_att)
         self._last_switch = self._fc_3(hidden_att)
