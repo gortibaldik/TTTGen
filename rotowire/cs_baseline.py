@@ -29,16 +29,17 @@ def _main(args):
     vocab_path = os.path.join(args.path, "all_vocab.txt")
     for key, value in vars(args).items():
         print(f"{key} : {value}")
-    max_table_size, max_summary_size = load_values_from_config(config_path)
+    max_table_size, max_summary_size, max_cp_size = \
+        load_values_from_config(config_path, load_cp=True) # pylint: disable=unused-variable
     batch_size = args.batch_size
     dataset, steps, tk_to_ix, tp_to_ix, ha_to_ix, pad, bos, eos \
-            = load_tf_record_dataset( path=train_path
+            = load_tf_record_dataset( path=train_path # pylint: disable=unused-variable
                                     , vocab_path=vocab_path
                                     , batch_size=batch_size
                                     , shuffle=True
                                     , preprocess_table_size=max_table_size
                                     , preprocess_summary_size=max_summary_size)
-    val_dataset, val_steps, *dummies = load_tf_record_dataset( valid_path
+    val_dataset, val_steps, *dummies = load_tf_record_dataset( valid_path # pylint: disable=unused-variable
                                                              , vocab_path
                                                              , batch_size
                                                              , False # shuffle
@@ -71,7 +72,6 @@ def _main(args):
 
     ix_to_tk = dict([(value, key) for key, value in tk_to_ix.items()])
     train( dataset
-         , steps
          , checkpoint_dir
          , batch_size
          , word_emb_dim
@@ -87,16 +87,16 @@ def _main(args):
          , eos
          , args.dropout_rate
          , args.scheduled_sampling_rate
-         , truncation_size=args.truncation_size
-         , truncation_skip_step=args.truncation_skip_step
-         , attention_type=attention
-         , decoderRNNInit=decoder_rnn
-         , val_save_path=args.path
-         , ix_to_tk=ix_to_tk
-         , val_dataset=val_dataset
-         , val_steps=val_steps
-         , load_last=False)
-
+         , args.truncation_size
+         , args.truncation_skip_step
+         , attention
+         , decoder_rnn
+         , args.val_save_path
+         , ix_to_tk
+         , val_dataset
+         , load_last=False
+         , use_content_selection=True
+         , max_table_size=max_table_size)
 
 if __name__ == "__main__":
     parser = _create_parser()
