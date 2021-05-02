@@ -251,8 +251,8 @@ class EncoderDecoderBasic(tf.keras.Model):
 
             mask = tf.math.logical_not(tf.math.equal(targets[:, t], 0))
             self._val_metrics['val_loss'].update_state( targets[:, t]
-                                                        , pred
-                                                        , sample_weight=mask )
+                                                      , pred
+                                                      , sample_weight=mask )
 
             predicted_ids = tf.argmax(pred, axis=1).numpy()
             result_preds[:, t] = predicted_ids
