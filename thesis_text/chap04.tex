@@ -1,5 +1,55 @@
 \chapter{Neural Network Architectures}
-Why only neural network approach is used - mention many authors and papers which approach the problem of NLG by making use of deep neural networks.
+To generate text from structured data I make use of deep neural networks. In previous chapter (\ref{chapPreproc}) I've shown how to transform the structured tabular data into a sequence of records, therefore I've reduced the problem to an instance of the famous sequence to sequence problem. Now, I show how to create a system that transforms the input sequential data (structured records) to the output sequential data (natural language).
+
+The most common way to tackle the sequence to sequence problem is to use the Encoder-Decoder architecture proposed by \citep{sutskever2014sequence}. It is the main approach I used throughout this thesis. In this chapter I introduce the concepts behind the encoder-decoder architecture, its shortcomings (fixed vocabulary and thus problems with generation of words unseen during training, divergence and hallucinations) and ways to overcome these shortcomings (the attention mechanism, the copy mechanisms, the further transformations of input sequences). Since it is not the purpose of this work, only the basics of the concepts are presented, and I provide links to papers, books and tutorials which helped me on my path to understanding.
+
+\section {The Encoder-Decoder Architecture}
+
+Proposed by \citep{sutskever2014sequence} the Encoder-Decoder is composed of 2 recurrent units, called Encoder and Decoder. In this section I briefly introduce the Recurrent Neural Network, its modification, the Long Short-Term Memory (\citep{hochreiter1997}) and the high-level overview of the Encoder-Decoder architecture.
+
+\subsection{Recurrent Neural Network}
+
+Let $\mathbf{x}=(x^{(1)},\dots,x^{(t)})$ be the input. The standard Feed-Forward Network has different set of weights for each input time-step $x^{(t)}$, therefore the number of time-steps of the input needs to be known in advance.
+
+\begin{figure}[!h]
+\begin{align} \label{basic_rnn}
+\begin{split}
+    &h_t = f_h(x_t, h_{t-1}) \\
+    &y_t = f_o(h_t)
+\end{split}
+\end{align}
+\centering
+\footnotesize{\textit{Note:} $h_t$ is the hidden state, and $y_t$ is the output at $t$-th timestep}
+\end{figure}
+\interfootnotelinepenalty=10000
+On the contrary, the Recurrent Neural Network (RNN) (\citep{rumelhart_rnn1988}) shares the same set of weights for each time-step and in addition it keeps a hidden state. At each time-step we update the hidden state and compute the output as in equation \ref{basic_rnn}. The computation can be visualised either as a loop, or as a feed-forward network with shared weights \ref{vis_rnn}.
+
+
+\begin{figure}[!h]
+    \includegraphics[width=138mm, height=35.6mm]{img/RNN-unrolled.png}
+    \caption{Possible visualisations of RNN, with $f_o \cong id$ (\citep{Olah2015})} \label{vis_rnn}
+\end{figure}
+
+The network is trained by back-propagation through time (BPPT) \citep{bpptWerbos1990}. It has been shown that the RNN suffers from vanishing / exploding gradient problems \citep{hochreiter1997}.\footnote{I believe that discussion about BPPT and exploding/vanishing gradient problems is beyond the scope of this work. Therefore I refer the reader craving for further explanation to \citep{Goodfellow-et-al-2016} and to referenced papers.} Which cause that either the RNN cannot learn anything or it is really unstable. These difficulties are adressed by more sophisticated architectures such as Gated Recurrent Unit or Long Short-Term Memory.
+
+
+\subsection{Long Short-Term Memory}
+
+The Long Short-Term Memory (\citep{hochreiter1997}) addresses the problem of vanishing gradient. It does so by adding a special cell state for capturing long range context and a series of gating mechanisms. The latter update the cell state and regulate the flow of gradient through the network (as shown in figure \ref{lstm}). The more in-depth explanation can be found in \citep{Olah2015}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=113.44mm, height=42.64mm]{img/LSTM3-chain.png}
+    \caption{Visualisation of LSTM (\citep{Olah2015})} \label{lstm}
+\end{figure}
+
+\subsection{High-level Overview of Encoder-Decoder Architecture}
+
+As stated by \citep{sutskever2014sequence}, the main goal of the encoder-decoder architecture is to model the conditional probability $p(y_1,\dots,y_n | x_1,\dots,x_m)$ of the output sequence $y_1,\dots,y_n$ conditioned on the input sequence $x_1,\dots,x_m$. It uses two LSTMs, called Encoder and Decoder. The Encoder creates a fixed-dimensional representation $v$ of the input sequence. $v$ is used to initialize the hidden states of the Decoder. The Decoder then generates the output sequence as in equation \ref{enc_dec_base}.
+
+\begin{equation} \label{enc_dec_base}
+p(y_1,\dots,y_n | x_1,\dots,x_m) = \prod_{t=1}^{n}{p(y_t | v, y_1,\dots,y_{t-1})}
+\end{equation}
 
 \section{RNN}
 What it is, creating the representation of sequence, etc. etc. Gradient vanishing and gradient explosion problems.
