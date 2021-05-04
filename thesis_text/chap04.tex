@@ -106,12 +106,46 @@ Thirdly, as pointed out by e.g. \citep{gulcehre2016pointing}, (although not on t
 
 As stated by \citep{bahdanau2016neural} "The most important distinguishing feature of this approach from the basic encoder-decoder is that it does not attempt to encode a whole input sequence into a single fixed-length vector". Therefore it solves the first problem (\ref{fixed_repre_problem}) and as I will show later, I believe it partly solves the second one too.
 
-The encoder is an recurrent neural network\footnote{From now on, I'll stick to refer to \emph{recurrent neural network} as to the neural network consisting of at least one \emph{tf.keras.layers.RNN} or relatives.}. From the overall architecture (figure \ref{enc_dec_visualisation}) we can see that only the last hidden state of the encoder is used, although there are encoder outputs for each time-step. \citep{bahdanau2016neural} proposes an architecture which takes advantage of this simple observation.
+The encoder is an recurrent neural network\footnote{From now on, I'll stick to refer to \emph{recurrent neural network} as to the neural network consisting of at least one \emph{tf.keras.layers.RNN} or relatives.}. From the overall architecture (figure \ref{enc_dec_visualisation}) we can see that only the last hidden state of the encoder is used, although there are encoder outputs for each time-step. \citep{bahdanau2016neural} proposes an architecture which takes advantage of this simple observation. In my work I use a little refinement, proposed by \citep{luong2015effective}.\footnote{Since I don't experiment with the original Bahdanau attention, I only show the Luong's approach. \citep{luong2015effective} shows all the differences between his and Bahdanau's approach in section 3.1 of the paper.}
 
-Particularly, 
+Particularly, at time-step $t$, we compute the score vector.
+\begin{equation}
+    s_{ti} = score(e_i, d_t)
+\end{equation}
+where $m$ is the length of the input sequence, $e_i$ are the outputs of the encoder and $d_t$ is the actual output of the decoder. Let us denote $\mathbf{s_t} = (s_{t1},\dots,s_{tm})$. According to \citep{bahdanau2016neural}, the alignment vector $\mathbf{a_t}$
+\begin{equation}
+    \mathbf{a_t} = softmax(\mathbf{s_t})
+\end{equation}
+"scores how well the inputs around position $j$ and the output at position $i$ match". The weighted sum of the outputs of the encoder, is callde a \emph{context vector} for time-step $t$.
+\begin{equation}
+    c_t = \sum_{i=1}^m{a_{ti}e_i}
+\end{equation}
+The output of the decoder then also depends (unlike in the standard Encoder-Decoder architecutre) on the  context vector.
+\begin{gather}
+    att_t = tanh(W_c[c_t;d_t]) \\
+    p(o_t | o_{<t}, x)= softmax(W_o att_t)
+\end{gather}
+
+\subsection{Refinements of the Attention Mechanism}
+\citep{luong2015effective} experimented with three different types of score functions. We adopted two of them, the \emph{dot} and \emph{concat} ones. (The following equations are directly extracted from the Luong's paper)
+\begin{equation*}
+score(e_i, d_t)\!=\!\begin{cases}
+    e_i^\top d_t & \mbox{{\it dot}}\\
+    v_s^\top tanh(W_s[e_i ; d_t]) & \mbox{{\it concat}}
+\end{cases}
+\end{equation*}
+
+The same author also states that the fact that the attentional decisions are made independently is suboptimal. Hence the \emph{Input Feeding} approach is proposed to allow the model to take into acount its previous decisions. It simply means that the next input is the concatenation $[o_t, att_t]$.
+
+\begin{figure}[!h]
+    \centering
+    \includegraphics[width=82.80mm, height=101.85mm]{img/att_luong.jpg}
+    \caption{\centering The Attention mechanism at the second time-step. Dotted line represents the input feeding approach.}
+\end{figure}
+
 
 \section{Copy mechanism}
-What it is, right now I've implemented only Joint Copy mechanism, possibly add Conditional Copy
+The copy mechanism is a further extension of the attention mechanism. In this section I present the Pointer networks \citep{vinyals2015pointer}, which are trained to \emph{point} to some position in the input sequence and the Copy Mechanisms (\citep{gulcehre2016pointing}, \citep{gu2016incorporating}) which model the decision making (whether to copy from the pointed location or to generate from the actual context).
 
 \section{Truncated Backpropagation Through Time}
 Why it is infeasible to generate sequences of average 350 tokens with full backpropagation. Which types of truncated BPTT exist and which I've chosen.
