@@ -126,7 +126,7 @@ The output of the decoder then also depends (unlike in the standard Encoder-Deco
     p(o_t | o_{<t}, x)= softmax(W_o att_t)
 \end{gather}
 
-\subsection{Refinements of the Attention Mechanism}
+\subsection{Score Functions and Input Feeding}
 \citep{luong2015effective} experimented with three different types of score functions. We adopted two of them, the \emph{dot} and \emph{concat} ones. (The following equations are directly extracted from the Luong's paper)
 \begin{equation*}
 score(e_i, d_t)\!=\!\begin{cases}
@@ -145,13 +145,25 @@ The same author also states that the fact that the attentional decisions are mad
 
 
 \section{Copy mechanism}
-The copy mechanism is a further extension of the attention mechanism. In this section I present the Pointer networks \citep{vinyals2015pointer}, which are trained to \emph{point} to some position in the input sequence and the Copy Mechanisms (\citep{gulcehre2016pointing}, \citep{gu2016incorporating}) which model the decision making (whether to copy from the pointed location or to generate from the actual context).
+The copy mechanism is a further extension of the attention mechanism. In this section I discuss the Pointer networks \citep{vinyals2015pointer}, which are trained to \emph{point} to some position in the input sequence and the Copy Mechanisms (\citep{gulcehre2016pointing}, \citep{gu2016incorporating}) which model the decision making (whether to copy from the pointed location or to generate from the actual context).
 
-\section{Truncated Backpropagation Through Time}
-Why it is infeasible to generate sequences of average 350 tokens with full backpropagation. Which types of truncated BPTT exist and which I've chosen.
+\subsection{Pointer Networks}
 
-\section{Beam search}
-Why greedy search isn't enough, what is beam search, when is it used.
+The Pointer networks (\citep{vinyals2015pointer}) leverage the fact that the alignment vector $\mathbf{a_t}$  can be seen as \emph{a pointer} to the input sequence. Consequently instead of computing the weighted sum (\emph{context vector}) and an MLP on top of that as the Attention models, they utilize the alignment vector as an output.
 
-\section{Transformers}
-Right now I don't think I'll get this far in my exploration and implementation of DNN architectures.
+\subsection{Approaches to Copying}
+
+\citep{gulcehre2016pointing} notes that the ability to point is useless in the generation task if the network is always forced to point. Therefore they introduce a new switching network that outputs a binary variable $z_t$ , which models the probability of the required action being pointing or generating. \citep{yang2016referenceaware} proposes similar approach but he marginalizes out the switch output $z_t$ and the predicted word is calculated as follows:
+\begin{equation}
+    p(o_t | o_{<t}, \mathbf{i}) = ( 1 - p^{switch}(z_t = 1)) * p^{vocab}(o_t) + p^{switch}(z_t = 1) * p^{copy}(o_t)
+\end{equation}
+
+Since $p^{copy}(o_t)$ needs to be a distribution over the output vocabulary and in both tasks the output and the input vocabularies are the same, I compute the sum of \emph{the one-hot encoded inputs}, weighted by the alignment vector.
+\begin{equation}
+    p^{copy}(o_t) = \sum_{i=1}^m{a_ti * i_i}
+\end{equation}
+
+\begin{figure}
+    \includegraphics[scale=0.85]{img/attention_alignment.pdf}
+    \caption{Excerpt from \textbf{Pointing the Unknown Words} paper by \citep{gulcehre2016pointing}, showing how the attention alignment can be utilized as a pointer information}
+\end{figure}
