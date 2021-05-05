@@ -7,19 +7,21 @@ import os
 def _create_parser():
     parser = ArgumentParser()
     parser.add_argument('--path', type=str, required=True)
-    parser.add_argument('--batch_size', type=int, default=8)
-    parser.add_argument('--word_emb_dim', type=int, default=300)
-    parser.add_argument('--tp_emb_dim', type=int, default=300)
-    parser.add_argument('--ha_emb_dim', type=int, default=300)
+    parser.add_argument('--batch_size', type=int, default=16)
+    parser.add_argument('--word_emb_dim', type=int, default=128)
+    parser.add_argument('--tp_emb_dim', type=int, default=128)
+    parser.add_argument('--ha_emb_dim', type=int, default=128)
     parser.add_argument('--hidden_size', type=int, default=300)
     parser.add_argument('--attention_type', type=str, default="dot")
-    parser.add_argument('--decoder_type', type=str, default="baseline")
+    parser.add_argument('--decoder_type', type=str, default="joint")
     parser.add_argument('--truncation_size', type=int, default=100)
     parser.add_argument('--truncation_skip_step', type=int, default=50)
     parser.add_argument('--epochs', type=int, default=50)
-    parser.add_argument('--dropout_rate', type=float, default=0.5)
+    parser.add_argument('--dropout_rate', type=float, default=0.2)
     parser.add_argument('--scheduled_sampling_rate', type=float, default=1.0)
     parser.add_argument('--learning_rate', type=float, default=None)
+    parser.add_argument('--with_cp', action='store_true')
+    parser.add_argument('--manual', action='store_true')
     return parser
 
 def _main(args):
@@ -30,7 +32,7 @@ def _main(args):
     for key, value in vars(args).items():
         print(f"{key} : {value}")
     max_table_size, max_summary_size, max_cp_size = \
-        load_values_from_config(config_path, load_cp=True) # pylint: disable=unused-variable
+        load_values_from_config(config_path, load_cp=args.with_cp) # pylint: disable=unused-variable
     batch_size = args.batch_size
     dataset, steps, tk_to_ix, tp_to_ix, ha_to_ix, pad, bos, eos \
             = load_tf_record_dataset( path=train_path # pylint: disable=unused-variable
@@ -38,13 +40,17 @@ def _main(args):
                                     , batch_size=batch_size
                                     , shuffle=True
                                     , preprocess_table_size=max_table_size
-                                    , preprocess_summary_size=max_summary_size)
+                                    , preprocess_summary_size=max_summary_size
+                                    , preprocess_cp_size=max_cp_size
+                                    , with_content_plans=args.with_cp)
     val_dataset, val_steps, *dummies = load_tf_record_dataset( valid_path # pylint: disable=unused-variable
                                                              , vocab_path
                                                              , batch_size
                                                              , False # shuffle
                                                              , max_table_size
-                                                             , max_summary_size)
+                                                             , max_summary_size
+                                                             , preprocess_cp_size=max_cp_size
+                                                             , with_content_plans=args.with_cp)
     word_vocab_size = len(tk_to_ix)
     word_emb_dim = args.word_emb_dim
     tp_vocab_size = len(tp_to_ix)
@@ -91,12 +97,13 @@ def _main(args):
          , args.truncation_skip_step
          , attention
          , decoder_rnn
-         , args.val_save_path
+         , args.path
          , ix_to_tk
          , val_dataset
          , load_last=False
-         , use_content_selection=True
-         , max_table_size=max_table_size)
+         , use_content_selection=args.with_cp
+         , max_table_size=max_table_size
+         , manual_training=args.manual)
 
 if __name__ == "__main__":
     parser = _create_parser()
