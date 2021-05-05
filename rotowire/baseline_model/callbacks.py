@@ -11,7 +11,7 @@ class CalcBLEUCallback(tf.keras.callbacks.Callback):
             if targets is None:
                 targets = summaries[:, 1:]
             else:
-                targets = np.append(summaries[:, 1:], targets, axis=0)
+                targets = np.append(targets, summaries[:, 1:], axis=0)
         self._targets = targets
         self.dataset = dataset
         self._ix_to_tk = ix_to_tk
