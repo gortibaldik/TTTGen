@@ -111,7 +111,8 @@ def train( train_dataset
          , val_dataset = None
          , load_last : bool = False
          , use_content_selection : bool = False
-         , max_table_size : int = None):
+         , max_table_size : int = None
+         , manual_training : bool = True):
 
     if truncation_skip_step > truncation_size:
         raise RuntimeError(f"truncation_skip_step ({truncation_skip_step}) shouldn't be bigger"+
@@ -145,9 +146,13 @@ def train( train_dataset
                                , dropout_rate)
     
     if learning_rate is None:
-        optimizer = tf.keras.optimizers.Adam()
+        optimizer_1 = tf.keras.optimizers.Adam()
+        optimizer_2 = tf.keras.optimizers.Adam()
     else:
-        optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate)
+        # in far away future I'll find out how the original authors handled
+        # utilisation of SGD for training of the net
+        optimizer_1 = tf.keras.optimizers.SGD(learning_rate=learning_rate)
+        optimizer_2 = tf.keras.optimizers.SGD(learning_rate=learning_rate)
     checkpoint_prefix = os.path.join(checkpoint_dir, 'ckpt')
     checkpoint = tf.train.Checkpoint( model=model)
     if load_last:
@@ -155,14 +160,15 @@ def train( train_dataset
         print(status.assert_existing_objects_matched())
 
     if not use_content_selection:
-        model.compile( optimizer
+        model.compile( optimizer_1
                      , tf.keras.losses.SparseCategoricalCrossentropy( from_logits=False
                                                                     , reduction='none')
                      , scheduled_sampling_rate
                      , truncation_size
                      , truncation_skip_step)
     else:
-        model.compile( optimizer
+        model.compile( optimizer_1
+                     , optimizer_2
                      , tf.keras.losses.SparseCategoricalCrossentropy( from_logits=False
                                                                     , reduction='none')
                      , tf.keras.losses.SparseCategoricalCrossentropy( from_logits=False
@@ -180,7 +186,34 @@ def train( train_dataset
                                     , ix_to_tk
                                     , eos)
     # train
-    model.fit( train_dataset
-             , epochs=epochs
-             , callbacks=[tensorboard_callback, saving_callback, bleu_callback]
-             , validation_data=val_dataset)
+    if not manual_training:
+        model.fit( train_dataset
+                 , epochs=epochs
+                 , callbacks=[tensorboard_callback, saving_callback, bleu_callback]
+                 , validation_data=val_dataset)
+    else:
+        bleu_callback.set_model(model)
+        cp_acc = []
+        cp_loss = []
+        txt_acc = []
+        txt_loss = []
+        for epoch in range(epochs):
+            for ix, batch_data in enumerate(train_dataset):
+                dct = model.train_step(batch_data)
+                txt_acc.append(dct['accuracy_decoder'].numpy())
+                cp_acc.append(dct['accuracy_cp'].numpy())
+                txt_loss.append(dct['loss_decoder'].numpy())
+                cp_loss.append(dct['loss_cp'].numpy())
+                if ix % 10 == 0:
+                    print(f"acc dec : {txt_acc[-1]:4.4f};" +\
+                          f" acc cp : {cp_acc[-1]:4.4f};" +\
+                          f" loss dec : {txt_loss[-1]:4.4f};" +\
+                          f" loss cp: {cp_loss[-1]:4.4f}", flush=True)
+            for metric in model.metrics:
+                metric.reset_states()
+            bleu_callback.on_epoch_end(epoch)
+            saving_callback.on_epoch_end(epoch)
+
+            for batch_data in val_dataset:
+                dct = model.test_step(batch_data)
+                print(f"acc dec : {dct['accuracy_decoder'].numpy()}; acc cp : {dct['accuracy_cp'].numpy()}; loss dec : {dct['loss_decoder'].numpy()}; loss cp: {dct['loss_cp'].numpy()}")
