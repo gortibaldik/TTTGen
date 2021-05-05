@@ -25,6 +25,7 @@
 - Neural Machine Translation with Reconstruction: [paper](https://arxiv.org/pdf/1611.01874.pdf)
 - What is perplexity : https://planspace.org/2013/09/23/perplexity-what-it-is-and-what-yours-is/
 - Regularisation : https://stackoverflow.com/questions/48714407/rnn-regularization-which-component-to-regularize
+- Truncated BackPropagation through time : https://r2rt.com/styles-of-truncated-backpropagation.html
 
 ### existing Seq2Seq neural frameworks
 - openNMT, looks like the best solution using tensorflow : https://github.com/OpenNMT/OpenNMT-tf
@@ -50,10 +51,12 @@
 
 ### Natural language generation - second phase
 #### Generating sport match summaries - RotoWire dataset
+- baselines from the authors of the dataset : [code](https://github.com/harvardnlp/data2text)
 - Data-to-Text Generation with Content Selection and Planning [paper](https://arxiv.org/pdf/1809.00582.pdf), [code](https://github.com/ratishsp/data2text-plan-py)
 - Information Extraction from Rotowire summaries [code](https://github.com/ratishsp/data2text-1) 
 - A Hierarchical Model for Data-to-Text Generation [paper](https://arxiv.org/pdf/1912.10011v1.pdf), [code](https://github.com/KaijuML/data-to-text-hierarchical)
 - Reference aware language models - how to encode individual dataset record into a representation understandable by neural net [paper](https://arxiv.org/abs/1611.01628)
+- Rotowire isn't good dataset : [paper](https://www.aclweb.org/anthology/W19-8639.pdf)
 
 ------------------
 
@@ -73,6 +76,7 @@
 - [tf keras metrics](https://neptune.ai/blog/keras-metrics)
 - [custom training loop](https://www.tensorflow.org/guide/keras/writing_a_training_loop_from_scratch)
 - [customizing what happens in fit()](https://keras.io/guides/customizing_what_happens_in_fit/)
+- [slicing tensor in graph mode](https://www.tensorflow.org/guide/tensor_slicing)
 
 --------------
 
@@ -80,3 +84,5 @@
 - forwarding ports from cluster to localhost: [stack overflow](https://stackoverflow.com/questions/37987839/how-can-i-run-tensorboard-on-a-remote-server)
 - `tensorflow` guide on profiling custom training loops: https://www.tensorflow.org/guide/profiler
 
+### `latex` resources
+- [text highlighting](https://texblog.org/2015/05/20/using-colors-in-a-latex-document/)
