@@ -1,4 +1,3 @@
-""" just a dummy copied from my colab notebook, unresolved imports """
 import tensorflow as tf
 import numpy as np
 from .layers import DecoderRNNCellJointCopy
@@ -16,14 +15,16 @@ class EncoderDecoderContentSelection(tf.keras.Model):
         self._text_decoder = text_decoder
 
     def compile( self
-               , optimizer
+               , optimizer_cp
+               , optimizer_txt
                , loss_fn_cp
                , loss_fn_decoder
                , scheduled_sampling_rate
                , truncation_size
                , truncation_skip_step):
         super(EncoderDecoderContentSelection, self).compile(run_eagerly=True)
-        self._optimizer = optimizer
+        self._optimizer_cp = optimizer_cp
+        self._optimizer_txt = optimizer_txt
         self._loss_fn_cp = loss_fn_cp
         self._loss_fn_decoder = loss_fn_decoder
         self._train_metrics = { "accuracy_decoder" : tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy_decoder')
@@ -55,7 +56,8 @@ class EncoderDecoderContentSelection(tf.keras.Model):
                  , batch_data
                  , last_out
                  , initial_state=None):
-        loss = 0
+        loss_cp = 0
+        loss_txt = 0
         dec_in, targets, gen_or_teach, cp_in, cp_targets, *tables = batch_data
         batch_size = cp_in.shape[0]
         final_state = None
@@ -65,38 +67,41 @@ class EncoderDecoderContentSelection(tf.keras.Model):
         with tf.GradientTape() as tape:
             enc_outs, avg = self._encoder_content_selection(tables)
             states = (avg, avg)
-
+            next_input = enc_outs[:, 0, :]
             # create content plan, evaluate the loss from the 
             # gold content plan
             for t in range(cp_in.shape[1]):
-                # indices are shifted by 1
-                # enc_outs[:, enc_outs.shape[1], :] is either
-                # encoded <<EOS>> record or <<PAD>> record
-                ic = tf.where(cp_in[:, t] != 0, cp_in[:, t] - 1, enc_outs.shape[1] - 1)
-                indices = tf.stack([tf.range(batch_size), tf.cast(ic, tf.int32)], axis=1)
-                next_input = tf.gather_nd(enc_outs, indices)
-                (_, alignment), states = self._encoder_content_planner((next_input, enc_outs), states=states, training=True)
+                (_, alignment), states = self._encoder_content_planner( (next_input, enc_outs)
+                                                                      , states=states
+                                                                      , training=True)
                 
                 # the neural network is taught to predict
                 # indices shifted by 1
-                loss += self._calc_loss( alignment
-                                       , cp_targets[:, t]
-                                       , self._loss_fn_cp
-                                       , ["loss_cp", "accuracy_cp"])
+                loss_cp += self._calc_loss( alignment
+                                          , cp_targets[:, t]
+                                          , self._loss_fn_cp
+                                          , ["loss_cp", "accuracy_cp"])
                 
                 # prepare inputs for encoder
+                # indices are shifted by 1
+                # enc_outs[:, enc_outs.shape[1], :] is either
+                # encoded <<EOS>> record or <<PAD>> record
                 ic = tf.where(cp_targets[:, t] != 0, cp_targets[:, t] - 1, enc_outs.shape[1] - 1)
                 indices = tf.stack([tf.range(batch_size), tf.cast(ic, tf.int32)], axis=1)
+                potential_next_input = tf.gather_nd(enc_outs, indices)
+
+                # the next input should be zeroed out if the indices point to the end of the table - <<EOS>> or <<PAD>> tokens
+                # then the encoder_from_cp wouldn't take them into acount
+                next_input = tf.where(tf.expand_dims(indices[:, 1] == enc_outs.shape[1], 1), tf.zeros(potential_next_input.shape), potential_next_input)
                 vals = tf.gather_nd(tables[2], indices)
-                encs = tf.gather_nd(enc_outs, indices)
-                cp_enc_outs = cp_enc_outs.write(t, encs)
+                cp_enc_outs = cp_enc_outs.write(t, next_input)
                 cp_enc_ins = cp_enc_ins.write(t, vals)
 
             cp_enc_outs = tf.transpose(cp_enc_outs.stack(), [1, 0, 2])
             cp_enc_ins = tf.transpose(cp_enc_ins.stack(), [1, 0])
 
             # encode generated content plan
-            cp_enc_outs, *last_hidden_rnn = self._encoder_from_cp(cp_enc_outs)
+            cp_enc_outs, *last_hidden_rnn = self._encoder_from_cp(cp_enc_outs, training=True)
 
             # prepare states and inputs for the text decoder
             if initial_state is None:
@@ -124,22 +129,28 @@ class EncoderDecoderContentSelection(tf.keras.Model):
                 last_out, states = self._text_decoder( (_input, *aux_inputs)
                                                      , states=states
                                                      , training=True)
-                loss += self._calc_loss( last_out
-                                       , targets[:, t]
-                                       , self._loss_fn_decoder
-                                       , ["loss_decoder", "accuracy_decoder"])
+                loss_txt += self._calc_loss( last_out
+                                           , targets[:, t]
+                                           , self._loss_fn_decoder
+                                           , ["loss_decoder", "accuracy_decoder"])
                 last_out = tf.expand_dims(tf.cast(tf.argmax(last_out, axis=1), tf.int16), -1)
+            loss = loss_cp + loss_txt
 
-        variables = []
-        for var in self._encoder_from_cp.trainable_variables + \
-                   self._text_decoder.trainable_variables + \
-                   self._encoder_content_planner.trainable_variables + \
+        variables_cp = []
+        for var in self._encoder_content_planner.trainable_variables + \
                    self._encoder_content_selection.trainable_variables:
             if (initial_state is None) or (var.name != 'encoder/linear_transform/kernel:0'):
-                variables.append(var)
+                variables_cp.append(var)
 
+        variables_txt = []
+        for var in self._text_decoder.trainable_variables + \
+                   self._encoder_from_cp.trainable_variables:
+            if (initial_state is None) or (var.name != 'encoder/linear_transform/kernel:0'):
+                variables_txt.append(var)
+        
+        variables = variables_cp + variables_txt
         gradients = tape.gradient(loss, variables)
-        self._optimizer.apply_gradients(zip(gradients, variables))
+        self._optimizer_txt.apply_gradients(zip(gradients, variables))
 
         if (self._truncation_skip_step is None) or (self._truncation_skip_step == dec_in.shape[1]):
             final_state = states
@@ -220,14 +231,16 @@ class EncoderDecoderContentSelection(tf.keras.Model):
             ic = tf.where(cp_in[:, t] != 0, cp_in[:, t] - 1, enc_outs.shape[1] - 1)
             indices = tf.stack([tf.range(batch_size), tf.cast(ic, tf.int32)], axis=1)
             next_input = tf.gather_nd(enc_outs, indices)
-            (_, alignment), states = self._encoder_content_planner((next_input, enc_outs), states=states, training=True)
+            (_, alignment), states = self._encoder_content_planner( (next_input, enc_outs)
+                                                                  , states=states
+                                                                  , training=False)
             
             mask = tf.math.logical_not(tf.math.equal(cp_targets[:, t], 0))
             for metric in self._val_metrics.values():
                 if metric.name in ["accuracy_cp", "loss_cp"]:
                     metric.update_state( cp_targets[:, t]
-                                        , alignment
-                                        , sample_weight=mask )
+                                       , alignment
+                                       , sample_weight=mask )
             
             # prepare inputs for encoder
             ic = tf.where(cp_targets[:, t] != 0, cp_targets[:, t] - 1, enc_outs.shape[1] - 1)
@@ -241,7 +254,7 @@ class EncoderDecoderContentSelection(tf.keras.Model):
         cp_enc_ins = tf.transpose(cp_enc_ins.stack(), [1, 0])
 
         # encode generated content plan
-        cp_enc_outs, *last_hidden_rnn = self._encoder_from_cp(cp_enc_outs)
+        cp_enc_outs, *last_hidden_rnn = self._encoder_from_cp(cp_enc_outs, training=False)
 
         # prepare states and inputs for the text decoder
         if isinstance(self._text_decoder, DecoderRNNCellJointCopy):
@@ -255,15 +268,15 @@ class EncoderDecoderContentSelection(tf.keras.Model):
         for t in range(dec_in.shape[1]):
             _input = dec_in[:, t, :]
             last_out, states = self._text_decoder( (_input, *aux_inputs)
-                                                    , states=states
-                                                    , training=True)
+                                                 , states=states
+                                                 , training=False)
 
             mask = tf.math.logical_not(tf.math.equal(targets[:, t], 0))
             for metric in self._val_metrics.values():
                 if metric.name in ["accuracy_decoder", "loss_decoder"]:
                     metric.update_state( targets[:, t]
-                                        , last_out
-                                        , sample_weight=mask )
+                                       , last_out
+                                       , sample_weight=mask )
         return dict([(metric.name, metric.result()) for metric in self._val_metrics.values()])
 
     def predict_step(self, batch_data):
@@ -291,7 +304,7 @@ class EncoderDecoderContentSelection(tf.keras.Model):
             # encoded <<EOS>> record or <<PAD>> record
             (_, alignment), states = self._encoder_content_planner( (next_input, enc_outs)
                                                                   , states=states
-                                                                  , training=True)
+                                                                  , training=False)
             
             # prepare next_input and gather inputs for the encoder
 
@@ -314,7 +327,7 @@ class EncoderDecoderContentSelection(tf.keras.Model):
         cp_cp_ix = tf.transpose(cp_cp_ix.stack(), [1, 0])
 
         # encode generated content plan
-        cp_enc_outs, *last_hidden_rnn = self._encoder_from_cp(cp_enc_outs)
+        cp_enc_outs, *last_hidden_rnn = self._encoder_from_cp(cp_enc_outs, training=False)
 
         # prepare states and inputs for the text decoder
         if isinstance(self._text_decoder, DecoderRNNCellJointCopy):
@@ -322,7 +335,7 @@ class EncoderDecoderContentSelection(tf.keras.Model):
             aux_inputs = (cp_enc_outs, enc_ins) # value portion of the record needs to be copied
         else:
             aux_inputs = (cp_enc_outs,)
-        
+
         # decode text from the encoded content plan
         states = [ last_hidden_rnn[-1], *last_hidden_rnn ]
         # zeroth token is the <<BOS>> token
@@ -330,8 +343,8 @@ class EncoderDecoderContentSelection(tf.keras.Model):
         result_preds = np.zeros(summaries.shape, dtype=np.int)
         for t in range(dec_in.shape[1]):
             last_out, states = self._text_decoder( (_input, *aux_inputs)
-                                                    , states=states
-                                                    , training=True)
+                                                 , states=states
+                                                 , training=False)
 
             predicted = tf.argmax(last_out, axis=1).numpy()
             result_preds[:, t] = predicted
