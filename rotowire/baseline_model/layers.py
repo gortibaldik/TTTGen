@@ -88,7 +88,7 @@ class ContentPlanDecoderCell(tf.keras.layers.Layer):
         self._rnn = tf.keras.layers.LSTMCell( hidden_size
                                             , recurrent_initializer='glorot_uniform'
                                             , dropout=dropout_rate)
-        self._attention = attention_type()
+        self._attention = attention_type(return_non_softmax_alignment=True)
         self._batch_size = batch_size
         self.state_size = [ tf.TensorShape([hidden_size])
                           , tf.TensorShape([hidden_size])]
@@ -102,8 +102,9 @@ class ContentPlanDecoderCell(tf.keras.layers.Layer):
         return (context, alignment), (h, c)
 
 class DotAttention(tf.keras.layers.Layer):
-    def __init__( self):
+    def __init__( self, return_non_softmax_alignment=False):
         super(DotAttention, self).__init__()
+        self._return_non_softmax_alignment = return_non_softmax_alignment
 
     def call( self
             , actual_hidden
@@ -125,14 +126,18 @@ class DotAttention(tf.keras.layers.Layer):
         score = tf.where(mask==0.0, tf.float32.min, score)
         alignment = tf.nn.softmax(score)
         context = tf.reduce_sum(tf.expand_dims(alignment, -1) * all_encs, axis=1)
-        return context, alignment
+        if self._return_non_softmax_alignment:
+            return context, score
+        else:
+            return context, alignment
 
 class ConcatAttention(tf.keras.layers.Layer):
-    def __init__(self, units):
+    def __init__(self, units, return_non_softmax_alignment=False):
         super(ConcatAttention, self).__init__()
         self.W1 = tf.keras.layers.Dense(units)
         self.W2 = tf.keras.layers.Dense(units)
         self.V = tf.keras.layers.Dense(1)
+        self._return_non_softmax_alignment = return_non_softmax_alignment
 
     def call( self
             , actual_hidden
@@ -153,8 +158,10 @@ class ConcatAttention(tf.keras.layers.Layer):
         score = tf.where(mask==0.0, tf.float32.min, score)
         alignment = tf.nn.softmax(score, axis=1)
         context = tf.reduce_sum(tf.expand_dims(alignment, -1) * all_encs, axis=1)
-
-        return context, alignment
+        if self._return_non_softmax_alignment:
+            return context, score
+        else:
+            return context, alignment
 
 class DecoderRNNCell(tf.keras.layers.Layer):
     def __init__( self

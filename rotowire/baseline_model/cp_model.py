@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+import os
 from .layers import DecoderRNNCellJointCopy
 
 class EncoderDecoderContentSelection(tf.keras.Model):
@@ -30,15 +31,18 @@ class EncoderDecoderContentSelection(tf.keras.Model):
         self._train_metrics = { "accuracy_decoder" : tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy_decoder')
                               , "accuracy_cp" :tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy_cp')
                               , "loss_decoder" :tf.keras.metrics.SparseCategoricalCrossentropy(name='loss_decoder')
-                              , "loss_cp": tf.keras.metrics.SparseCategoricalCrossentropy(name='loss_cp')}
+                              , "loss_cp": tf.keras.metrics.SparseCategoricalCrossentropy( name='loss_cp'
+                                                                                         , from_logits=True)}
         self._val_metrics = { "val_accuracy_decoder" : tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy_decoder')
                             , "val_accuracy_cp" : tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy_cp')
                             , "val_loss_decoder" : tf.keras.metrics.SparseCategoricalCrossentropy(name='loss_decoder')
-                            , "val_loss_cp" : tf.keras.metrics.SparseCategoricalCrossentropy(name='loss_cp')}
+                            , "val_loss_cp" : tf.keras.metrics.SparseCategoricalCrossentropy(name='loss_cp'
+                                                                                            , from_logits=True)}
         self._scheduled_sampling_rate = scheduled_sampling_rate
         self._truncation_skip_step = truncation_skip_step
         self._truncation_size = truncation_size
         self._generator = tf.random.Generator.from_non_deterministic_state()
+
     
     def _calc_loss( self, x, y, loss_object, selected_metrics):
         """ use only the non-pad values """
@@ -88,13 +92,13 @@ class EncoderDecoderContentSelection(tf.keras.Model):
                 # encoded <<EOS>> record or <<PAD>> record
                 ic = tf.where(cp_targets[:, t] != 0, cp_targets[:, t] - 1, enc_outs.shape[1] - 1)
                 indices = tf.stack([tf.range(batch_size), tf.cast(ic, tf.int32)], axis=1)
-                potential_next_input = tf.gather_nd(enc_outs, indices)
+                next_input = tf.gather_nd(enc_outs, indices)
 
                 # the next input should be zeroed out if the indices point to the end of the table - <<EOS>> or <<PAD>> tokens
                 # then the encoder_from_cp wouldn't take them into acount
-                next_input = tf.where(tf.expand_dims(indices[:, 1] == enc_outs.shape[1], 1), tf.zeros(potential_next_input.shape), potential_next_input)
+                enc_outs_zeroed = tf.where(tf.expand_dims(indices[:, 1] == (enc_outs.shape[1] - 1), 1), tf.zeros(next_input.shape), next_input)
                 vals = tf.gather_nd(tables[2], indices)
-                cp_enc_outs = cp_enc_outs.write(t, next_input)
+                cp_enc_outs = cp_enc_outs.write(t, enc_outs_zeroed)
                 cp_enc_ins = cp_enc_ins.write(t, vals)
 
             cp_enc_outs = tf.transpose(cp_enc_outs.stack(), [1, 0, 2])

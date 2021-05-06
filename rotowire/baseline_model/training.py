@@ -2,7 +2,6 @@ from .model import Encoder, EncoderDecoderBasic, EncoderCS
 from .cp_model import EncoderDecoderContentSelection
 from .layers import DecoderRNNCell, DecoderRNNCellJointCopy, DotAttention, ConcatAttention, \
                     ContentPlanDecoderCell
-from .evaluation import evaluate
 from .callbacks import CalcBLEUCallback, SaveOnlyModelCallback
 
 import numpy as np
@@ -169,9 +168,9 @@ def train( train_dataset
     else:
         model.compile( optimizer_1
                      , optimizer_2
-                     , tf.keras.losses.SparseCategoricalCrossentropy( from_logits=False
+                     , tf.keras.losses.SparseCategoricalCrossentropy( from_logits=True # cp loss
                                                                     , reduction='none')
-                     , tf.keras.losses.SparseCategoricalCrossentropy( from_logits=False
+                     , tf.keras.losses.SparseCategoricalCrossentropy( from_logits=False # dec loss
                                                                     , reduction='none')
                      , scheduled_sampling_rate
                      , truncation_size
