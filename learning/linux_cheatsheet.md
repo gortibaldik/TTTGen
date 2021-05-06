@@ -24,3 +24,13 @@
 - therefore it is better to load the json file with `json.load(<file>, object_pairs_hook=OrderedDict)`
 - `collections.OrderedDict` is dictionary that keeps the order of insertion of elements
 
+### Processing `tensorflow` output from the cluster
+- loaded with `^M` and `^H` chars
+- can be removed from the file with these `vim` commands :
+
+```shell
+:%s/^H//g
+:%s/^M/\r/g
+```
+
+- there the characters can be written as `CTRL` + `V` followed by `CTRL` + `M` / `V` respectively
