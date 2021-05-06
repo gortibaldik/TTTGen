@@ -59,12 +59,18 @@ def load_tf_record_dataset( path
         data = tf.data.TFRecordDataset(path).map(read_map_fn)
     else:
         data = tf.data.TFRecordDataset(path).map(read_map_fn_cp)
+        # filtering out batch, where there is too big table
+        # TODO: make preprocessing better !
+        def filter_fn(summaries, cp, *tables):
+            return not tf.reduce_any(cp == tf.cast(tf.ones(cp.shape) * 692, dtype=tf.int16))
+        data = data.filter(filter_fn)
+
     print("data loading : created dataset!", flush=True)
     BUFFER_SIZE = 1000
     print("data loading : created dataset!", flush=True)
     if shuffle:
         data = data.shuffle(BUFFER_SIZE)
-    print("data loading : shuffled dataset!", flush=True)
+        print("data loading : shuffled da   taset!", flush=True)
     data = data.batch(batch_size, drop_remainder=True)
     data.cache()
     print("data loading : batched dataset!", flush=True)
