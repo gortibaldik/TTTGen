@@ -46,8 +46,8 @@ class MatchStat:
         eos_value = od.get_eos()
         bos_record = Record(bos_value, bos_value, bos_value, bos_value)
         eos_record = Record(eos_value, eos_value, eos_value, eos_value)
-        self.records = [bos_record] + self.box_score.records +\
-            self.home_line.records + self.vis_line.records + [eos_record]
+        self.records = [bos_record, eos_record] + self.box_score.records +\
+            self.home_line.records + self.vis_line.records
         if process_summary:
             self.summary = Summary( dct[MatchStatEntries.summary]
                                   , word_dict
