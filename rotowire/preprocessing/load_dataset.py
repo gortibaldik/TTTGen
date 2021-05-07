@@ -62,7 +62,7 @@ def load_tf_record_dataset( path
         # filtering out batch, where there is too big table
         # TODO: make preprocessing better !
         def filter_fn(summaries, cp, *tables):
-            return not tf.reduce_any(cp == tf.cast(tf.ones(cp.shape) * 692, dtype=tf.int16))
+            return not tf.reduce_any(cp == tf.cast(tf.ones(cp.shape) * 692, tf.int16)) # pylint: disable=no-value-for-parameter
         data = data.filter(filter_fn)
 
     print("data loading : created dataset!", flush=True)
