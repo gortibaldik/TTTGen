@@ -355,6 +355,6 @@ class EncoderDecoderContentSelection(tf.keras.Model):
 
             predicted = tf.argmax(last_out, axis=1).numpy()
             result_preds[:, t] = predicted
-            dec_in = tf.expand_dims(predicted, axis=1)
+            _input = tf.expand_dims(predicted, axis=1)
         self.last_content_plan = cp_cp_ix
         return result_preds
