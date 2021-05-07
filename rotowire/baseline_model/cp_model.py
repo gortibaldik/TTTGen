@@ -78,13 +78,15 @@ class EncoderDecoderContentSelection(tf.keras.Model):
                 (_, alignment), states = self._encoder_content_planner( (next_input, enc_outs)
                                                                       , states=states
                                                                       , training=True)
-                
-                # the neural network is taught to predict
-                # indices shifted by 1
-                loss_cp += self._calc_loss( alignment
-                                          , cp_targets[:, t]
-                                          , self._loss_fn_cp
-                                          , ["loss_cp", "accuracy_cp"])
+                # content_plan generation is updated only once per batch to not be affected
+                # by the truncated BPTT
+                if initial_state is None:
+                    # the neural network is taught to predict
+                    # indices shifted by 1
+                    loss_cp += self._calc_loss( alignment
+                                            , cp_targets[:, t]
+                                            , self._loss_fn_cp
+                                            , ["loss_cp", "accuracy_cp"])
                 
                 # prepare inputs for encoder
                 # indices are shifted by 1
