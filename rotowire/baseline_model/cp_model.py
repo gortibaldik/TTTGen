@@ -226,15 +226,10 @@ class EncoderDecoderContentSelection(tf.keras.Model):
         enc_outs, avg = self._encoder_content_selection(tables)
         states = (avg, avg)
 
+        next_input = enc_outs[:, 0, :]
         # create content plan, evaluate the loss from the 
         # gold content plan
         for t in range(cp_in.shape[1]):
-            # indices are shifted by 1
-            # enc_outs[:, enc_outs.shape[1], :] is either
-            # encoded <<EOS>> record or <<PAD>> record
-            ic = tf.where(cp_in[:, t] != 0, cp_in[:, t] - 1, enc_outs.shape[1] - 1)
-            indices = tf.stack([tf.range(batch_size), tf.cast(ic, tf.int32)], axis=1)
-            next_input = tf.gather_nd(enc_outs, indices)
             (_, alignment), states = self._encoder_content_planner( (next_input, enc_outs)
                                                                   , states=states
                                                                   , training=False)
@@ -247,11 +242,18 @@ class EncoderDecoderContentSelection(tf.keras.Model):
                                        , sample_weight=mask )
             
             # prepare inputs for encoder
+            # indices are shifted by 1
+            # enc_outs[:, enc_outs.shape[1], :] is either
+            # encoded <<EOS>> record or <<PAD>> record
             ic = tf.where(cp_targets[:, t] != 0, cp_targets[:, t] - 1, enc_outs.shape[1] - 1)
             indices = tf.stack([tf.range(batch_size), tf.cast(ic, tf.int32)], axis=1)
+            next_input = tf.gather_nd(enc_outs, indices)
+
+            # the next input should be zeroed out if the indices point to the end of the table - <<EOS>> or <<PAD>> tokens
+            # then the encoder_from_cp wouldn't take them into acount
+            enc_outs_zeroed = tf.where(tf.expand_dims(indices[:, 1] == (enc_outs.shape[1] - 1), 1), tf.zeros(next_input.shape), next_input)
             vals = tf.gather_nd(tables[2], indices)
-            encs = tf.gather_nd(enc_outs, indices)
-            cp_enc_outs = cp_enc_outs.write(t, encs)
+            cp_enc_outs = cp_enc_outs.write(t, enc_outs_zeroed)
             cp_enc_ins = cp_enc_ins.write(t, vals)
 
         cp_enc_outs = tf.transpose(cp_enc_outs.stack(), [1, 0, 2])
@@ -323,7 +325,8 @@ class EncoderDecoderContentSelection(tf.keras.Model):
 
             # save for decoder
             cp_cp_ix = cp_cp_ix.write(t, ic)
-            cp_enc_outs = cp_enc_outs.write(t, next_input)
+            enc_outs_zeroed = tf.where(tf.expand_dims(indices[:, 1] == (enc_outs.shape[1] - 1), 1), tf.zeros(next_input.shape), next_input)
+            cp_enc_outs = cp_enc_outs.write(t, enc_outs_zeroed)
             cp_enc_ins = cp_enc_ins.write(t, vals)
 
         cp_enc_outs = tf.transpose(cp_enc_outs.stack(), [1, 0, 2])
