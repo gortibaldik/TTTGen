@@ -1,8 +1,8 @@
 \chapter{Preprocessing and Statistics of the Datasets} \label{chapPreproc}
 
-Ako hlavný spôsob riešenia problému generovania prirodzeného textu zo\linebreak[4]štruktúrovaných dát volíme RNN. RNN sú uspôsobené na spracúvanie \linebreak[4]sekvenčných, 1D dát, avšak my potrebujeme spracovať 2D tabuľky. V tejto kapitole popíšem spôsob, ako sa s týmto problémom vyrovnávam, pričom sa pokúsim vysvetliť, prečo je postup rozdielny pre dataset WikiBIO a RotoWire. Ďalej budem rozprávať o tom, ako som ďalej upravoval vstupné a výstupné dáta a dôvody pre každú z aplikovaných zmien.
+To generate text from structured data I choose the Deep Neural Networks and specifically the Encoder-Decoder neural architecture (section \ref{neural_nets_chapter}). These ap\-\linebreak[4]proaches are suited to process sequential one dimensional data, however we cope with two dimensional tables. In this chapter I describe how I handle the problem. I emphasise the differences between the datasets (WikiBIO and RotoWire). At the end I talk about cleaning of input and output data, and reason about the motivations for selected cleaning techniques.
 
-\section{Transforming Tables to Records}
+\section{Transforming Tables to Records} \label{table_to_record_trans}
 
 Najprv sa pokúsim ukázať aký cieľ chcem naplniť pri transformácii tabuľky na sekvenčný vstup. Zadefinujme si tabuľku, s ktorou budeme pracovať. Povedzme, že stĺpce budú označovať typy hodnôt a riadky budú označovať entity. (ako v príklade \ref{ex_struct}). Chceme, aby čo najviac informácií ostalo v dátach. Konkrétne to znamená, že v sekvenčnom vstupe by malo ostať zachované, jednak ku ktorej entite daný vstup patrí, jednak aký typ hodnoty prislúchajúci k danej entite vyjadruje.
 
@@ -120,7 +120,7 @@ Všetky záznamy, kde by hodnota činila \emph{none}, resp. nevalidné hodnoty v
 \captionof{table}{Statistics of the WikiBIO dataset} \label{stats_filtering_wb}
 \end{figure}
 
-\section{RotoWire}
+\section{RotoWire} \label{rotowire_preproc_section}
 
 Na rozdiel od datasetu WikiBIO, v tabuľke charakterizujúcej jeden zápas NBA (teda vo vstupe pre generačný model) sa vyskytuje viacero entít a dokonca viacero druhov entít (tímy, hráči). Tieto fakty je potrebné zobrať do úvahy pri spracúvaní tabuliek a ich transformácii na sekvenčný vstup pre RNN.
 

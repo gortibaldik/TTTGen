@@ -1,9 +1,14 @@
-\chapter{Neural Network Architectures}
+\chapter{Neural Network Architectures} \label{neural_nets_chapter}
 To generate text from structured data I make use of deep neural networks. In previous chapter (\ref{chapPreproc}) I've shown how to transform the structured tabular data into a sequence of records, therefore I've reduced the problem to an instance of the famous sequence to sequence problem. Now, I show how to create a system that transforms the input sequential data (structured records) to the output sequential data (natural language).
 
 The most common way to tackle the sequence to sequence problem is to use the Encoder-Decoder architecture proposed by \citep{sutskever2014sequence}. It is the main approach I used throughout this thesis. In this chapter I introduce the concepts behind the encoder-decoder architecture, its shortcomings (fixed vocabulary and thus problems with generation of words unseen during training, divergence and hallucinations) and ways to overcome these shortcomings (the attention mechanism, the copy mechanisms, the further transformations of input sequences). Since it is not the purpose of this work, only the basics of the concepts are presented, and I provide links to papers, books and tutorials which helped me on my path to understanding.
 
+\subsubsection{Notation}
 Many papers diverge on the notation and calling conventions of the architectures. Therefore I choosed to adopt the notation used in \emph{Tensorflow Keras API, version 2.x} \citep{tensorflow2015-whitepaper}. Specifically in the field of recurrencies it is discutable if the paper refers to \emph{tf.keras.layers.RNNCell} or to \emph{tf.keras.layers.RNN}. I believe that they can be used interchangeably in the context of this chapter, hence I (deliberately) choose the latter notation (\emph{without 'Cell'}).
+
+\subsubsection{A Note About Embeddings}
+
+An embedding is a low dimensional continuous representation of discrete variables\footnote{I took the sentence from the accepted answer on stack overflow as it is the best description I have found. It is the first and the last time I "cite" from stack overflow. Source : \url{https://datascience.stackexchange.com/questions/53995/what-does-embedding-mean-in-machine-learning}}. In this work I don't experiment with pretrained word embeddings, and I tune only the embedding-dimension hyperparameter, which adjusts the dimensionality of the trained continuous representation of the input.
 
 \section {The Encoder-Decoder Architecture}
 
@@ -93,9 +98,9 @@ Despite having many advantages (variable length of the input and output sequence
 
 It has been shown by \citep{cho2014properties} that the performance of the Encoder-Decoder architecture "suffers significantly from the length of sentences". \citep{bahdanau2016neural} hypothesize that it may be because all of the information from the source sequence is encoded to the fixed-dimensional vector. Both mentioned papers understand word \emph{"long"} as \emph{longer than 30 tokens}. From the chapter about the preprocessing \ref{chapPreproc}, we know that there are more than 40 records in the average input from the WikiBIO dataset and more than 300 records in the average input from the RotoWire dataset. Consequently this particular problem should be seen in our task. 
 
-\subsubsection{Named Entities and Unknown Words}
+\subsubsection{Rare-word Problem and Hallucinations} \label{rare_word_problem}
 
-In the standard Encoder-Decoder, the output is a distribution over the output vocabulary. There are several flaws in the design:
+In the standard Encoder-Decoder, the output is a distribution over the output vocabulary. At the start of the training each word is equally probable in any given context (assuming reasonable weights initialization). During training, model learns the language model on the training data. There are several flaws in the design:
 
 \begin{enumerate}
     \item It essentially means that e.g. words 'the' and 'Roberta' compete against each other, although one depends purely on the language skill (perhaps the next token after 'the' would be superlative) and the other one on the input sequence (which probably mentions some AI research).
@@ -159,14 +164,14 @@ The Pointer networks \citep{vinyals2015pointer} leverage the fact that the align
 
 \subsection{Approaches to Copying}
 
-\citep{gulcehre2016pointing} notes that the ability to point is useless in the generation task if the network is always forced to point. Therefore they introduce a new switching network that outputs a binary variable $z_t$ , which models the probability of the required action being pointing or generating. \citep{yang2016referenceaware} proposes similar approach but he marginalizes out the switch output $z_t$ and the predicted word is calculated as follows:
+\citep{gulcehre2016pointing} notes that the ability to point is useless in the generation task if the network is always forced to point. Therefore they introduce a new switching network that outputs a binary variable $z_t$ , which models the probability of the required action being pointing or generating. \citep{gu2016incorporating} and \citep{yang2016referenceaware} propose similar approach but he marginalizes out the switch output $z_t$ and the predicted word is calculated as follows:
 \begin{equation}
-    p(y_t | o_{<t}, \mathbf{i}) = ( 1 - p^{switch}(z_t = 1)) * p^{vocab}(y_t) + p^{switch}(z_t = 1) * p^{copy}(y_t)
+    p(y_t | y_{<t}, \mathbf{i}) = ( 1 - p^{switch}(z_t = 1)) * p^{vocab}(y_t) + p^{switch}(z_t = 1) * p^{copy}(y_t)
 \end{equation}
 
 Since $p^{copy}(y_t)$ needs to be a distribution over the output vocabulary and in both tasks the output and the input vocabularies are the same, I compute the sum of \emph{the one-hot encoded inputs}, weighted by the alignment vector.
 \begin{equation}
-    p^{copy}(y_t) = \sum_{i=1}^m{a_{t,i} * i_i}
+    p^{copy}(y_t) = \sum_{i=1}^m{a_{t,i} * x_i}
 \end{equation}
 
 \begin{figure}
