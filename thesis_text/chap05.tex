@@ -35,6 +35,13 @@ Since each player entity is represented by 22 records and each team entity by 15
 
 The Decoder is a 2-layer LSTM network with attention mechanism. I already described how I obtain the initial state of the LSTM. I opted to use the Luong style attention with input feeding \citep{luong2015effective}. In the input feeding attention, the concatenation of the last attentional vector together with the actual input is passed to the LSTM. Therefore I use one of the initial states of the LSTM to mimic the last attentional vector in the first decoding time-step.
 
+\begin{figure}
+    \centering
+    \includegraphics[scale=0.18]{img/rotowire_baseline.jpg}
+    \footnotesize{\\ \textit{Note:} green cells are embedding layers, orange cells are feed-forward networks}
+    \caption{\centering The Rotowire baseline model at the second time-step.}
+\end{figure}
+
 \subsection{Improving the Baseline with Copy Mechanisms}
 
 In the previous chapter \ref{rare_word_problem}, I underlined \emph{hallucinations} as one of the problems of the Encoder-Decoder architecture. In the task on RotoWire dataset it basically means that during training, the model learns that it should put \emph{some number} at a specific place in the sentence. We would like it to generate the \emph{exact value}.
