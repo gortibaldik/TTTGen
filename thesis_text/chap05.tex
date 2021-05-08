@@ -3,14 +3,69 @@ In this chapter I aim to clarify how I set up the neural network models, the tra
 
 \section{Rotowire}
 
-It was really challenging to set up even the baseline model. Since the input sequences are about 600 records long and output sequences are more than 300 tokens in average, it wasn't possible to fit the model into the GPU memory. (The GPUs at \url{https://aic.ufal.mff.cuni.cz} have about 8GBs of memory\footnote{The exact GPU used on AIC cluster is NVIDIA GeForce GTX 1080})
+At first I try purely end-to-end approach by following the path set up by \citep{wiseman2017}. I create a baseline model, then improve it with copy mechanism. Then I choose to divide the task to \emph{content planning} and \emph{text generation} as proposed by \citep{puduppully2019datatotext}. 
 
 \subsection{Truncated Backpropagation Through Time}
+
+It was really challenging to set up even the baseline model. Since the input sequences are about 600 records long and output sequences are more than 300 tokens in average, it wasn't possible to fit the model into the GPU memory. (The GPUs at \url{https://aic.ufal.mff.cuni.cz} have about 8GBs of memory\footnote{The exact GPU used on AIC cluster is NVIDIA GeForce GTX 1080})
 
 Computing and updating gradient for each time-step of a sequence of 800 tokens has approximately the same cost as forward and backward pass in a feed-forward network that has 800 layers. \citep{williamsTBPTT} proposes a less expensive method. Truncated Backpropagation Through Time (TBPTT) processes one time-step at a time, and every $t_1$ timesteps it runs BPTT for $t_2$ timesteps.
 
 My implementation of the algorithm cuts the original sequence of size $N$ to $( N - t_2 ) / t_1 + 1$ chunks (with possibly one more chunk if $(N - t_2)$ isn't divisible by $t_1$). Then I run \emph{"normal"} BPTT on the first chunk, keeping the hidden state of the network after $t_1$ steps. Then I fed in the hidden state as the initial state at the start of processing second chunk. Similarly afterwards.
 
-\subsection{Content Selection}
+\subsection{Encoding of the Input Records} \label{enc_in_rec}
 
-\emph{TBPTT} deals with output sequences. However a problem of too long input sequences still persists. Unfortunately no simple solution exists. Therefore instead of processing the input records with a recurrent cell, I try to create the best possible representation of each input record.
+In section \ref{table_to_record_trans} I show the general approach how I create sequences of records from tables, and then the structure of the record in section \ref{trans_in_tb_rw}. Each record $r$ consists of 4 different characteristics, type, value, entity and a flag depicting if record belongs to home or away team.
+
+At first each characteristic is embedded to a fixed-dimensional space and the embeddings are concatenated. I choose the same approach as \citep{wiseman2017} (who was inspired by \citep{yang2016referenceaware}), and I pass the concatenation through a one layer feed-forward network (\emph{tf.keras.layers.Dense}) with ReLU activation, to create the encoding $\hat{r}$ of the record $r$. Consequently, the input sequence of records $\{r_i\}_{i=1}^m$ is transformed to $\mathbf{s} = \{ \hat{r}_i \}_{i=1}^m$ .
+
+\subsection{Baseline model}
+
+I use the slightly modified Encoder-Decoder architecture as the baseline model.
+
+\subsubsection{Encoder}
+
+The Encoder only uses the mechanism from the previous section \ref{enc_in_rec} and no recurrency. This way we obtain the encoder outputs $\{e_i\}_{i=1}^m$ (as shown in figure \ref{enc_dec_visualization}).
+
+\citep{wiseman2017} took the mean of each entities records and passed the concatenations of these means through a one layer feed-forward network to create the initial hidden state of the decoder.
+
+Since each player entity is represented by 22 records and each team entity by 15 records \ref{trans_in_tb_rw}, I approximate the approach taken by \citep{wiseman2017} and mean pool over $\mathbf{s}$ with stride 22. (Which means that while means of players are exact, the team records are less than approximated) The decision is taken to make the implementation simpler and during my experiments I haven't seen any indication that this modification became the performance bottleneck of the model.
+
+\subsubsection{Decoder}
+
+The Decoder is a 2-layer LSTM network with attention mechanism. I already described how I obtain the initial state of the LSTM. I opted to use the Luong style attention with input feeding \citep{luong2015effective}. In the input feeding attention, the concatenation of the last attentional vector together with the actual input is passed to the LSTM. Therefore I use one of the initial states of the LSTM to mimic the last attentional vector in the first decoding time-step.
+
+\subsection{Improving the Baseline with Copy Mechanisms}
+
+In the previous chapter \ref{rare_word_problem}, I underlined \emph{hallucinations} as one of the problems of the Encoder-Decoder architecture. In the task on RotoWire dataset it basically means that during training, the model learns that it should put \emph{some number} at a specific place in the sentence. We would like it to generate the \emph{exact value}.
+
+Therefore as the next step I incorporate the \emph{Joint Copy mechanism} \citep{gu2016incorporating} (already described in \ref{copy_mech_sec}). The encoder rests intact, however in the decoder I use another attention module to point to specific record from the input table and a feed-forward network which models if the model should generate or copy.
+
+The generational path is the same as in the baseline model. In the copy path I use the alignment vector from the newly added attention as weights, to compute the weighted sum of the value portion of input records.
+
+\subsection{Content Selection and Planning}
+
+Rather than training end-to-end, \citep{puduppully2019datatotext} suggest to divide the task to \emph{content planning} and \emph{text generation}. During the \emph{content planning} stage the model selects some records from the input table and organizes them to a \emph{content plan}. The \emph{content plan} describes "what to say, and in what order". During the \emph{text generation} stage, the model generates the text based on the records pointed to by the \emph{content plan}.
+
+Both tasks are modelled with \emph{the same} Encoder and with \emph{separate} Decoders.
+
+\subsubsection{Content Selection}
+
+\citep{puduppully2019datatotext} improves the baseline encoder by incorporating \emph{context awareness}. The Encoder uses the self-attention mechanism. After encoding input records as described in subsection \ref{enc_in_rec}, the self-attention is used to model the "importance vis-a-vis other records in the table".
+
+Specifically, we compute
+\begin{align*}
+\forall k \neq t : \alpha_{t, k} &= score(\hat{r}_t, \hat{r}_k)                         &&\mbox{ \small \emph{the score vector}}\\
+\boldsymbol{\beta_t}             &= softmax(\boldsymbol{\alpha_t})                      &&\mbox{ \small \emph{the alignment vector}}\\
+\boldsymbol{\gamma_t}            &= \sum_{i=1}^m{\beta_{t, i} * \hat{r}_i}               &&\mbox{ \small \emph{the context vector}}\\
+\hat{r}_t^{att}                  &= sigmoid( W_{cs} [\hat{r}_t, \boldsymbol{\gamma_t}] ) &&\mbox{ \small \emph{gating mechanism}}\\
+\hat{r}_t^{cs}                   &= \hat{r}_t^{att} \bigodot \hat{r}_t                  &&\mbox{ \small \emph{the content selected record}}
+\end{align*}
+
+\subsubsection{Content Planning}
+
+\citep{wiseman2017} experimented with conditional copy approach, which doesn't marginalize out the switch probability but models it. Therefore for each summary we have a sequence of pointers to the input records. 
+
+Let $\mathcal{T} = \{r_i\}_{i=1}^m$ be the input records and $\mathbf{p} = \{p_i\}_{i=1}^{|\mathbf{p}|}$ the sequence of pointers. Then $r_{p_1}.value$ is the first value in the output summary which should be copied. 
+
+\citep{puduppully2019datatotext} suggested that instead of just modelling the switch probability, we can train another Encoder-Decoder, which extracts these pointers from the original table. After encoding each input record with \emph{the Content Selection} approach, we take the average of $\hat{r}_t^{cs}$ as the initial state of \emph{the content plan LSTM}. Pointed records serve as inputs to the LSTM, therefore special \emph{\textless BOS\textgreater} and \emph{\textless EOS\textgreater} tokens must be added to each table, to teach the network when to start and when to end the generation.
