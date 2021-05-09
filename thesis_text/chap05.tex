@@ -1,45 +1,62 @@
 \chapter{Models}
-In this chapter I aim to clarify how I set up the neural network models, the training and inference. Despite both datasets (WikiBIO, RotoWire) being created for modeling the same task (generation of text from structured data), I believe their characteristics are really different (as shown in chapter about preprocessing \ref{chapPreproc}). Therefore I present different set of models used for each dataset. At first I present a \emph{baseline model}. Model, which is sufficiently competitive to be able to generate reasonable texts. Then I present changes to the architecture, which aim to improve the generation.
+In this chapter I aim to clarify how I set up the neural network models for the experiments (which will be presented in the next chapter \ref{experiments_chapter}). Despite both datasets (WikiBIO, RotoWire) being created for modeling the same task (generation of text from structured data), I believe their characteristics are quite different (as shown in chapter about preprocessing \ref{chapPreproc}). Therefore I present different set of models used for each dataset. At first I present a \emph{baseline model}. Model, which is sufficiently competitive to be able to generate reasonable texts. Then I present changes to the architecture, which aim to improve the generation.
 
 \section{Rotowire}
 
-At first I try purely end-to-end approach by following the path set up by \citep{wiseman2017}. I create a baseline model, then improve it with copy mechanism. Then I choose to divide the task to \emph{content planning} and \emph{text generation} as proposed by \citep{puduppully2019datatotext}. 
+At first I try purely end-to-end approach by following the path set up by \citep{wiseman2017}. I create a baseline model, then improve it with the copy mechanism \ref{copy_mech_sec}. Next I choose to divide the task to \emph{content planning} and \emph{text generation} as proposed by \citep{puduppully2019datatotext}.
 
 \subsection{Truncated Backpropagation Through Time}
 
-It was really challenging to set up even the baseline model. Since the input sequences are about 600 records long and output sequences are more than 300 tokens in average, it wasn't possible to fit the model into the GPU memory. (The GPUs at \url{https://aic.ufal.mff.cuni.cz} have about 8GBs of memory\footnote{The exact GPU used on AIC cluster is NVIDIA GeForce GTX 1080})
+It was really challenging to set up even the baseline model. Since the input sequences are about 600 records long and output sequences are more than 300 tokens in average (and the outputs are padded with \emph{\textless PAD\textgreater} token to approximately 800 tokens), it wasn't possible to fit the model into the GPU memory. (The GPUs at \url{https://aic.ufal.mff.cuni.cz} have about 8GBs of memory\footnote{The exact GPU used on AIC cluster is NVIDIA GeForce GTX 1080})
 
 Computing and updating gradient for each time-step of a sequence of 800 tokens has approximately the same cost as forward and backward pass in a feed-forward network that has 800 layers. \citep{williamsTBPTT} proposes a less expensive method. Truncated Backpropagation Through Time (TBPTT) processes one time-step at a time, and every $t_1$ timesteps it runs BPTT for $t_2$ timesteps.
 
 My implementation of the algorithm cuts the original sequence of size $N$ to $( N - t_2 ) / t_1 + 1$ chunks (with possibly one more chunk if $(N - t_2)$ isn't divisible by $t_1$). Then I run \emph{"normal"} BPTT on the first chunk, keeping the hidden state of the network after $t_1$ steps. Then I fed in the hidden state as the initial state at the start of processing second chunk. Similarly afterwards.
 
-\subsection{Encoding of the Input Records} \label{enc_in_rec}
+\subsection{Baseline model} \label{sec_baseline_model_rotowire}
 
-In section \ref{table_to_record_trans} I show the general approach how I create sequences of records from tables, and then the structure of the record in section \ref{trans_in_tb_rw}. Each record $r$ consists of 4 different characteristics, type, value, entity and a flag depicting if record belongs to home or away team.
-
-At first each characteristic is embedded to a fixed-dimensional space and the embeddings are concatenated. I choose the same approach as \citep{wiseman2017} (who was inspired by \citep{yang2016referenceaware}), and I pass the concatenation through a one layer feed-forward network (\emph{tf.keras.layers.Dense}) with ReLU activation, to create the encoding $\hat{r}$ of the record $r$. Consequently, the input sequence of records $\{r_i\}_{i=1}^m$ is transformed to $\mathbf{s} = \{ \hat{r}_i \}_{i=1}^m$ .
-
-\subsection{Baseline model}
-
-I use the slightly modified Encoder-Decoder architecture as the baseline model.
+I use a non-recurrent Encoder and a two-layer LSTM decoder with Luong-style attention as the baseline model. At first I present how the encoding of input records works, then I talk about the text generation. I highlight all the differences between my approach and the one taken by \citep{wiseman2017}. The visualization of the model is shown in the figure \ref{rotowire_baseline_vis}.
 
 \subsubsection{Encoder}
 
-The Encoder only uses the mechanism from the previous section \ref{enc_in_rec} and no recurrency. This way we obtain the encoder outputs $\{e_i\}_{i=1}^m$ (as shown in figure \ref{enc_dec_visualization}).
+The Encoder should process the input records created from the input table (section \ref{table_to_record_trans}) to create the partial outputs at each time-step and the initial hidden state for the Decoder.
 
-\citep{wiseman2017} took the mean of each entities records and passed the concatenations of these means through a one layer feed-forward network to create the initial hidden state of the decoder.
+I described in section \ref{trans_in_tb_rw} that each record $r$ consists of 4 different features: \emph{type}, \emph{value}, \emph{entity} and a \emph{home/away flag} depicting if the record belongs to home or away team.
 
-Since each player entity is represented by 22 records and each team entity by 15 records \ref{trans_in_tb_rw}, I approximate the approach taken by \citep{wiseman2017} and mean pool over $\mathbf{s}$ with stride 22. (Which means that while means of players are exact, the team records are less than approximated) The decision is taken to make the implementation simpler and during my experiments I haven't seen any indication that this modification became the performance bottleneck of the model.
+At first each feature is embedded to a fixed-dimensional space. Next the embeddings are concatenated. I choose the same approach as \citep{wiseman2017} (who was inspired by \citep{yang2016referenceaware}), and I pass the concatenation through a one layer feed-forward network (\emph{tf.keras.layers.Dense}) with ReLU activation\footnote{the Rectified Linear Unit activation function $f(x) = max(0, x)$}, to create the encoding $e$ of the record $r$. Consequently, the input sequence of records $\{r_i\}_{i=1}^m$ is transformed to $\mathbf{e} = \{ e_i \}_{i=1}^m$ .
+
+To create the initial state of the decoder, \citep{wiseman2017} calculated the mean of the records belonging to the particular entity and linearly transformed the concatenation of the means. (Simply, the concatenation is passed through \emph{tf.keras.la\-yers.Dense} without any activation function).
+
+To make the implementation simpler I observe that each player entity is represented by 22 records and each team entity by 15 records \ref{trans_in_tb_rw}.  Consequently I approximate the approach taken by \citep{wiseman2017} and mean pool over $\mathbf{e}$ with stride 22. (Which means that while means of players are exact, the team records are less than approximated) During my experiments I haven't seen any indication that this modification became the performance bottleneck of the model.
 
 \subsubsection{Decoder}
 
-The Decoder is a 2-layer LSTM network with attention mechanism. I already described how I obtain the initial state of the LSTM. I opted to use the Luong style attention with input feeding \citep{luong2015effective}. In the input feeding attention, the concatenation of the last attentional vector together with the actual input is passed to the LSTM. Therefore I use one of the initial states of the LSTM to mimic the last attentional vector in the first decoding time-step.
+The Decoder is a 2-layer LSTM network with attention mechanism. The LSTMs are initialized with states prepared in the previous section. I opted to use the Luong style attention with input feeding \citep{luong2015effective}. I described in section \ref{score_input_feeding} that we use the concatenation of the last attentional decision and the last gold output as the actual input to the first layer of LSTMs. However at the first time-step, when the input is the \emph{\textless BOS\textgreater} token, there is no \emph{last attentional decision}. Hence for this purpose I use one of the initial states prepared by the Encoder.
 
-\begin{figure}
+\subsubsection{Training and Inference}
+
+The model is trained end-to-end to minimize the cross-entropy loss (negative-log likelihood) of the gold output summary $\mathbf{y}$ given the sequence of input records $\mathbf{s}$.
+\begin{equation}
+    \min \sum_{(\mathbf{s}, \mathbf{y}) \in \mathcal{D} }{-log\ p(\mathbf{y}|\mathbf{s})}
+\end{equation}
+
+We use the \emph{teacher forcing} (as explained in section \ref{high-level_enc_dec_section}) during training and during the inference, we greedily approximate 
+\begin{equation}
+    \argmax_{\mathbf{\hat{y}}} p(\mathbf{\hat{y}} | \mathbf{s})
+\end{equation}
+
+\begin{figure}[!h]
     \centering
     \includegraphics[scale=0.18]{img/rotowire_baseline.jpg}
     \footnotesize{\\ \textit{Note:} green cells are embedding layers, orange cells are feed-forward networks}
-    \caption{\centering The Rotowire baseline model at the second time-step.}
+    \caption{\centering The Rotowire baseline model at the second time-step.} \label{rotowire_baseline_vis}
+\end{figure}
+
+\begin{figure}[!h]
+    \centering
+    \includegraphics[scale=0.35]{img/rotowire_joint_copy.jpg}
+    \footnotesize{\\ \textit{Note:} green cells are embedding layers, orange cells are feed-forward networks \\ $\alpha$ is the alignment vector produced by the copy attention; $r$ is the input record.}
+    \caption{\centering The Joint-Copy extension of the baseline model at second time-step.} \label{rotowire_joint_copy_vis}
 \end{figure}
 
 \subsection{Improving the Baseline with Copy Mechanisms}
@@ -48,7 +65,7 @@ In the previous chapter \ref{rare_word_problem}, I underlined \emph{hallucinatio
 
 Therefore as the next step I incorporate the \emph{Joint Copy mechanism} \citep{gu2016incorporating} (already described in \ref{copy_mech_sec}). The encoder rests intact, however in the decoder I use another attention module to point to specific record from the input table and a feed-forward network which models if the model should generate or copy.
 
-The generational path is the same as in the baseline model. In the copy path I use the alignment vector from the newly added attention as weights, to compute the weighted sum of the value portion of input records.
+The generational path is the same as in the baseline model. In the copy path I use the alignment vector from the newly added attention as weights, to compute the weighted sum of the value portion of input records. The visualization can be seen in the figure \ref{rotowire_joint_copy_vis}.
 
 \subsection{Content Selection and Planning}
 
@@ -58,7 +75,7 @@ Both tasks are modelled with \emph{the same} Encoder and with \emph{separate} De
 
 \subsubsection{Content Selection}
 
-\citep{puduppully2019datatotext} improves the baseline encoder by incorporating \emph{context awareness}. The Encoder uses the self-attention mechanism. After encoding input records as described in subsection \ref{enc_in_rec}, the self-attention is used to model the "importance vis-a-vis other records in the table".
+\citep{puduppully2019datatotext} improves the baseline encoder by incorporating \emph{context awareness}. At first the input records are encoded in the same way as in the baseline model \ref{sec_baseline_model_rotowire}, the self-attention is used to model the "importance vis-a-vis other records in the table".
 
 Specifically, we compute
 \begin{align*}
@@ -66,13 +83,44 @@ Specifically, we compute
 \boldsymbol{\beta_t}             &= softmax(\boldsymbol{\alpha_t})                      &&\mbox{ \small \emph{the alignment vector}}\\
 \boldsymbol{\gamma_t}            &= \sum_{i=1}^m{\beta_{t, i} * \hat{r}_i}               &&\mbox{ \small \emph{the context vector}}\\
 \hat{r}_t^{att}                  &= sigmoid( W_{cs} [\hat{r}_t, \boldsymbol{\gamma_t}] ) &&\mbox{ \small \emph{gating mechanism}}\\
-\hat{r}_t^{cs}                   &= \hat{r}_t^{att} \bigodot \hat{r}_t                  &&\mbox{ \small \emph{the content selected record}}
+\hat{r}_t^{cs}                   &= \hat{r}_t^{att} \bigodot \hat{r}_t                  &&\mbox{ \small \emph{the content selected representation}}
 \end{align*}
+
+The Encoder thus creates a sequence of \emph{context aware} representations $\{\hat{r}_t^{cs}\}_{t=1}^m$ (figure \ref{content_selection_pudupully}).
+
+\begin{figure}[!h]
+    \includegraphics{img/cs_gate-cropped.pdf}
+    \caption{Content Selection mechanism (image is directly from \citep{puduppully2019datatotext})} \label{content_selection_pudupully}
+\end{figure}
 
 \subsubsection{Content Planning}
 
-\citep{wiseman2017} experimented with conditional copy approach, which doesn't marginalize out the switch probability but models it. Therefore for each summary we have a sequence of pointers to the input records. 
+\citep{wiseman2017} experimented with conditional copy approach, in which the latent \emph{switch} probability isn't marginalized out. Hence, there exists pointer sequence for each summary in the train and validation dataset. The sequence corresponds to the order in which entities and values from the sequence of input records appear in the output summary. \citep{puduppully2019datatotext} suggested that instead of just modelling the switch probability, we can train a Decoder, which extracts these pointers from the original table.
 
-Let $\mathcal{T} = \{r_i\}_{i=1}^m$ be the input records and $\mathbf{p} = \{p_i\}_{i=1}^{|\mathbf{p}|}$ the sequence of pointers. Then $r_{p_1}.value$ is the first value in the output summary which should be copied. 
+As suggested, the Decoder is a one layer LSTM which operates on the \emph{context aware} representations $\hat{\mathbf{r}}^{cs}$. Its hidden states are initialized with $avg(\{\hat{r}_t^{cs}\}_{t=1}^m)$. \citep{puduppully2019datatotext} haven't elaborated on the exact approach, hence it is probable that I have diverged a little bit from the intentions of original authors.
 
-\citep{puduppully2019datatotext} suggested that instead of just modelling the switch probability, we can train another Encoder-Decoder, which extracts these pointers from the original table. After encoding each input record with \emph{the Content Selection} approach, we take the average of $\hat{r}_t^{cs}$ as the initial state of \emph{the content plan LSTM}. Pointed records serve as inputs to the LSTM, therefore special \emph{\textless BOS\textgreater} and \emph{\textless EOS\textgreater} tokens must be added to each table, to teach the network when to start and when to end the generation.
+The Decoder from the baseline model is trained to start the generation when it sees the \emph{\textless BOS\textgreater} token. Since the Content Plan Decoder operates on $\hat{\mathbf{r}}^{cs}$ I've choosen to prepend a special \emph{\textless BOS\textgreater} record to the sequence of input records, and also a pointer to the \emph{\textless BOS\textgreater} record is prepended to each content plan. Therefore instead of teaching the Content Plan Decoder to start generating content plan when seeing a special value, I teach it to do so when seeing \emph{the encoded representation of the special value}. The same approach is taken at the end, with the \emph{\textless EOS\textgreater} record.
+
+\begin{table}[]
+    \centering \small
+    \begin{tabular}{llll}
+        \toprule
+        \textbf{Type} & \textbf{Entity} & \textbf{Value} & \textbf{H/A flag} \\                  
+        \midrule
+        \textless{}\textless{}BOS\textgreater{}\textgreater{} & \textless{}\textless{}BOS\textgreater{}\textgreater{} & \textless{}\textless{}BOS\textgreater{}\textgreater{} & \textless{}\textless{}BOS\textgreater{}\textgreater{} \\
+        TEAM-CITY                                             & Raptors                                               & Toronto                                               & HOME                                                  \\
+        TEAM-NAME                                             & Raptors                                               & Raptors                                               & HOME                                                  \\
+        TEAM-PTS                                              & Raptors                                               & 122                                                   & HOME                                                  \\
+        TEAM-CITY                                             & 76ers                                                 & Philadelphia                                          & AWAY                                                  \\
+        TEAM-NAME                                             & 76ers                                                 & 76ers                                                 & AWAY                                                  \\
+        TEAM-NAME                                             & 76ers                                                 & 76ers                                                 & AWAY                                                  \\
+        TEAM-PTS                                              & 76ers                                                 & 95                                                    & AWAY                                                  \\
+        $\dots$                                               & $\dots$                                               & $\dots$                                               & $\dots$ \\                                        
+        \bottomrule
+        \multicolumn{4}{c}{\footnotesize \textit{Note:} The extract corresponds to sentence: "The host Toronto} \\
+        \multicolumn{4}{c}{\footnotesize Raptors defeated the Philadelphia 76ers , 122 - 95\dots "}
+    \end{tabular}
+    \caption{An extract from the content plan corresponding to the summary from the figure \ref{fig:samplesummary}}
+\end{table}
+
+Either baseline Decoder or Joint-Copy Decoder can operate on the generated content plan, to generate the output summary.

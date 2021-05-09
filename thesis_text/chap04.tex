@@ -49,7 +49,7 @@ The network is trained by back-propagation through time (BPPT) \citep{bpptWerbos
 
 The Long Short-Term Memory (\emph{tf.ke\-ras.lay\-ers.LSTM}) addresses the problem of vanishing gradient. It does so by adding a special cell state for capturing long range context and a series of gating mechanisms. The latter update the cell state and regulate the flow of gradient through the network (as shown in figure \ref{lstm}). The more in-depth explanation can be found in \citep{Olah2015}.
 
-\begin{figure}[!h]
+\begin{figure}[!ht]
     \begin{gather}
         y_t = W_{hy}h_t + b_y \\
         h_t = o_t tanh(c_t) \\
@@ -59,13 +59,13 @@ The Long Short-Term Memory (\emph{tf.ke\-ras.lay\-ers.LSTM}) addresses the probl
         f_t = \sigma(W_f[h_{t-1}; x_t] + b_f)
     \end{gather}
 \end{figure}
-\begin{figure}
+\begin{figure}[!ht]
     \centering
     \includegraphics[width=113.44mm, height=42.64mm]{img/LSTM3-chain.png}
     \caption{Visualization of LSTM \citep{Olah2015}} \label{lstm}
 \end{figure}
 
-\subsection{High-level Overview of Encoder-Decoder Architecture}
+\subsection{High-level Overview of Encoder-Decoder Architecture} \label{high-level_enc_dec_section}
 
 As stated by \citep{sutskever2014sequence}, the main goal of the encoder-decoder architecture is to model the conditional probability $p(y_1,\dots,y_n | x_1,\dots,x_m)$ of the output sequence $y_1,\dots,y_n$ conditioned on the input sequence $x_1,\dots,x_m$. It uses two separate \emph{recurrent networks}\footnote{Here I refer to \emph{recurrent network} as to a complex consisting of at least one RNN/LSTM/GRU/\dots rather than to a single recurrent layer.}. The first, called Encoder, produces a fixed-dimensional representation $r$ of the input sequence. $r$ is then used to initialize the hidden states of the second recurrent network, called a Decoder. The Decoder then generates the output sequence as in equation \ref{enc_dec_base}.
 
@@ -146,7 +146,7 @@ score(e_i, d_t)\!=\!\begin{cases}
 \end{cases}
 \end{equation*}
 
-The same author also states that the fact that the attentional decisions are made independently is suboptimal. Hence the \emph{Input Feeding} approach is proposed to allow the model to take into acount its previous decisions. It simply means that the next input is the concatenation $[y_t, att_t]$.
+The same author also states that the fact that the attentional decisions are made independently is \emph{suboptimal}. Hence the \emph{Input Feeding} approach is proposed to allow the model to take into acount its previous decisions. It simply means that the next input is the concatenation $[y_t, att_t]$.
 
 \begin{figure}[!h]
     \centering
