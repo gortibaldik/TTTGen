@@ -2,7 +2,7 @@ from preprocessing.load_dataset import load_tf_record_dataset, load_values_from_
 from baseline_model.training import train
 from baseline_model.layers import DotAttention, ConcatAttention, DecoderRNNCell, DecoderRNNCellJointCopy
 from baseline_model.model import Encoder, EncoderDecoderBasic
-from baseline_model.evaluation import evaluate
+from baseline_model.training import create_basic_model, create_cs_model
 from argparse import ArgumentParser
 import os
 import tensorflow as tf
@@ -28,12 +28,24 @@ def _create_parser():
     parser.add_argument('--with_cp', action='store_true')
     return parser
 
+def add_dummy_content_plans( dataset
+                           , preprocess_cp_size):
+    def map_fn(summaries, types, entities, values, has):
+        return summaries, tf.zeros(shape=(summaries.shape[0], preprocess_cp_size), dtype=tf.int16),\
+               types, entities, values, has
+    dataset = dataset.map(map_fn)
+    return dataset
+    
+
 def generate( model
             , dataset
             , file_prefix
             , dir_path
             , eos
-            , ix_to_tk):
+            , ix_to_tk
+            , max_cp_size = None):
+    if max_cp_size is not None:
+        dataset = add_dummy_content_plans(dataset, max_cp_size)
     predictions = model.predict(dataset)
     targets = None
     for tgt in dataset.as_numpy_iterator():
@@ -86,14 +98,15 @@ def _main(args):
                                     , preprocess_summary_size=max_summary_size
                                     , preprocess_cp_size=max_cp_size
                                     , with_content_plans=args.with_cp)
+    
+    # test dataset is always WITHOUT content plans - as the network should
+    # learn to generate the content plans and not to leverage the obtained ones
     test_dataset, test_steps, *dummies = load_tf_record_dataset( test_path
                                                                , vocab_path
                                                                , batch_size
                                                                , False # shuffle
                                                                , max_table_size
-                                                               , max_summary_size
-                                                               , max_cp_size
-                                                               , args.with_cp)
+                                                               , max_summary_size)
     _ = (val_steps, pad, bos, test_dataset, test_steps, dummies)
     word_vocab_size = len(tk_to_ix)
     word_emb_dim = args.word_emb_dim
@@ -121,27 +134,42 @@ def _main(args):
     else:
         decoder_rnn = DecoderRNNCell
     
-    encoder = Encoder( word_vocab_size
-                     , word_emb_dim
-                     , tp_vocab_size
-                     , tp_emb_dim
-                     , ha_vocab_size
-                     , ha_emb_dim
-                     , entity_span
-                     , hidden_size
-                     , batch_size)
-    
-    decoderRNNCell = decoder_rnn( word_vocab_size
-                                , word_emb_dim
-                                , hidden_size
-                                , batch_size
-                                , attention=attention
-                                , dropout_rate=args.dropout_rate)
-    model = EncoderDecoderBasic(encoder, decoderRNNCell)
-    # compile the model - enables eager execution (my custom change)
-    model.compile( tf.keras.optimizers.Adam()
-                 , tf.keras.losses.SparseCategoricalCrossentropy()
-                 , 1.0, 100, 50) # just some dummy values
+    if not args.with_cp:
+        model = create_basic_model( args.batch_size
+                                  , word_emb_dim
+                                  , word_vocab_size
+                                  , tp_emb_dim
+                                  , tp_vocab_size
+                                  , ha_emb_dim
+                                  , ha_vocab_size
+                                  , entity_span
+                                  , hidden_size
+                                  , attention
+                                  , decoder_rnn
+                                  , args.dropout_rate)
+        # compile the model - enables eager execution (my custom change)
+        model.compile( tf.keras.optimizers.Adam()
+                     , tf.keras.losses.SparseCategoricalCrossentropy()
+                     , 1.0, 100, 50) # just some dummy values
+    else:
+        model = create_cs_model( args.batch_size
+                               , max_table_size
+                               , word_emb_dim
+                               , word_vocab_size
+                               , tp_emb_dim
+                               , tp_vocab_size
+                               , ha_emb_dim
+                               , ha_vocab_size
+                               , hidden_size
+                               , attention
+                               , decoder_rnn
+                               , args.dropout_rate)
+        # compile the model - enables eager execution (my custom change)
+        model.compile( tf.keras.optimizers.Adam()
+                     , tf.keras.optimizers.Adam()
+                     , tf.keras.losses.SparseCategoricalCrossentropy()
+                     , tf.keras.losses.SparseCategoricalCrossentropy()
+                     , 1.0, 100, 50) # just some dummy values
     
     print(f"loading checkpoint from {checkpoint_dir}")
     print(f"latest checkpoint in the dir is {tf.train.latest_checkpoint(checkpoint_dir)}")
@@ -150,13 +178,18 @@ def _main(args):
     print(status.assert_existing_objects_matched())
 
     ix_to_tk = dict([(value, key) for key, value in tk_to_ix.items()])
-    for data, file_prefix in [(val_dataset, "val_"), (test_dataset, "test_")]:
+    for data, file_prefix in [(test_dataset, "test_"), (val_dataset, "val_")]:
+        if file_prefix == "test_" and args.with_cp:
+            cp_size = max_cp_size
+        else:
+            cp_size = None
         generate( model
                 , data
                 , file_prefix
                 , args.output_path
                 , eos
-                , ix_to_tk)
+                , ix_to_tk
+                , cp_size)
     
 
 if __name__ == "__main__":
