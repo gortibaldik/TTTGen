@@ -70,7 +70,7 @@ def load_tf_record_dataset( path
     print("data loading : created dataset!", flush=True)
     if shuffle:
         data = data.shuffle(BUFFER_SIZE)
-        print("data loading : shuffled da   taset!", flush=True)
+        print("data loading : shuffled dataset!", flush=True)
     data = data.batch(batch_size, drop_remainder=True)
     data.cache()
     print("data loading : batched dataset!", flush=True)
