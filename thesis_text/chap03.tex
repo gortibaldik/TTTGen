@@ -4,9 +4,9 @@ To generate text from structured data I choose the Deep Neural Networks and spec
 
 \section{Transforming Tables to Records} \label{table_to_record_trans}
 
-A table is two dimensional data structure, where the information is stored not only in the actual values in cells, but also in the positional information. When transforming tables to records, the goal is to keep as much of the positional information as possible.
+A table is a two dimensional data structure, where the information is stored not only in the actual values in cells, but also in the positional information. To feed the table to the record I flatten it to a sequence of records. When transforming the table, the goal is to keep as much of the positional information as possible.
 
-At first let's define a table. Values in the same column have the same type, whereas values in the same row belong to the same entity. An example of the table as we have defined it is in figure \ref{ex_struct}. To keep the most of the information, a record created from the table should have fields denoting to which entity the record belongs, and what is the type of the record.
+At first let's define a table. Values in the same column have the same type, whereas values in the same row belong to the same entity. An example of the table as we have defined it is in figure \ref{ex_struct}.
 
 \begin{table}[h]
     \centering
@@ -23,13 +23,13 @@ At first let's define a table. Values in the same column have the same type, whe
 
 \subsection{Notation}
 
-Podľa \citep{liang-etal-2009-learning} zavádzam notáciu, ktorú budem ďalej používať.\linebreak[4]Tabuľku $\mathcal{T}$ transformujeme na postupnosť záznamov $ \mathbf{s} = \{ r_i \}_{i=1}^{J} $, kde $r_i$ označuje i-ty záznam. Vzhľadom na ciele stanovené vyššie, každý záznam položku $r.f$ označujúcu typ hodnoty, položku $r.v$ označujúcu hodnotu daného záznamu,\linebreak[4]prípadne položku $r.e$, označujúcu entitu, ktorej prislúcha.
+I use the same notation as \citep{liang-etal-2009-learning}. Table $\mathcal{T}$ is transformed into a sequence of records $ \mathbf{s} = \{ r_i \}_{i=1}^{J} $, where $r_i$ denotes i-th record. To fulfill our goal of keeping the most of the positional information from the table, each record contains field $r.type$ denoting the type of the value, the actual value $r.value$ and the entity $r.entity$ to which the record belongs.
 
 \tikzstyle{example_style} = [rectangle, rounded corners, minimum width=3cm, minimum height=1cm,text centered, fill=yellow!10, align=left]
 
 \section{RotoWire} \label{rotowire_preproc_section}
 
-Na rozdiel od datasetu WikiBIO, v tabuľke charakterizujúcej jeden zápas NBA (teda vo vstupe pre generačný model) sa vyskytuje viacero entít a dokonca viacero druhov entít (tímy, hráči). Tieto fakty je potrebné zobrať do úvahy pri spracúvaní tabuliek a ich transformácii na sekvenčný vstup pre RNN.
+Firstly I present the statistics of the dataset \emph{before any preprocessing}. Next I elaborate about the particularities of the input tables from the dataset. After working with the dataset for a while I found many of its deficiencies. Although there are datasets based on this one, which contain summaries corresponding better to input tables \citep{wang-2019-revisiting}, \citep{thomson-2020-sportsett} I choose to continue with this one, as I was already accustomed to the format of the data.
 
 \subsection{Dataset Statistics} \label{assumptions_ref}
 
