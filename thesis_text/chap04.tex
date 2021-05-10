@@ -156,25 +156,31 @@ The same author also states that the fact that the attentional decisions are mad
 
 
 \section{Copy mechanism} \label{copy_mech_sec}
-The copy mechanism is a further extension of the attention mechanism. In this section I discuss the Pointer networks \citep{vinyals2015pointer}, which are trained to \emph{point} to some position in the input sequence and the Copy Mechanisms \citep{gulcehre2016pointing}, \citep{gu2016incorporating} which model the decision making (whether to copy from the pointed location or to generate from the actual context).
+The copy mechanism is a further extension of the attention mechanism. In this section I discuss the Pointer networks \citep{vinyals2015pointer}, which are trained to \emph{point} to some position in the input sequence and the Copy Mechanisms \citep{gulcehre2016pointing}, \citep{gu2016incorporating}, \citep{yang2016referenceaware} which model the decision making (whether to copy from the pointed location or to generate from the actual context).
 
 \subsection{Pointer Networks}
 
-The Pointer networks \citep{vinyals2015pointer} leverage the fact that the alignment vector $\mathbf{a_t}$  can be seen as \emph{a pointer} to the input sequence. Consequently instead of computing the weighted sum (\emph{context vector}) and an MLP on top of that as the Attention models, they utilize the alignment vector as an output.
+The Pointer networks \citep{vinyals2015pointer} leverage the fact that the alignment vector $\mathbf{a_t}$  can be seen as \emph{a pointer} to the input sequence. Consequently instead of computing the weighted sum (\emph{context vector}) and an MLP on top of that as the Attention models, they utilize the \emph{alignment vector} as an output.
 
 \subsection{Approaches to Copying}
 
-\citep{gulcehre2016pointing} notes that the ability to point is useless in the generation task if the network is always forced to point. Therefore they introduce a new switching network that outputs a binary variable $z_t$ , which models the probability of the required action being pointing or generating. \citep{gu2016incorporating} and \citep{yang2016referenceaware} propose similar approach but he marginalizes out the switch output $z_t$ and the predicted word is calculated as follows:
-\begin{equation}
-    p(y_t | y_{<t}, \mathbf{i}) = ( 1 - p^{switch}(z_t = 1)) * p^{vocab}(y_t) + p^{switch}(z_t = 1) * p^{copy}(y_t)
-\end{equation}
+\citep{gulcehre2016pointing} notes that the ability to point is useless in the generation task if the network is always forced to point. Therefore they introduce a new switching network that outputs a binary variable $z_t$ , which models the probability of the required action being pointing or generating. \citep{yang2016referenceaware} propose similar approach but he marginalizes out the switch output $z_t$. Let $\mathbf{e} = (e_1, \dots, e_m)$ be the encoder outputs, $\mathbf{s} = (r_1, \dots, r_m)$ the sequence of input records, $d_t$ be the decoder output at the actual time-step, and $ATTN$ be the Attention as presented in the previous section. The predicted word is calculated as follows:
+\begin{gather}
+    \mathbf{a_t} = ATTN(\mathbf{e}, d_t) \\
+    p^{copy}(y_t | \mathbf{s}) = \mathbf{a_t} \\
+    \mathbf{c_t} = \sum_{i=1}^m{e_i * a_{t, i}} \\
+    p^{switch}(z_t | \mathbf{s}) = sigmoid(W_{switch}[\mathbf{c_t}, d_t]) \\
+    p^{gen}(y_t | \mathbf{s}) = softmax(W_{gen}[\mathbf{c_t}, d_t]) \\
+    p(y_t | \mathbf{s}) = p^{gen}(y_t | \mathbf{s})(1 - p^{switch}(1 | \mathbf{s})) + p^{copy}(y_t | \mathbf{s})p(1 | \mathbf{s})
+\end{gather}
 
 Since $p^{copy}(y_t)$ needs to be a distribution over the output vocabulary and in both tasks the output and the input vocabularies are the same, I compute the sum of \emph{the one-hot encoded inputs}, weighted by the alignment vector.
 \begin{equation}
     p^{copy}(y_t) = \sum_{i=1}^m{a_{t,i} * x_i}
 \end{equation}
 
-\begin{figure}
-    \includegraphics[scale=0.85]{img/attention_alignment.pdf}
+\begin{figure}[hb]
+    \centering
+    \includegraphics[scale=0.65]{img/attention_alignment.pdf}
     \caption{Excerpt from \textbf{Pointing the Unknown Words} paper by \citep{gulcehre2016pointing}, showing how the attention alignment can be utilized as a pointer information}
 \end{figure}
