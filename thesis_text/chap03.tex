@@ -1,19 +1,22 @@
 \chapter{Preprocessing and Statistics of the Datasets} \label{chapPreproc}
 
-To generate text from structured data I choose the Deep Neural Networks and specifically the Encoder-Decoder neural architecture (section \ref{neural_nets_chapter}). These ap\-\linebreak[4]proaches are suited to process sequential one dimensional data, however we cope with two dimensional tables. In this chapter I describe how I handle the problem. I emphasise the differences between the datasets (WikiBIO and RotoWire). At the end I talk about cleaning of input and output data, and reason about the motivations for selected cleaning techniques.
+To generate text from structured data I choose the Deep Neural Networks and specifically the Encoder-Decoder neural architecture (section \ref{neural_nets_chapter}). These ap\-\linebreak[4]proaches are suited to process sequential one dimensional data, however we cope with two dimensional tables. In this chapter I describe how I handle the problem. In addition I further analyze the data and propose cleaning methods and reason about motivations for selected techniques.
 
 \section{Transforming Tables to Records} \label{table_to_record_trans}
 
-Najprv sa pokúsim ukázať aký cieľ chcem naplniť pri transformácii tabuľky na sekvenčný vstup. Zadefinujme si tabuľku, s ktorou budeme pracovať. Povedzme, že stĺpce budú označovať typy hodnôt a riadky budú označovať entity. (ako v príklade \ref{ex_struct}). Chceme, aby čo najviac informácií ostalo v dátach. Konkrétne to znamená, že v sekvenčnom vstupe by malo ostať zachované, jednak ku ktorej entite daný vstup patrí, jednak aký typ hodnoty prislúchajúci k danej entite vyjadruje.
+A table is two dimensional data structure, where the information is stored not only in the actual values in cells, but also in the positional information. When transforming tables to records, the goal is to keep as much of the positional information as possible.
 
-\begin{table}
+At first let's define a table. Values in the same column have the same type, whereas values in the same row belong to the same entity. An example of the table as we have defined it is in figure \ref{ex_struct}. To keep the most of the information, a record created from the table should have fields denoting to which entity the record belongs, and what is the type of the record.
+
+\begin{table}[h]
     \centering
     \begin{tabular}{llll}
         \toprule
         {} & field$_1$ & field$_2$ \dots \\
         \midrule
         entity$_1$ & value$_{1,1}$ &  value$_{1,2}$ \dots \\
-        entity$_2$ & value$_{2,1}$ & value$_{2,2}$ \dots
+        entity$_2$ & value$_{2,1}$ & value$_{2,2}$ \dots \\
+        \dots &&
     \end{tabular}
     \caption{An example of structured data} \label{ex_struct}
 \end{table}
@@ -22,103 +25,7 @@ Najprv sa pokúsim ukázať aký cieľ chcem naplniť pri transformácii tabuľk
 
 Podľa \citep{liang-etal-2009-learning} zavádzam notáciu, ktorú budem ďalej používať.\linebreak[4]Tabuľku $\mathcal{T}$ transformujeme na postupnosť záznamov $ \mathbf{s} = \{ r_i \}_{i=1}^{J} $, kde $r_i$ označuje i-ty záznam. Vzhľadom na ciele stanovené vyššie, každý záznam položku $r.f$ označujúcu typ hodnoty, položku $r.v$ označujúcu hodnotu daného záznamu,\linebreak[4]prípadne položku $r.e$, označujúcu entitu, ktorej prislúcha.
 
-\section{WikiBIO}
-
-Transformácie a štatistiky na datasete sa týkajú jednak štruktúrovaných dát, jednak sumárov, ktoré má generačný systém generovať. Štruktúrované dáta majú formu infoboxu, ako sumár slúži prvá veta z príslušného článku na wikipedii. Ako v príklade \ref{masaryk_infobox}. Najprv predstavím štatistiky, následne na ich základe uvediem, aké transformácie a preprocessing som zvolil.
-
-\subsection{Dataset statistics}
-
-Pre tréning neurónovej siete používam origiálny train-valid-test split od autorov, teda 582~659 trénovacích infobox-sumár párov, 72~831 validačných a 72~831 testovacích.
-
-Sumáre obsahujú celkovo 493~878 unikátnych tokenov, celkovo 18~981~222 tokenov. Tabuľky obsahujú 7~200 unikátnych typov. 
-
-\subsection{Transformation of Infoboxes}
-
-Každý infobox sa týka práve jednej entity. To veľmi uľahčuje transformáciu na záznamy, kedže na tabuľku sa možno pozerať ako na zoznam dvojíc\linebreak[4]$(type, \{value_i\}_{i=1}^{|\mathbf{value}|})$. Ako už vyplýva z notácie, počet hodnôt prislúchajúcich jednomu typu môže byť rôznorodý.
-
-\tikzstyle{defStyleWikiBIOEx} = [rectangle, rounded corners, minimum width=3cm, minimum height=1cm,text centered, fill=yellow!10, align=left]
-
-Existujú minimálne dve možnosti ako sa s tým vysporiadať. Prvou je vyhlásiť hodnotu prislúchajúcu jednomu typu za jeden token (ako v príklade \ref{onetokenref}) a\linebreak[4]prípadne vytvoriť viacero typov lepšie reprezentujúcich to, čo sa v tabuľke\linebreak[4]nachádza. To je však vzhľadom na veľkosť datasetu (okolo 730 000 párov infobox-sumár, viac ako 7000 rôznych typov) nevhodný prístup.
-
-\begin{figure}[!h]
-\centering
-\usetikzlibrary{shapes.multipart}
-\begin{tikzpicture}
-\node (originalfv1) [defStyleWikiBIOEx] {
-    (successor, edvard beneš)
-};
-\end{tikzpicture}
-\caption{An example of a record made from infobox in figure \ref{masaryk_infobox} by treating all the values as one token} \label{onetokenref}
-\end{figure}
-
-Druhou možnosťou je prístup, ktorý zvolili aj tvorcovia datasetu \citep{lebret2016neural}, či autori state of the art riešenia \citep{liu2017tabletotext}. Každú hodnotu z množiny hodnôt považujeme za samostatný token. Tabuľka však nemá stálu štruktúru, preto je napríklad problém rozlíšiť, či záznam (successor, edvard) vyjadruje krstné meno, alebo priezvisko nástupcu Tomáša Garrigue Masaryka v jeho funkcii. Preto ku každému záznamu pridávame hodnotu $r.pos$, vyjadrujúcu poradie (číslované od 1) vrámci hodnôt prislúchajúcich jednomu typu, ako je ukázané v príklade \ref{multitokenref}.
-
-\begin{figure}[!h]
-\centering
-\usetikzlibrary{shapes.multipart}
-\begin{tikzpicture}
-\node (transformedfv2) [defStyleWikiBIOEx] {
-    (successor, edvard, 1), \\ (successor, beneš, 2)
-};
-\end{tikzpicture}
-\caption{An example of a record made from infobox in figure \ref{masaryk_infobox} by adding positional information and treating each value as a separate token} \label{multitokenref}
-\end{figure}
-
- Zatiaľ čo nástupcom T.G. Masaryka bol Edvard Beneš, nástupcom amerického prezidenta Herberta Hoovera bol Franklin D. Roosevelt. Rozpoznať, že obidva záznamy (successor, beneš, 2) a (successor, roosevelt, 3) vyjadrujú priezvisko danej osoby môže byť ťažké. Preto pridávame aj informáciu o poradí od konca, $r.rpos$. Potom je na vybranom príklade už zrejmé, že záznamy s $r.f = successor$ a $r.rpos = 1$ vyjadrujú tú istú informáciu.
-
-\begin{figure}[!h]
-\centering
-\usetikzlibrary{shapes.multipart}
-\begin{tikzpicture}
-\node (transformedfv2) [defStyleWikiBIOEx, text width = 0.95*\columnwidth] {
-    (name, tomáš, 1, 3), (name, garrigue, 2, 2), (name, masaryk, 3, 1), (image, tomáš, 1, 16), (image, garrigue, 2, 15), (image, masaryk, 3, 14), (image, ",", 4, 13),(image, bain, 5, 12) \dots
-};
-\end{tikzpicture}
-\caption{An example of records made from infobox in figure \ref{masaryk_infobox} with all the additional information included} \label{multitokenfinal}
-\end{figure}
-
-\subsection{Preprocessing}
-
-Jednotlivé sety (train, valid, test) ešte prefiltrujem tak, aby žiadna tabuľka nebola dlhšia ako 100 recordov a žiadny sumár nebol dlhší ako 75 tokenov. (urobené na základe štatistík v tabuľke \ref{stats_filtering_wb}) Keďže tento dataset nie je nosným datasetom tejto práce, rozhodol som sa neexperimentovať s preprocessingom a použil som hodnoty hyperparametrov, ktoré zvolili \citep{liu2017tabletotext}. V krátkosti zhrniem, čo konkrétne používam.
-
-\subsubsection{General}
-
-Celý dataset je lowercaseovaný, čiarky, zátvorky, bodky \dots sú považované za samostatné tokeny. Všetky okrem najčastejších 20 000 tokenov vybraných \citep{liu2017tabletotext} v sumároch a hodnotách tabuliek nahradím špeciálnymi UNK tokenmi.
-
-\subsubsection{Tables}
-
-Všetky záznamy, kde by hodnota činila \emph{none}, resp. nevalidné hodnoty v tabuľke (prázdne, alebo s nesprávne zadefinovaným typom) odstránim. Taktiež všetky typy, ktoré sa nevyskytujú v slovníku typov od \citep{liu2017tabletotext} (ktorý je zozbieraný zo všetkých typov vyskytujúcich sa aspoň 100-krát) nahradím UNK tokenmi.
-
-\begin{figure}[!h]
-\centering
-\begin{subfigure}[t]{0.45\textwidth}
-    \centering
-    \begin{tabular}{ll}
-        \toprule
-        Records$_1$ & Percentile$_2$\\
-        \midrule
-        50     & 56,56 \\
-        75     & 82,6 \\
-        100    & 93,4
-    \end{tabular}
-\caption{Lenght statistics of tables}
-\footnotesize \textit{Note:} $_1$ Number of records, where (f, v, N, M) and (f, v, N+1, M-1) are treated as 2 distinct records \\ $_2$ Percentage of tables with lower number of records
-\end{subfigure}
-\begin{subfigure}[t]{0.45\textwidth}
-    \centering
-    \begin{tabular}{ll}
-        \toprule
-        Tokens$_1$ & Percentile$_2$\\
-        \midrule
-        25     & 55,76 \\
-        50     & 96,84 \\
-        75     & 99,68
-    \end{tabular}
-    \caption{Length statistics of  summaries}
-    \footnotesize \textit{Note:} $_1$ Number of tokens in a summary \\ $_2$ Percentage of summaries with lower number of tokens
-\end{subfigure}
-\captionof{table}{Statistics of the WikiBIO dataset} \label{stats_filtering_wb}
-\end{figure}
+\tikzstyle{example_style} = [rectangle, rounded corners, minimum width=3cm, minimum height=1cm,text centered, fill=yellow!10, align=left]
 
 \section{RotoWire} \label{rotowire_preproc_section}
 
@@ -253,10 +160,10 @@ Ako už vyplýva z \ref{trans_p_nms} a z predpokladov, ktoré sme si stanovili, 
 \centering
 \usetikzlibrary{shapes.multipart}
 \begin{tikzpicture}
-\node (original) [defStyleWikiBIOEx, text width = 0.95*\columnwidth] {
+\node (original) [example_style, text width = 0.95*\columnwidth] {
     While King James struggled , James Harden was busy putting up a triple - double on the Detroit Pistons on Friday
 };
-\node (transformed) [defStyleWikiBIOEx, text width = 0.95*\columnwidth, below=5mm of original]{
+\node (transformed) [example_style, text width = 0.95*\columnwidth, below=5mm of original]{
     while king LeBron\_James struggled , James\_Harden was busy putting up a triple - double on the Detroit Pistons on friday.
 };
 \draw [->] (original) edge (transformed);

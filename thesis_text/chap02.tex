@@ -4,34 +4,6 @@ One needs a lot of data if he wants to train his neural network. E.g. \citep{sen
 
 Tréning prebieha v plne supervised režime, teda potrebujeme ako vstupné štruktúrované dáta, tak aj výstupné sumáre. Zatiaľ čo vstupné štruktúrované dáta sú vo forme tabuliek, ktoré sú v preprocessingu (viac v kapitole \ref{chapPreproc}) upravené na formu, ktorá sa dá použiť ako vstup pre generačný systém, výstupné dáta sú vo forme tokenizovaných textov.
 
-\section{WikiBIO dataset}
-
-Na to, aby som vedel rozoznať, čím je generovanie popisu športového zápasu náročné, rozhodol som sa pracovať ešte s jednou úlohou a to s generovaním krátkych životopisov na základe infoboxu z wikipédie. Touto úlohou sa zaoberali tvorcovia datasetu WikiBIO \citep{lebret2016neural}.
-
-\subsection{Structured Data}
-
-Vstupné štruktúrované dáta sú vo forme infoboxu z Wikipedie. Infobox je tabuľka faktov opisujúca život osoby. Charakteristickou vlastnosťou infoboxov je ich rôznorodosť. Vyplýva to z toho, že osoby s inou kariérou majú výrazne iné charakteristiky.  U niekoho hovoríme o titule, u iného o povolaní, u niekoho spomenieme významné práce, u niekoho tímy, v ktorých hraje. Zatiaľ čo zrejme pri každej osobe sa vyskytne napríklad položka "dátum narodenia", pri žijúcich sa zrejme nevyskytne "dátum úmrtia". Dá sa teda povedať, že štruktúrované dáta z tohoto datasetu sú veľmi ťažké, pretože generačný systém nemôže predpokladať štruktúru, ale musí sa naučiť rozoznať ju. Príkladom môže byť infobox pre T.G. Masaryka \ref{masaryk_infobox}.
-
-\begin{figure}[ht!]
-\centering
-\begin{tikzpicture}
-
-\node(infobox) [rectangle, draw, rounded corners] {
-    \includegraphics[width=50mm,height=121mm]{img/masaryk_infobox.jpg}
-};
-\node(sum) [rectangle, left=0mm of infobox, text width=18em, draw, rounded corners] {
-    \small
-    tomáš garrigue masaryk , sometimes called thomas masaryk in english ( 7 march 1850 - 14 september 1937 ) , was a czechoslovak politician , sociologist and philosopher , who as an eager advocate of czechoslovak independence during world war i became the founder and first president of czechoslovakia .
-};
-\end{tikzpicture}
-\caption{Príklad z trénovacích dát datasetu WikiBIO}
-\label{masaryk_infobox}
-\end{figure}
-
-\subsection{Summaries}
-
-Ako sumár infoboxu slúži prvá veta z článku na wikipedii, ku ktorému prislúcha daná tabuľka. Z pozorovaní vstupných dát vyplýva, že prvá veta väčšinou obsahuje meno, dátum narodenia, prípadne dátum úmrtia a najdôležitejšie činnosti a úspechy osoby, ktorej sa infobox týka. Už z pozorovaní tvorcov datasetu \citep{lebret2016neural} vyplýva, že okolo tretiny tokenov nachádzajúcich sa v prvej vete pochádza z tabuľky. Generačný systém pracujúci s týmto datasetom teda bude musieť správne určiť, kedy sa spoľahnúť na jazykové zručnosti a kedy kopírovať. Ako príklad možno použiť sumár prislúchajúci k infoboxu \ref{masaryk_infobox}.
-
 \section{Rotowire dataset}
 
 Pre samotnú úlohu generovania textového popisu zápasu zo štruktúrovaných dát som si vybral dataset RotoWire \citep{wiseman2017}. Štruktúrované dáta sú vo forme tabuľky. Tabuľka obsahuje jednak hodnoty popisujúce celkové tímové štatistiky, jednak hodnoty, popisujúce štatistiky hráčov. Ako výstupné dáta slúžia sumáre jednotlivých zápasov z portálu venujúcemu sa real-time fantasy sports news \url{https://www.rotowire.com/basketball/} (see below).
