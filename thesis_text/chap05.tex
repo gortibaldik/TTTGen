@@ -124,3 +124,10 @@ The Decoder from the baseline model is trained to start the generation when it s
 \end{table}
 
 Either baseline Decoder or Joint-Copy Decoder can operate on the generated content plan, to generate the output summary.
+
+\subsection{Training and Inference}
+
+As oposed to Baseline and Joint-Copy models, the Content Planning model has multiple outputs. Therefore we train the model to minimize the joint negative log-likelihood of the gold summary $\mathbf{y}$ and the gold content plan $\mathbf{z}$ conditioned on the sequence of input records $\mathbf{s}$. It deserves a note that we use the gold content plans as the inputs to the text generation part of the model.
+\begin{equation}
+    \argmin_{\mathbf{y}, \mathbf{z}}{p(\mathbf{y}|\mathbf{z}, \mathbf{s}) + p(\mathbf{z} | \mathbf{s})}
+\end{equation}
