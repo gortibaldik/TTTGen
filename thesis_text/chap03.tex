@@ -1,18 +1,16 @@
 \chapter{Preprocessing and Statistics of the Datasets} \label{chapPreproc}
 
-To generate text from structured data I choose the Deep Neural Networks and specifically the Encoder-Decoder neural architecture (section \ref{neural_nets_chapter}). These ap\-\linebreak[4]proaches are suited to process sequential one dimensional data, however we cope with two dimensional tables. In this chapter I describe how I handle the problem. In addition I further analyze the data and propose cleaning methods and reason about motivations for selected techniques.
+To generate text from structured data I choose the Deep Neural Networks and specifically the Encoder-Decoder (ED) neural architecture (section \ref{neural_nets_chapter}). The ED suited to process sequential one dimensional data, however we cope with two dimensional tables. In this chapter I describe how I handle the problem. In addition I further analyze the data and propose cleaning methods and reason about motivations for selected techniques.
 
 \section{Transforming Tables to Records} \label{table_to_record_trans}
 
-A table is a two dimensional data structure, where the information is stored not only in the actual values in cells, but also in the positional information. To feed the table to the record I flatten it to a sequence of records. When transforming the table, the goal is to keep as much of the positional information as possible.
-
-At first let's define a table. Values in the same column have the same type, whereas values in the same row belong to the same entity. An example of the table as we have defined it is in figure \ref{ex_struct}.
+At first let's define a table. A table is a two dimensional data structure, where the information is stored not only in the actual values in cells, but also in the positional information. Values in the same column have the same type, whereas values in the same row belong to the same entity. An example of the table as we have defined it is in figure \ref{ex_struct}.
 
 \begin{table}[h]
     \centering
     \begin{tabular}{llll}
         \toprule
-        {} & field$_1$ & field$_2$ \dots \\
+        {} & type$_1$ & type$_2$ \dots \\
         \midrule
         entity$_1$ & value$_{1,1}$ &  value$_{1,2}$ \dots \\
         entity$_2$ & value$_{2,1}$ & value$_{2,2}$ \dots \\
@@ -21,46 +19,48 @@ At first let's define a table. Values in the same column have the same type, whe
     \caption{An example of structured data} \label{ex_struct}
 \end{table}
 
-\subsection{Notation}
-
 I use the same notation as \citep{liang-etal-2009-learning}. Table $\mathcal{T}$ is transformed into a sequence of records $ \mathbf{s} = \{ r_i \}_{i=1}^{J} $, where $r_i$ denotes i-th record. To fulfill our goal of keeping the most of the positional information from the table, each record contains field $r.type$ denoting the type of the value, the actual value $r.value$ and the entity $r.entity$ to which the record belongs.
 
 \tikzstyle{example_style} = [rectangle, rounded corners, minimum width=3cm, minimum height=1cm,text centered, fill=yellow!10, align=left]
 
 \section{RotoWire} \label{rotowire_preproc_section}
 
-Firstly I present the statistics of the dataset \emph{before any preprocessing}. Next I elaborate about the particularities of the input tables from the dataset. After working with the dataset for a while I found many of its deficiencies. Although there are datasets based on this one, which contain summaries corresponding better to input tables \citep{wang-2019-revisiting}, \citep{thomson-2020-sportsett} I choose to continue with this one, as I was already accustomed to the format of the data.
+Firstly I present the statistics of the dataset \emph{before any preprocessing}. Next I elaborate about the particularities of the input tables. After working with the dataset for a while I found many of its deficiencies. I'm not the first one who spotted the flaws and there exist datasets based on RotoWire, which contain cleaner data and summaries corresponding better to input tables \citep{wang-2019-revisiting}, \citep{thomson-2020-sportsett}. However I choose to continue with the RotoWire dataset, as I am already accustomed to the format of the data.
 
 \subsection{Dataset Statistics} \label{assumptions_ref}
 
-Keďže transformácie sumárov sú výrazne ovplyvnené štatistikami datasetu, najprv si dovolím predstaviť to, ako vyzerajú tieto štatistiky. Rovnako ako pri datasete WikiBIO, aj teraz používam originálny train-valid-test split (3397, 727, 728). Pri spracovaní datasetu vychádzam z 2 predpokladov:
-\begin{itemize}
-\item Neurónová sieť sa môže naučiť generovať určitý token, pokiaľ sa v\linebreak[4]tréningových dátach vyskytuje aspoň päťkrát.
-\item Je jednoduchšou úlohou kopírovať dáta z tabuľky, ako generovať zo skrytého stavu.
-\end{itemize}
+I believe that the challenges posed by the RotoWire dataset can be summarized in a set of statistics. In this subsection I want to present the most important ones to help reader to understand the nature of the problem. 
 
-Prezentované štatistiky sú s preprocessingom, ktorý používa \citep{wiseman2017} \footnote{V datasete sa však vyskytla jedna nezdokumentovaná chyba, ktorú som odstránil, jeden sumár bol známym textom Lorem Ipsum, ten je z datasetu, ktorý používam odstránený a teda trénovacie dáta obsahujú 3397 položiek a nie 3398, ako uvádza \citep{wiseman2017} \label{footnote_wis_fault_li}}, neskôr, v sekcii \ref{bpeSection} ukážem štatistiky, ktoré sú po aplikácii všetkých úprav na datasete.
+Firstly, the target summaries as well as the sequences of input records are really long compared to other datasets modelling the same task (e.g. WikiBIO, WeatherGOV, RoboCup \emph{XXXXXX}).
+
+Secondly, many words occur rarely and the generation system cannot learn a good representation of them. It should be noted that the problem can be resolved by the means of clever preprocessing (section \ref{bpeSection}) or with help of advanced neural architectures (section \ref{copy_mech_sec}).
+
+Thirdly, there are many values which represent facts, e.g. values that cannot be deduced from the context (e.g. points a player scored in a match etc.) but must be selected and copied from the table.
+
+The original dataset as prepared by \citep{wiseman2017}, is already divided to train (3398 samples), development (727 samples) and test (728 samples) sets. \emph{In the statistics presented below I state that there are only 3397 samples in the train set because one of the samples is the famous Lorem Ipsum template.}
 
 \subsubsection{Length-wise Statistics}
 
-Jeden hráč je v tabuľke zastúpený 24 záznamami, jeden tím 15 záznamami. Každá tabuľka obsahuje záznamy o 2 tímoch. Podľa dát z tabuľky \ref{stats_tables_orig_rw} teda ostáva 528 až 720 záznamov o hráčoch, teda v jednej tabuľke sa hovorí o 22 - 30 hráčoch. Z toho vyplýva, že generačný systém nemá úlohu ešte sťaženú rôznorodosťou tabuliek, keďže úseky, kde sa rozpráva o hráčoch a o tímoch sú relatívne rovnaké vo všetkých tabuľkách.
+The input tables contain huge amount of information. 2 teams and up to 30 players participate in a match of basketball. After transformation to a sequence, a player is represented by 24 and a team by 15 records. The type field $r.type$ is the only trait distinguishing the team and player records. Table \ref{stats_tables_orig_rw} summarizes the length statistics of the input sequences. 
+
+The generation system should be able to understand the meaning of a record and shouldn't rely on specific organisation of the table. This is modelled by emplacing the team records at the end, so that the system will need to search for the team statistics. Since the size of the input sequence isn't uniform, the team records can start anywhere between 500th and 720th record. The organization of the table will be further explained in the chapter about the experiments \ref{experiments_chapter}.
 
 \begin{table}[h!]
     \centering
     \begin{tabular}{ccccc}
         \toprule
         {}    & \textbf{Max} & \textbf{Min} & \textbf{Avegage}& {} \\
-        \textbf{Set} & \textbf{Summary} & \textbf{Summary} & \textbf{Summary} & \textbf{Size} \\
-        {} & \textbf{Length} & \textbf{Length} & \textbf{Length} & {} \\
+        \textbf{Set} & \textbf{Number of} & \textbf{Number of} & \textbf{Number of} & \textbf{Size} \\
+        {} & \textbf{Records} & \textbf{Records} & \textbf{Records} & {} \\
         \midrule
-        train      & 750 & 558 & 644.65 & 3397  \\
-        validation & 702 & 582 & 644.66 & 727 \\
-        test       & 702 & 558 & 645.03 & 728
+        train       & 750 & 558 & 644.65 & 3397  \\
+        development & 702 & 582 & 644.66 & 727 \\
+        test        & 702 & 558 & 645.03 & 728
     \end{tabular}
-    \caption{Statistics of tables as used by \citep{wiseman2017}\textsuperscript{\ref{footnote_wis_fault_li}}} \label{stats_tables_orig_rw}
+    \caption{Statistics of tables as used by \citep{wiseman2017}} \label{stats_tables_orig_rw}
 \end{table}
 
-Na rozdiel od vstupných tabuliek, výstupné sumáre sú čo sa týka dĺžky oveľa rôznorodejšie (ako je vidieť v tabuľke \ref{stats_sums_orig_rw}). Tu je podstatné hlavne to, že priemerná dĺžka sumáru je viac ako 330 tokenov a pokiaľ chceme generačný systém trénovať aj na dlhších sumároch, tak dĺžka tabuľky a sumáru nám vytvorí netriviálne pamäťové nároky na grafickú kartu a na RAM. (\emph{tu by mohol byť odkaz na sekciu o implementačných problémoch})
+There is much greater variance in the lengths of output summaries. While the longest input sequence is 134\% of the shortest one, from the data in table \ref{stats_sums_orig_rw}, we can see that the factor between the outputs is 511\%. The size of the inputs and the outputs places high memory and computation demands on the GPUs used for training, and needs a special treatment (as will be explained in section \ref{truncated_backprop_subsection}).
 
 \begin{table}[h!]
     \centering
@@ -74,13 +74,19 @@ Na rozdiel od vstupných tabuliek, výstupné sumáre sú čo sa týka dĺžky o
         validation & 813 & 154 & 339.97 & 727 \\
         test       & 782 & 149 & 346.83 & 728
     \end{tabular}
-    \caption{Statistics of summaries as used by \citep{wiseman2017}\textsuperscript{\ref{footnote_wis_fault_li}}} \label{stats_sums_orig_rw}
+    \caption{Statistics of summaries as used by \citep{wiseman2017}} \label{stats_sums_orig_rw}
 \end{table}
 
 
-\subsubsection{Frequency of Unique Tokens}
+\subsubsection{Occurrences of Unique Tokens}
 
-Teraz sa zameriam na štatistiky dôležité pre pochopenie motivácie pre ďalšie transformácie datasetu vzhľadom k skôr prezentovaným predpokladom \ref{assumptions_ref}. V tabuľke \ref{stats_occur_rw} je vidieť, že viac ako 61\% tokenov, ktoré nie sú číslami, menami hráčov, tímov, alebo miest sa v tréningovom datasete vyskytne menej ako 5-krát. Z toho sme usúdili, že je zrejme potrebné urobiť ďalšie transformácie na datasete, čím by sme zvýšili pravdepodobnosť, že sa generačný systém lepšie datasetu uspôsobí. 
+While the length of the inputs and the outputs increases computational demands, the low occurrency of certain token causes the \emph{rare word problem}. After discussions with my advisor I think it is reasonable to expect that the system should learn a good representation of a token if it appears at least 5 times in the train set.
+
+There is about 11 300 unique tokens in the dataset (in the union of train, development and test set). In table \ref{stats_occur_rw} I present the statistics regarding the occurrences of the tokens. We can see that only 42 \% of all the tokens appear at least 5 times in the train part of the dataset.
+
+However I expect that even if some anomaly in the real word happens (e.g. team scores 200 points, although at the time of writing no team in the history of NBA scored more than 186) the system should be able to simply \emph{copy} the value of \emph{TEAM-PTS} record without reasoning about the actual value. Consequently I present also the statistics of tokens that cannot be copied from the table. At last, since most of the named entities can be directly copied, there is no need to keep casing as it doesn't represent any valuable information.
+
+In the end we see that under our assumptions about 60 \% of all the unique tokens cannot be learned by the generation system.
 
 \begin{table}[h!]
     \centering
@@ -99,7 +105,7 @@ Teraz sa zameriam na štatistiky dôležité pre pochopenie motivácie pre ďal�
     \caption{Occurrences of tokens in summaries from dataset RotoWire} \label{stats_occur_rw}
 \end{table}
 
-Podobné závery možno urobiť aj zo štatistík prekryvu slovníkov trénovacích a validačných (resp. testovacích) dát.
+In table \ref{stats_overlap_rw} we can see how many of the unique tokens learned during training can be found in the respective development and test datasets. Under our assumptions we can expect the generated text to share less than 65 \% of the vocabulary with the gold references. 
 
 \begin{table}[h!]
     \centering
@@ -126,17 +132,27 @@ Podobné závery možno urobiť aj zo štatistík prekryvu slovníkov trénovac�
 
 \subsection{Transformations of Input Tables} \label{trans_in_tb_rw}
 
-Ako je spomenuté v sekcii \ref{structured_data_rotowire}, hodnoty v tabuľke môžu byť buď mená tímov, hráčov, miest, alebo celé číslo oznamujúce percentuálnu, či absolútnu hodnotu nejakej štatistiky.
+Firstly I want to talk about the preprocessing of actual values stored in the cells of the table. After that I present the format of a record which is fed to the generation system.
 
-Preto má zmysel použiť rozdielny prístup ku spracovaniu hodnôt ako pri datasete WikiBIO. Konkrétne budeme každú hodnotu považovať za jeden token. Väčšina hodnôt je číselná (konkrétne $\frac{13}{15}$ z typov charakterizujúcich tímy a $\frac{19}{25}$ z typov charakterizujúcich hráčov. Následne mená tímov sú väčšinou dlhé práve jeden token, až na jednu výnimku, z ktorej sa vyrobí jeden token ( \emph{Trail Blazers $\rightarrow$ Trail\_Blazers}). Podobne pre mená tímov a výnimky ( \emph{Oklahoma City $\rightarrow$ Oklahoma\_City}, \emph{Golden State $\rightarrow$ Golden\_State}, \dots).
+\subsubsection{Tabular Types}
 
-\subsubsection{Transformations of Player Names} \label{trans_p_nms}
+There are 39 types (different headers of columns as discussed in section \ref{table_to_record_trans}). A type is associated to textual or integer value which describes either a team or an individual. There are only 7 types bound to textual values (\emph{TEAM-NAME}, \emph{TEAM-CITY}, \emph{FIRST\_NAME}$^*$, \emph{SE\-COND\-\linebreak[4]\_NAME}$^*$, \emph{PLAYER\_NAME}$^*$, \emph{START\_POSITION}$^*$, \emph{TEAM\_CITY}$^*$)\footnote{$^*$ asterisk labels types bound to an individual}
 
-Mená hráčov sú všetky, až na jednu výnimku (\emph{Nene}) viac-tokenové a autori, ktorých prístup ku danému datasetu som bral za referenciu (\citep{wiseman2017}, \citep{puduppully2019datatotext}) zvolili odlišný prístup ako ten, ktorý používam ja.
+\subsubsection{Numerical values}
 
-Referenčný prístup používa 2 špeciálne typy, \emph{first\_name} a \emph{last\_name}. Vďaka nim sa úloha pochopiť, či token \emph{James} odkazuje na krstné meno hviezdneho \emph{James Harden}, alebo na priezvisko legendy \emph{LeBron James} necháva na generačný systém.
+The other 33 types desribe absolute integer values (\emph{TEAM-PTS}, \emph{FTM}\footnote{Number of converted free throws by an individual, \emph{"free throws made"}} \dots) or relative integer values (\emph{TEAM-FT\_PCT}, \emph{FT\_PCT}\footnote{\emph{player free throw percentage}}, \dots). During preprocessing no changes are made to any tabular numerical value\footnote{As described in \citep{wiseman2017} all the relative values are converted to integers. I don't consider this as a preprocessing since only the converted values are available in the dataset.}.
 
-Môj prístup je založený na myšlienke, že už na tak veľmi ťažkom datasete je dôležité vytvoriť čo najjednoduchšiu úlohu pre neurónovú sieť. Preto transformujem sumáre tak, aby meno každého hráča bolo reprezentované práve jedným tokenom. Práve preto strácajú typy \emph{first\_name} a \emph{last\_name} zmysel a vo vstupnej tabuľke ich nemám.
+\subsubsection{Textual values} \label{trans_p_nms}
+
+Regarding the textual values, I consider each as a single token. Since the names of teams are already one word long (with one exception needing a transformation \emph{Trail Blazers $\rightarrow$ Trail\_Blazers}) the transformation is rather trivial. The similar observation applies to names of cities (with 6 exceptions: \emph{Oklahoma\_City}, \emph{San\_Antonio}, \emph{New\_Orleans}, \emph{Los\_Angeles}, \emph{Golden\_State}, \emph{New\_York}), and start positions.
+
+All the player names consist of at least 2 words (with one exception: \emph{Nene}). As being discussed earlier, we want as many values from the table to be copiable as possible.
+
+The authors of the dataset \citep{wiseman2017}, as well as the authors of one of the more successful approaches to the dataset \citep{puduppully2019datatotext} make use of three special types, \emph{PLAYER\_NAME}, \emph{FIRST\_NAME} and \emph{SECOND\_NAME} which allow to distinguish if \emph{James} refers to the first name of star player \emph{James Harden} or to a second name of the legend of \emph{LeBron James}.
+
+My approach is based on the idea of making data as dense as possible to make the learning of the generation system easier. Therefore I transform the name of each player to a single token. To make the copying possible a preprocessing of the output summaries as described in \ref{player_nm_trans_summary} must take place. 
+
+Consequently \emph{FIRST\_NAME} and \emph{SECOND\_NAME} records aren't needed anymore which results in another benefit, shorter inputs. (as there are 22 - 30 players involved in the match, the size of inputs becomes about 10 \% (44 - 60 records) shorter)
 
 \subsubsection{Entities}
 
@@ -152,7 +168,7 @@ Kvôli tomu vykonávame také transformácie, aby sa jednak vyskytovalo čo najv
 
 Rovnako ako \citep{wiseman2017} a \citep{puduppully2019datatotext}, reprezentujeme čísla len pomocou číslic. Táto transformácia je motivovaná druhým predpokladom a teda tým, že dúfame, že väčšinu čísel bude neurónová sieť kopírovať a nie generovať. To znamená, že napríklad token $five$ transformujeme na $5$. Používame na to knižnicu text2num \footnote[1]{\url{https://github.com/allo-media/text2num}}. Niektoré čísla však majú v basketbalovej terminológii špeciálny význam. Špecificky teda netransformujeme číslo $three$, pretože sa často vyskytuje ako súčasť slovných spojení \emph{three pointer, three pt range \dots}
 
-\subsubsection{Player name transformations}
+\subsubsection{Player name transformations} \label{player_nm_trans_summary}
 
 Ako už vyplýva z \ref{trans_p_nms} a z predpokladov, ktoré sme si stanovili, chceme v texte reprezentovať jednoho hráča práve jedným tokenom. To platí aj pre extrémne prípady ako \emph{Luc Richard Mbah a Moute}, ktorý bol v datasete reprezentovaný šiestimi rôznymi kombináciami elíps v jeho mene. Najčastejšie však vychádza, že v texte sa najprv hráč spomenie a následne sa už oslovuje len priezviskom a až na 17 prípadov (čo činí 2.4\% zo 668 hráčov spomenutých aspoň v jednej tabuľke) je meno hráča vždy zložené z 2 tokenov. Na transformáciu mien hráčov používam jednoduchý algoritmus, ktorý napriek tomu, že nerieši všetky referencie úplne presne, dosahuje na oko slušnú presnosť.
 

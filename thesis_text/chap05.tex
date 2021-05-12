@@ -1,11 +1,11 @@
-\chapter{Models}
+\chapter{Models} \label{model_chapter}
 In this chapter I aim to clarify how I set up the neural network models for the experiments (which will be presented in the next chapter \ref{experiments_chapter}). Despite both datasets (WikiBIO, RotoWire) being created for modeling the same task (generation of text from structured data), I believe their characteristics are quite different (as shown in chapter about preprocessing \ref{chapPreproc}). Therefore I present different set of models used for each dataset. At first I present a \emph{baseline model}. Model, which is sufficiently competitive to be able to generate reasonable texts. Then I present changes to the architecture, which aim to improve the generation.
 
 \section{Rotowire}
 
 At first I try purely end-to-end approach by following the path set up by \citep{wiseman2017}. I create a baseline model, then improve it with the copy mechanism \ref{copy_mech_sec}. Next I choose to divide the task to \emph{content planning} and \emph{text generation} as proposed by \citep{puduppully2019datatotext}.
 
-\subsection{Truncated Backpropagation Through Time}
+\subsection{Truncated Backpropagation Through Time} \label{truncated_backprop_subsection}
 
 It was really challenging to set up even the baseline model. Since the input sequences are about 600 records long and output sequences are more than 300 tokens in average (and the outputs are padded with \emph{\textless PAD\textgreater} token to approximately 800 tokens), it wasn't possible to fit the model into the GPU memory. (The GPUs at \url{https://aic.ufal.mff.cuni.cz} have about 8GBs of memory\footnote{The exact GPU used on AIC cluster is NVIDIA GeForce GTX 1080})
 
