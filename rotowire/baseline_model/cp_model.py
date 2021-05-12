@@ -22,7 +22,8 @@ class EncoderDecoderContentSelection(tf.keras.Model):
                , loss_fn_decoder
                , scheduled_sampling_rate
                , truncation_size
-               , truncation_skip_step):
+               , truncation_skip_step
+               , cp_training_rate = 0.1):
         super(EncoderDecoderContentSelection, self).compile(run_eagerly=True)
         self._optimizer_cp = optimizer_cp
         self._optimizer_txt = optimizer_txt
@@ -39,6 +40,7 @@ class EncoderDecoderContentSelection(tf.keras.Model):
                             , "val_loss_cp" : tf.keras.metrics.SparseCategoricalCrossentropy(name='loss_cp'
                                                                                             , from_logits=True)}
         self._scheduled_sampling_rate = scheduled_sampling_rate
+        self._cp_training_rate = cp_training_rate
         self._truncation_skip_step = truncation_skip_step
         self._truncation_size = truncation_size
         self._generator = tf.random.Generator.from_non_deterministic_state()
@@ -62,7 +64,7 @@ class EncoderDecoderContentSelection(tf.keras.Model):
                  , initial_state=None):
         loss_cp = 0
         loss_txt = 0
-        dec_in, targets, gen_or_teach, cp_in, cp_targets, *tables = batch_data
+        dec_in, targets, gen_or_teach, train_cp_loss, cp_in, cp_targets, *tables = batch_data
         batch_size = cp_in.shape[0]
         final_state = None
         final_last_out = None
@@ -140,17 +142,20 @@ class EncoderDecoderContentSelection(tf.keras.Model):
                                            , self._loss_fn_decoder
                                            , ["loss_decoder", "accuracy_decoder"])
                 last_out = tf.expand_dims(tf.cast(tf.argmax(last_out, axis=1), tf.int16), -1)
-            loss = loss_cp + loss_txt
+            loss = loss_txt
+            if train_cp_loss > self._cp_training_rate:
+                loss += loss_cp
 
         variables_cp = []
-        for var in self._encoder_content_planner.trainable_variables + \
-                   self._encoder_content_selection.trainable_variables:
-            if (initial_state is None) or (var.name != 'encoder/linear_transform/kernel:0'):
-                variables_cp.append(var)
+        if train_cp_loss > self._cp_training_rate:
+            for var in self._encoder_content_planner.trainable_variables:
+                if (initial_state is None) or (var.name != 'encoder/linear_transform/kernel:0'):
+                    variables_cp.append(var)
 
         variables_txt = []
         for var in self._text_decoder.trainable_variables + \
-                   self._encoder_from_cp.trainable_variables:
+                   self._encoder_from_cp.trainable_variables + \
+                   self._encoder_content_selection.trainable_variables:
             if (initial_state is None) or (var.name != 'encoder/linear_transform/kernel:0'):
                 variables_txt.append(var)
         
@@ -178,6 +183,7 @@ class EncoderDecoderContentSelection(tf.keras.Model):
         length = summaries.shape[1]
         cp_length = content_plan.shape[1]
         state = None
+        train_cp_loss = self._generator.uniform(shape=(), maxval=1.0)
         for end in range(self._truncation_size, length-1, self._truncation_skip_step):
             gen_or_teach = np.zeros(shape=(end-start))
             for i in range(len(gen_or_teach)):
@@ -186,6 +192,7 @@ class EncoderDecoderContentSelection(tf.keras.Model):
             truncated_data = ( sums[:, start:end, :]
                              , summaries[:, start+1:end+1]
                              , tf.convert_to_tensor(gen_or_teach)
+                             , train_cp_loss
                              , content_plan[:, :cp_length - 1]
                              , content_plan[:, 1:cp_length]
                              , *tables)
