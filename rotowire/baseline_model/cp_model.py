@@ -209,6 +209,7 @@ class EncoderDecoderContentSelection(tf.keras.Model):
             truncated_data = ( sums[:, start:length-1, :]
                              , summaries[:, start+1:length]
                              , tf.convert_to_tensor(gen_or_teach)
+                             , train_cp_loss
                              , content_plan[:, :cp_length - 1]
                              , content_plan[:, 1:cp_length]
                              , *tables)
