@@ -19,9 +19,27 @@ At first let's define a table. A table is a two dimensional data structure, wher
     \caption{An example of structured data} \label{ex_struct}
 \end{table}
 
-I use the same notation as \citep{liang-etal-2009-learning}. Table $\mathcal{T}$ is transformed into a sequence of records $ \mathbf{s} = \{ r_i \}_{i=1}^{J} $, where $r_i$ denotes i-th record. To fulfill our goal of keeping the most of the positional information from the table, each record contains field $r.type$ denoting the type of the value, the actual value $r.value$ and the entity $r.entity$ to which the record belongs.
+I use the same notation as \citep{liang-etal-2009-learning}. Table $\mathcal{T}$ is transformed into a sequence of records $ \mathbf{s} = \{ r_i \}_{i=1}^{J} $, where $r_i$ denotes i-th record. To fulfill our goal of keeping the most of the positional information from the table, each record contains field $r.type$ denoting the type of the value, the actual value $r.value$ and the entity $r.entity$ to which the record belongs. At the end, I transform table \ref{ex_struct} to sequence of records \ref{ex_seq_rec}.
 
 \tikzstyle{example_style} = [rectangle, rounded corners, minimum width=3cm, minimum height=1cm,text centered, fill=yellow!10, align=left]
+
+\begin{figure}[!h]
+    \centering
+    \usetikzlibrary{shapes.multipart}
+    \begin{tikzpicture}
+    \node (r1) [example_style] {
+        \{\emph{type}: type$_1$; \emph{entity}: entity$_1$, \emph{value}: value$_{1,1}$\}
+    };
+    \node (r2) [example_style, below=2mm of r1]{
+        \{\emph{type}: type$_2$; \emph{entity}: entity$_1$, \emph{value}: value$_{1,2}$\}
+    };
+    \node (r3) [example_style, below=2mm of r2]{
+        \{\emph{type}: type$_1$; \emph{entity}: entity$_2$, \emph{value}: value$_{2,1}$\}
+    };
+    \end{tikzpicture}
+    \\ \dots
+    \caption{An example of records obtained by transforming table \ref{ex_seq_rec}} \label{ex_seq_rec}
+    \end{figure}
 
 \section{RotoWire} \label{rotowire_preproc_section}
 
@@ -136,17 +154,17 @@ Firstly I want to talk about the preprocessing of actual values stored in the ce
 
 \subsubsection{Tabular Types}
 
-There are 39 types (different headers of columns as discussed in section \ref{table_to_record_trans}). A type is associated to textual or integer value which describes either a team or an individual. There are only 7 types bound to textual values (\emph{TEAM-NAME}, \emph{TEAM-CITY}, \emph{FIRST\_NAME}$^*$, \emph{SE\-COND\-\linebreak[4]\_NAME}$^*$, \emph{PLAYER\_NAME}$^*$, \emph{START\_POSITION}$^*$, \emph{TEAM\_CITY}$^*$)\footnote{$^*$ asterisk labels types bound to an individual}
+There are 39 types (different headers of columns as discussed in section \ref{table_to_record_trans}). A type is associated to textual or integer value which describes either a team or an individual. There are only 7 types bound to textual values, out of which 2 are related to teams (\emph{TEAM-NAME}, \emph{TEAM-CITY}) and 5 to individuals (\emph{FIRST\_NA\-ME}$^*$, \emph{SE\-COND\_NAME}$^*$, \emph{PLAYER\_NAME}$^*$, \emph{START\_POSITION}$^*$, \emph{TEAM\_CI\-TY}$^*$)
 
 \subsubsection{Numerical values}
 
-The other 33 types desribe absolute integer values (\emph{TEAM-PTS}, \emph{FTM}\footnote{Number of converted free throws by an individual, \emph{"free throws made"}} \dots) or relative integer values (\emph{TEAM-FT\_PCT}, \emph{FT\_PCT}\footnote{\emph{player free throw percentage}}, \dots). During preprocessing no changes are made to any tabular numerical value\footnote{As described in \citep{wiseman2017} all the relative values are converted to integers. I don't consider this as a preprocessing since only the converted values are available in the dataset.}.
+The other 32 types desribe absolute integer values (\emph{TEAM-PTS}, \emph{FTM}\footnote{Number of converted free throws by an individual, \emph{"free throws made"}} \dots) or relative integer values (\emph{TEAM-FT\_PCT}, \emph{FT\_PCT}\footnote{\emph{team/player free throw percentage}}, \dots). During preprocessing no changes are made to any tabular numerical value\footnote{As described in \citep{wiseman2017} all the relative values are converted to integers. I don't consider this as a preprocessing since only the converted values are available in the dataset.}.
 
 \subsubsection{Textual values} \label{trans_p_nms}
 
 Regarding the textual values, I consider each as a single token. Since the names of teams are already one word long (with one exception needing a transformation \emph{Trail Blazers $\rightarrow$ Trail\_Blazers}) the transformation is rather trivial. The similar observation applies to names of cities (with 6 exceptions: \emph{Oklahoma\_City}, \emph{San\_Antonio}, \emph{New\_Orleans}, \emph{Los\_Angeles}, \emph{Golden\_State}, \emph{New\_York}), and start positions.
 
-All the player names consist of at least 2 words (with one exception: \emph{Nene}). As being discussed earlier, we want as many values from the table to be copiable as possible.
+Out of three types connected to player credentials, only \emph{PLAYER\_NAME} (describing player full name with all the attributes e.g. \emph{Johnny O'Bryant III}) is multi-token. Since my approach to these values is different, I want to show both, the original and my take on the problem.
 
 The authors of the dataset \citep{wiseman2017}, as well as the authors of one of the more successful approaches to the dataset \citep{puduppully2019datatotext} make use of three special types, \emph{PLAYER\_NAME}, \emph{FIRST\_NAME} and \emph{SECOND\_NAME} which allow to distinguish if \emph{James} refers to the first name of star player \emph{James Harden} or to a second name of the legend of \emph{LeBron James}.
 
