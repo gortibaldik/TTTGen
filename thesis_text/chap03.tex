@@ -39,7 +39,7 @@ I use the same notation as \citep{liang-etal-2009-learning}. Table $\mathcal{T}$
     \end{tikzpicture}
     \\ \dots
     \caption{An example of records obtained by transforming table \ref{ex_seq_rec}} \label{ex_seq_rec}
-    \end{figure}
+\end{figure}
 
 \section{RotoWire} \label{rotowire_preproc_section}
 
@@ -51,7 +51,7 @@ I believe that the challenges posed by the RotoWire dataset can be summarized in
 
 Firstly, the target summaries as well as the sequences of input records are really long compared to other datasets modelling the same task (e.g. WikiBIO, WeatherGOV, RoboCup \emph{XXXXXX}).
 
-Secondly, many words occur rarely and the generation system cannot learn a good representation of them. It should be noted that the problem can be resolved by the means of clever preprocessing (section \ref{bpeSection}) or with help of advanced neural architectures (section \ref{copy_mech_sec}).
+Secondly, many words occur rarely and the generation system cannot learn a good representation of them (it is known as a \emph{rare word problem}). It should be noted that the problem can be resolved by the means of clever preprocessing (section \ref{bpeSection}) or with help of advanced neural architectures (section \ref{copy_mech_sec}).
 
 Thirdly, there are many values which represent facts, e.g. values that cannot be deduced from the context (e.g. points a player scored in a match etc.) but must be selected and copied from the table.
 
@@ -60,8 +60,6 @@ The original dataset as prepared by \citep{wiseman2017}, is already divided to t
 \subsubsection{Length-wise Statistics}
 
 The input tables contain huge amount of information. 2 teams and up to 30 players participate in a match of basketball. After transformation to a sequence, a player is represented by 24 and a team by 15 records. The type field $r.type$ is the only trait distinguishing the team and player records. Table \ref{stats_tables_orig_rw} summarizes the length statistics of the input sequences. 
-
-The generation system should be able to understand the meaning of a record and shouldn't rely on specific organisation of the table. This is modelled by emplacing the team records at the end, so that the system will need to search for the team statistics. Since the size of the input sequence isn't uniform, the team records can start anywhere between 500th and 720th record. The organization of the table will be further explained in the chapter about the experiments \ref{experiments_chapter}.
 
 \begin{table}[h!]
     \centering
@@ -102,7 +100,7 @@ While the length of the inputs and the outputs increases computational demands, 
 
 There is about 11 300 unique tokens in the dataset (in the union of train, development and test set). In table \ref{stats_occur_rw} I present the statistics regarding the occurrences of the tokens. We can see that only 42 \% of all the tokens appear at least 5 times in the train part of the dataset.
 
-However I expect that even if some anomaly in the real word happens (e.g. team scores 200 points, although at the time of writing no team in the history of NBA scored more than 186) the system should be able to simply \emph{copy} the value of \emph{TEAM-PTS} record without reasoning about the actual value. Consequently I present also the statistics of tokens that cannot be copied from the table. At last, since most of the named entities can be directly copied, there is no need to keep casing as it doesn't represent any valuable information.
+However I expect that even if some anomaly in the real word happens (e.g. team scores 200 points, although at the time of writing no team in the history of NBA scored more than 186) the system should be able to simply \emph{copy} the value of \emph{TEAM-PTS} record without reasoning about the actual value. Consequently we are interested in tokens that cannot be copied from the table. Since most of the named entities are directly copiable, there is no need to preserve casing. All the aforementioned statistics are summarized in table \ref{stats_occur_rw}.
 
 In the end we see that under our assumptions about 60 \% of all the unique tokens cannot be learned by the generation system.
 
@@ -158,15 +156,15 @@ There are 39 types (different headers of columns as discussed in section \ref{ta
 
 \subsubsection{Numerical values}
 
-The other 32 types desribe absolute integer values (\emph{TEAM-PTS}, \emph{FTM}\footnote{Number of converted free throws by an individual, \emph{"free throws made"}} \dots) or relative integer values (\emph{TEAM-FT\_PCT}, \emph{FT\_PCT}\footnote{\emph{team/player free throw percentage}}, \dots). During preprocessing no changes are made to any tabular numerical value\footnote{As described in \citep{wiseman2017} all the relative values are converted to integers. I don't consider this as a preprocessing since only the converted values are available in the dataset.}.
+The other 32 types desribe absolute (\emph{TEAM-PTS}, \emph{FTM}\footnote{Number of converted free throws by an individual, \emph{"free throws made"}} \dots) or relative integer values (\emph{TEAM-FT\_PCT}, \emph{FT\_PCT}\footnote{\emph{team/player free throw percentage}}, \dots). During preprocessing no changes are made to any tabular numerical value\footnote{As described in \citep{wiseman2017} all the relative values are converted to integers. I don't consider this as a preprocessing since only the converted values are available in the dataset.}.
 
 \subsubsection{Textual values} \label{trans_p_nms}
 
 Regarding the textual values, I consider each as a single token. Since the names of teams are already one word long (with one exception needing a transformation \emph{Trail Blazers $\rightarrow$ Trail\_Blazers}) the transformation is rather trivial. The similar observation applies to names of cities (with 6 exceptions: \emph{Oklahoma\_City}, \emph{San\_Antonio}, \emph{New\_Orleans}, \emph{Los\_Angeles}, \emph{Golden\_State}, \emph{New\_York}), and start positions.
 
-Out of three types connected to player credentials, only \emph{PLAYER\_NAME} (describing player full name with all the attributes e.g. \emph{Johnny O'Bryant III}) is multi-token. Since my approach to these values is different, I want to show both, the original and my take on the problem.
+Out of three types connected to player credentials, only \emph{PLAYER\_NAME} (describing player full name with all the attributes e.g. \emph{Johnny O'Bryant III}) is multi-token.
 
-The authors of the dataset \citep{wiseman2017}, as well as the authors of one of the more successful approaches to the dataset \citep{puduppully2019datatotext} make use of three special types, \emph{PLAYER\_NAME}, \emph{FIRST\_NAME} and \emph{SECOND\_NAME} which allow to distinguish if \emph{James} refers to the first name of star player \emph{James Harden} or to a second name of the legend of \emph{LeBron James}.
+The original take on the problem is different to mine. The authors of the dataset \citep{wiseman2017}, as well as the authors of one of the more successful approaches to the task \citep{puduppully2019datatotext} make use of three special types, \emph{PLAYER\_NAME}, \emph{FIRST\_NAME} and \emph{SECOND\_NAME} which allow to distinguish if \emph{James} refers to the first name of star player \emph{James Harden} or to a second name of the legend of \emph{LeBron James}.
 
 My approach is based on the idea of making data as dense as possible to make the learning of the generation system easier. Therefore I transform the name of each player to a single token. To make the copying possible a preprocessing of the output summaries as described in \ref{player_nm_trans_summary} must take place. 
 
@@ -174,46 +172,79 @@ Consequently \emph{FIRST\_NAME} and \emph{SECOND\_NAME} records aren't needed an
 
 \subsubsection{Entities}
 
-Keďže vstupná tabuľka obsahuje informácie o obidvoch hrajúcich tímoch a\linebreak[4]všetkých hráčoch na súpiskách, každý záznam musí obsahovať aj hodnotu~$r.e$ popisujúcu, ktorú entitu záznam charakterizuje. Vďaka transformácii mien\linebreak[4]hráčov a tímov, môžeme ako entitu použiť názov tímu, resp. meno hráča. Okrem toho však ku každému záznamu pridáme špeciálnu položku $r.ha$, ktorá symbolizuje, či sa záznam vzťahuje ku domácemu, alebo hosťujúcemu tímu. 
+The type information tells us what does the number or text in the value field represent. However it is the entity field which brings together all the records describing the same player or team. Let's show an example of records about a star player, \emph{Stephen Curry}. His name is stored in a record of type \emph{PLAYER\_NAME}, which has a value \emph{Stephen\_Curry}. To link all the information about him together, each record has an entity field labelled \emph{Stephen\_Curry}. Similarly all the records of a team with \emph{TEAM\_NAME} : \emph{A} have the same entity field, \emph{A}.
+
+At last, we should notice that the team isn't only represented by the accumulated team statistics, but also by the players playing for it. Therefore the record also contains \emph{HOME/AWAY} field which brings together all the statistics about the home side and the away side.
 
 \subsubsection{Record Format}
 
-Nakoniec teda používam záznamy, ktoré obsahujú položky $r.f$ - typ záznamu, $r.e$ - entita, $r.v$ - hodnota a $r.ha$ - domáci/hostia. (tu by mal byť pridaný príklad, ako to vyzerá)
+The records fed into the generation system contains the following fields:
 
-Kvôli tomu vykonávame také transformácie, aby sa jednak vyskytovalo čo najviac tokenov čo najčastejšie, a aby v sumároch boli používané rovnaké tokeny ako v tabuľke.
+\begin{itemize}
+    \item \emph{Type}
+    \item \emph{Value}
+    \item \emph{Entity}
+    \item \emph{Home/Away flag}
+\end{itemize}
+
+The generation system should be able to understand the meaning of a record and shouldn't rely on a specific organisation of the table. This is modelled by emplacing the team records at the end, so that the system will need to search for the team statistics. Since the size of the input sequence isn't uniform, the team records can start anywhere between 500th and 720th record. The organization of the table will be further explained in the chapter about the experiments \ref{experiments_chapter}.
+
+
+\begin{figure}[!h]
+    \centering
+    \usetikzlibrary{shapes.multipart}
+    \begin{tikzpicture}
+    \node (r1) [example_style] {
+        \{\emph{type}: PTS; \emph{entity}: Stephen\_Curry, \emph{value}: 25; \emph{ha}: HOME \}
+    };
+    \node (r2) [example_style, below=2mm of r1]{
+        \{\emph{type}: TEAM-PTS; \emph{entity}: Warriors, \emph{value}: 122; \emph{ha}: HOME\}
+    };
+    \end{tikzpicture}
+    \\ \dots
+    \caption{An example of a player and a team record.} \label{rotowire_record_example}
+\end{figure}
+
+\subsection{Preprocessing of Summaries}
+
+I would like to reiterate that our motivation is to avoid the \emph{rare word problem} and to make copying words from the sequences of input records as easy as possible. Therefore we opt for methods which reduce the number of tokens, increase their average frequency (because the system couldn't learn the most sporadic ones anyway), and transform the tokens describing the tabular data to the same form as is used in the table.
 
 \subsubsection{Number Transformations} \label{num_trans_rw}
 
-Rovnako ako \citep{wiseman2017} a \citep{puduppully2019datatotext}, reprezentujeme čísla len pomocou číslic. Táto transformácia je motivovaná druhým predpokladom a teda tým, že dúfame, že väčšinu čísel bude neurónová sieť kopírovať a nie generovať. To znamená, že napríklad token $five$ transformujeme na $5$. Používame na to knižnicu text2num \footnote[1]{\url{https://github.com/allo-media/text2num}}. Niektoré čísla však majú v basketbalovej terminológii špeciálny význam. Špecificky teda netransformujeme číslo $three$, pretože sa často vyskytuje ako súčasť slovných spojení \emph{three pointer, three pt range \dots}
+Just as \citep{wiseman2017} and \citep{puduppully2019datatotext}, we represent the numbers only by numerals. This preprocessing method partially fulfills both of our goals. Obviously it decreases the unique token count, but on top of that it makes copying easier. E. g. the sentence \emph{"Isaiah Thomas once again excelled , scoring 23 points, \textbf{three} assists and \textbf{three} rebounds."} is transformed to \emph{"Isaiah Thomas once again excelled , scoring 23 points, \textbf{3} assists and \textbf{3} rebounds."}. Under this setting, the network still has to learn the correspondence \emph{"assist"} $\cong$ \emph{"assists"} but without the need of linking \emph{"three"} to \emph{"3"} the connection of the phrase with record \emph{\{AST; 3; Isaiah\_Thomas; Home\}} should be much clearer. However some number words must be preserved as they form a part of a basketball terminology (e.g. \emph{three pointer}). The transformations are done with the help of the \emph{text2num} library\footnote{\url{https://github.com/allo-media/text2num}} which is also used by the authors cited above.
 
 \subsubsection{Player name transformations} \label{player_nm_trans_summary}
 
-Ako už vyplýva z \ref{trans_p_nms} a z predpokladov, ktoré sme si stanovili, chceme v texte reprezentovať jednoho hráča práve jedným tokenom. To platí aj pre extrémne prípady ako \emph{Luc Richard Mbah a Moute}, ktorý bol v datasete reprezentovaný šiestimi rôznymi kombináciami elíps v jeho mene. Najčastejšie však vychádza, že v texte sa najprv hráč spomenie a následne sa už oslovuje len priezviskom a až na 17 prípadov (čo činí 2.4\% zo 668 hráčov spomenutých aspoň v jednej tabuľke) je meno hráča vždy zložené z 2 tokenov. Na transformáciu mien hráčov používam jednoduchý algoritmus, ktorý napriek tomu, že nerieši všetky referencie úplne presne, dosahuje na oko slušnú presnosť.
+The generation system should be able to create a summary of player's actions in the game based on the records describing his match-statistics. It is common that at first a player is mentioned by his full name (e.g. \emph{Stephen Curry}) and after that only by his second name (\emph{Curry}). Also more than 97 \% of all the players have exactly 2 names (first, last), that leaves out 17 players with longer names with the most extreme case being \emph{Luc Richard Mbah a Moute}. This player is represented in the whole dataset by 6 different combinations of his names.
 
-\begin{figure}[!h]
-\centering
-\usetikzlibrary{shapes.multipart}
-\begin{tikzpicture}
-\node (original) [example_style, text width = 0.95*\columnwidth] {
-    While King James struggled , James Harden was busy putting up a triple - double on the Detroit Pistons on Friday
-};
-\node (transformed) [example_style, text width = 0.95*\columnwidth, below=5mm of original]{
-    while king LeBron\_James struggled , James\_Harden was busy putting up a triple - double on the Detroit Pistons on friday.
-};
-\draw [->] (original) edge (transformed);
-\end{tikzpicture}
-\caption{Example of transformation of player names leveraging the knowledge of players on the rosters} \label{cmp_original_vs_mine}
-\end{figure}
+Since only the full name concatenated to a single token is contained in the input records I developed an algorithm which transforms all \footnote{Although technically speaking this is not true as I don't transform any pronouns and the transformations follow simple path: \emph{some part of a name} $\rightarrow$ \emph{full name}} the references to a player to that specific token.
 
-Transformácia prebieha v troch krokoch. Teraz sa ich pokúsim popísať na príklade transformácie vety z figure \ref{cmp_original_vs_mine}:
+I haven't measured the accuracy of the algorithm, however it passes an eye-test as during the development of neural models I have inspected a great amount of produced summaries which haven't contained any discrepancies.
+
+The transformation happens in three steps, which are described on the example sentence from figure \ref{cmp_original_vs_mine}.:
 \begin{itemize}
-    \item \textbf{1. Extrakcia mien hráčov zo sumáru} \hfill \\
-    Vytiahneme zo sumáru mená \emph{James} a \emph{James Harden}, ktoré sú súčasťou mena nejakého z hráčov, ktorí sú známi z korpusu
+    \item \textbf{1. Extraction of player names from the summary} \hfill \\
+    We traverse the sentence and collect the longest subsequences of tokens that appear as a part of any player name from the corpus. Vytiahneme zo sumáru mená \emph{James} a \emph{James Harden}, ktoré sú súčasťou mena nejakého z hráčov, ktorí sú známi z korpusu
     \item \textbf{2. Vyriešenie referencií pre daný sumár a vytvorenie slovníka transformácií} \hfill \\
     Pokúsime sa zistiť, na čo odkazuje jednotokenové meno \emph{James}. Explicitne zakazujeme, aby sa vnímalo ako krstné meno a v boxscore daného zápasu nájdeme, že doň zasiahol niekto s menom \emph{LeBron James}. Do slovníka transformácií teda umiestnime transformáciu \emph{James $\rightarrow$ LeBron\_James}. \emph{James Harden} je viac tokenové meno, ktoré sme v prvom kroku rozoznali ako meno hráča, teda do slovníka pridáme len prepis \emph{James Harden $\rightarrow$ James\_Harden}
     \item 3. Aplikácia transformácií na sumár \hfill \\
     Prechádzame text a na najdlhšiu namatchovanú postupnosť aplikujeme transformáciu.
 \end{itemize}
+
+\begin{figure}[!h]
+    \centering
+    \usetikzlibrary{shapes.multipart}
+    \begin{tikzpicture}
+    \node (original) [example_style, text width = 0.95*\columnwidth] {
+        While King James struggled , James Harden was busy putting up a triple - double on the Detroit Pistons on Friday
+    };
+    \node (transformed) [example_style, text width = 0.95*\columnwidth, below=5mm of original]{
+        while king LeBron\_James struggled , James\_Harden was busy putting up a triple - double on the Detroit Pistons on friday.
+    };
+    \draw [->] (original) edge (transformed);
+    \end{tikzpicture}
+    \caption{Example of transformation of player names leveraging the knowledge of players on the rosters} \label{cmp_original_vs_mine}
+\end{figure}
 
 \subsection{Byte Pair Encoding} \label{bpeSection}
 
