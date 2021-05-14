@@ -40,6 +40,8 @@ def extract_players_from_summaries( matches
         for k in list(result):
             pieces = k.split()
             if len(pieces) > 1:
+                # "Kelly Oubre Jr." is mentionned as
+                # "Kelly Oubre" in the summaries
                 if pieces[-1] in not_names:
                     result.add(" ".join(pieces[:-1]))
                 for piece in pieces:
@@ -58,7 +60,16 @@ def extract_players_from_summaries( matches
     # important for extraction of player entities
     player_set = dict_to_set(player_dict)
 
-    def add_modifier(candidate):
+    def add_modifier(candidate:str):
+        """
+        Extends appropriate player names with modifiers
+
+        Parameters
+        ------
+        candidate: str
+            the name of the player such as "Kelly Oubre"
+            which should be extended to "Kelly Oubre Jr."
+        """
         players_with_modifiers = [
             "Kelly Oubre Jr.",
             "Ronald Roberts Jr.",

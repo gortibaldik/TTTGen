@@ -68,6 +68,8 @@ name_transformations = {
     "C.J .": ["CJ"],
     "J.R.": ["JR"],
     "K.J .": ["KJ"],
+    "Nene Hilario": ["Nene", "Hilario"],
+    "Nene": ["Nene", "Hilario"],
     "Steph Curry": ["Stephen", "Curry"],
     "Tony Douglas": ["Toney", "Douglas"],
     "Corey Joseph": ["Cory", "Joseph"],

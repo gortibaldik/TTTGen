@@ -11,7 +11,8 @@ class Summary:
     @staticmethod
     def traverse_span(span, entities_set):
         """
-        traverse span of word tokens until we find a word which isn't any entity
+        traverse span of word tokens and concatenate it until the actual concatenation 
+        of words isn't part of the entities_set
         :return: entity found in the span and number of words in the entity
         """
         candidate = span[0]
@@ -146,8 +147,9 @@ class Summary:
         """
         Traverse the summary and try to extract all the named entities present in it
         - problem: all the substrings present in the summary must be in the entities_set, therefore
-        if we search for "Luc Mbah a Moute" then {"Luc", "Luc Mbah", "Luc Mbah a", "Luc Mbah a Moute"} must
-        be a subset of the entities set
+        if we search for "Stephen Curry" both "Stephen" and "Stephen Curry" must be present in the
+        entities_set
+        -----
         :return: list with all the extracted named entities
         """
         summary = join_strings(*self._list_of_words)
