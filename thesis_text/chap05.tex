@@ -93,7 +93,7 @@ The Encoder thus creates a sequence of \emph{context aware} representations $\{\
     \caption{Content Selection mechanism (image is directly from \citep{puduppully2019datatotext})} \label{content_selection_pudupully}
 \end{figure}
 
-\subsubsection{Content Planning}
+\subsubsection{Content Planning} \label{content_planning_subsubsection}
 
 \citep{wiseman2017} experimented with conditional copy approach, in which the latent \emph{switch} probability isn't marginalized out. Hence, there exists pointer sequence for each summary in the train and validation dataset. The sequence corresponds to the order in which entities and values from the sequence of input records appear in the output summary. \citep{puduppully2019datatotext} suggested that instead of just modelling the switch probability, we can train a Decoder, which extracts these pointers from the original table.
 
