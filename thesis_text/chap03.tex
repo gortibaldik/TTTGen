@@ -49,7 +49,7 @@ Firstly I present the statistics of the dataset \emph{before any preprocessing}.
 
 I believe that the challenges posed by the RotoWire dataset can be summarized in a set of statistics. In this subsection I want to present the most important ones to help reader to understand the nature of the problem. 
 
-Firstly, the target summaries as well as the sequences of input records are really long compared to other datasets modelling the same task (e.g. WikiBIO, WeatherGOV, RoboCup \emph{XXXXXX}).
+Firstly, the target summaries as well as the sequences of input records are really long compared to other datasets modelling the same task (e.g. WikiBIO \citep{lebret2016neural}, WeatherGOV \citep{liang-etal-2009-learning}, RoboCup \citep{chen2008robocup}).
 
 Secondly, many words occur rarely and the generation system cannot learn a good representation of them (it is known as a \emph{rare word problem}). It should be noted that the problem can be resolved by the means of clever preprocessing (section \ref{bpeSection}) or with help of advanced neural architectures (section \ref{copy_mech_sec}).
 
@@ -139,7 +139,7 @@ In table \ref{stats_overlap_rw} we can see how many of the unique tokens learned
         valid\_wopl$_3$      & 4442 & 86.74\% & 62.36\% \\
         test\_wopl$_4$       & 4531 & 86.32\% & 61.37\% \\
         \bottomrule
-        \multicolumn{4}{l}{\footnotesize \textit{Note:} train$_{>=5}$ is a set of all the tokens with more than} \\
+        \multicolumn{4}{l}{\footnotesize \textit{Note:} train$_{>=5}$ overlap is a set of all the tokens from the development/test dataset with more than} \\
         \multicolumn{4}{l}{\footnotesize 5 occurrences in the train dataset summaries $_1$, $_2$, $_3$, $_4$} \\
         \multicolumn{4}{l}{\footnotesize have the same meaning as in table \ref{stats_occur_rw}}
     \end{tabular}
@@ -224,10 +224,10 @@ I haven't measured the accuracy of the algorithm, however it passes an eye-test 
 At first we gather all the player names from the input tables. The transformation then happens in three steps, which are described on the example sentence from figure \ref{cmp_original_vs_mine}.:
 \begin{itemize}
     \item \textbf{1. Extraction of player names from the summary} \hfill \\
-    The summary is at first divided to sentences, using NLTK \emph{XXXXXXXX} library. Then we traverse each sentence and extract the longest subsequences of tokens which appear in the set of the player names. This way, one-token name \emph{James} and two-token name \emph{James Harden} is extracted. (Although \emph{James Harden} hasn't played in the game and therefore the network cannot learn to copy his name, we extract it to densify the data, so the player is represented by the same token in all the summaries)
+    The summary is at first divided to sentences, using NLTK \footnote{\url{https://www.nltk.org/}} library. Then we traverse each sentence and extract the longest subsequences of tokens which appear in the set of the player names. This way, one-token name \emph{James} and two-token name \emph{James Harden} is extracted. (Although \emph{James Harden} hasn't played in the game and therefore the network cannot learn to copy his name, we extract it to densify the data, so the player is represented by the same token in all the summaries)
     \item \textbf{2. Resolution of one-token references and creation of transformation dictionary} \hfill \\
-    \emph{James Harden} is a two-token name matched in the first phase, so we assume that it is already full name of the player and we add a trivial transformation \emph{James Harden $\rightarrow$ James\_Harden}. \emph{James} is a one-token name which needs resolution. At first we look if anyone whose second (, third \dots) name is \emph{James} hasn't already been mentioned in the summary. If not we proceed to searching through all the players in the match statistics. There we spot \emph{LeBron James} and add the transformation \emph{James $\rightarrow$ LeBron\_James}. Note that we assume, that no player is called only by his first name.
-    \item 3. Aplikácia transformácií na sumár \hfill \\
+    \emph{James Harden} is a two-token name matched in the first phase, so we assume that it is already full name of the player and we add a trivial transformation \emph{James Harden $\rightarrow$ James\_Harden}. \emph{James} is a one-token name which needs resolution. At first we look if anyone whose second (third \dots) name is \emph{James} hasn't already been mentioned in the summary. If not we proceed to searching through all the players in the match statistics. There we spot \emph{LeBron James} and add the transformation \emph{James $\rightarrow$ LeBron\_James}. Note that we assume, that no player is called only by his first name.
+    \item 3. Application of transformations \hfill \\
     The summary is traversed for the second time and the longest subsequences appearing in the transformation dictionary are substitued.
 \end{itemize}
 
@@ -254,11 +254,11 @@ The limitation of the aproach is that during inference, any record value or enti
 
 \subsection{Byte Pair Encoding} \label{bpeSection}
 
-The Byte Pair Encoding (BPE) \citep{sennrich2016} is a method of preprocessing of input and output text enabling the Neural Machine Translation models to operate on subword units, and thus allowing them to handle words unseen during training. Since in NBA there is a fixed set of cities, teams and players (only about 10 players from development and 10 from test set were unknown from training) this isn't our main concern. However we can use BPE to lower the overall number of tokens in the output summaries, making them denser and allowing the neural network to possibly use richer vocabulary. I describe the algorithm, and show how it helped in the presented goals.
+The Byte Pair Encoding (BPE) \citep{sennrich2016} is a method of preprocessing of text. It was developed to enable the Neural Machine Translation models to operate on subword units. It allows them to generate and accept sequences of subwords and thus handle words unseen during training. Since in NBA there is a fixed set of cities, teams and players (only about 10 players from development and 10 from test set were unknown from training) this isn't our main concern. However we can use the BPE to lower the overall number of tokens in the output summaries, making them denser and allowing the neural network to possibly use richer vocabulary. I describe the algorithm, and show how it helped in the presented goals.
 
 \subsubsection{Algorithm}
 
-I use the implementation of the algorithm from the authors of the BPE paper\footnote{\url{https://github.com/rsennrich/subword-nmt}}, which is also downloadable as a standalone python package. The idea is to divide each token from the train set to characters, and add them to the special symbol vocabulary. Then we iterate over the text and merge together the most common pair of succeeding characters to create a new symbol added to the vocabulary. Next each occurrence of the pair is substitued by the new symbol. At the end (after $N$ iterations, where $N$ is the hyperparameter of the algorithm), the symbol vocabulary contains all the characters and newly created symbols.
+I use the implementation of the algorithm from the authors of the BPE paper\footnote{\url{https://github.com/rsennrich/subword-nmt}}, which is also downloadable as a standalone python package. The idea is to divide each token from the train set to characters, and add them to the \emph{symbol vocabulary}. Iterating over the text each time we merge together the most common pair of succeeding characters to create a new symbol. The symbol is added to the vocabulary and each occurrence of the pair is substitued by it. At the end (after $N$ iterations, where $N$ is the hyperparameter of the algorithm), the symbol vocabulary contains all the characters and newly created symbols.
 
 In practice it is more efficient to create a token vocabulary (tokens are weigh\-ted by the number of occurrences in the corpus), and iterate over it instead of over the whole corpus. Also to allow easy detokenization to the original text, a special \emph{\textless eow\textgreater} token is appended to each token. An excerpt from the original paper shows the minimal possible implementation of such approach \ref{bpe-algorithm}.
 
@@ -266,7 +266,7 @@ At the test time the text is divided to characters and the longest subsequences 
 
 \subsubsection{Application}
 
-As stated previously, the BPE should densify output summaries, however in certain situations it may be contraproductive. E.g. it may make copying harder by dividing single-token player name to multiple tokens. Therefore I apply the BPE to all the tokens except the ones which correspond to player/city/team names and numerical values. The value of hyperparameter allows to set up the vocabulary size. At the end we choose 2000 merge operations, the reader can find the statistics under other settings on \url{https://github.com/gortibaldik/TTTGen/blob/master/rotowire/dataset_stats.md}. An example of the final appearance of a summary after all the transformations mentioned in the chapter can be seen in figure \ref{ex_sum_final}. 
+As stated previously, the BPE should densify output summaries, however in certain situations it may be contraproductive. E.g. it may make copying harder by dividing single-token player name to multiple tokens. Therefore I apply the BPE to all the tokens except the ones which correspond to player/city/team names and numerical values. We set the number of iterations to 2000, which means that the overall vocabulary contains around 2800 tokens (there is about 700 players, 29 cities and 30 teams). An example of the final appearance of a summary after all the transformations mentioned in the chapter can be seen in figure \ref{ex_sum_final}. 
 
 \begin{figure}[h]
     \small
@@ -376,8 +376,8 @@ def merge_vocab(pair, v_in):
     bigram = re.escape(' '.join(pair))
     p = re.compile(r'(?<!\S)' + bigram + r'(?!\S)')
     for word in v_in:
-    w_out = p.sub(''.join(pair), word)
-    v_out[w_out] = v_in[word]
+        w_out = p.sub(''.join(pair), word)
+        v_out[w_out] = v_in[word]
     return v_out
 
 vocab = {'l o w </w>' : 5, 'l o w e r </w>' : 2,
