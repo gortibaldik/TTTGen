@@ -19,7 +19,7 @@ def _create_parser():
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--dropout_rate', type=float, default=0.2)
     parser.add_argument('--scheduled_sampling_rate', type=float, default=1.0)
-    parser.add_argument('--learning_rate', type=float, default=None)
+    parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--with_cp', action='store_true')
     parser.add_argument('--manual', action='store_true')
     return parser

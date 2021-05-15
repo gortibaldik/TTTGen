@@ -144,14 +144,9 @@ def train( train_dataset
                                , decoderRNNInit
                                , dropout_rate)
     
-    if learning_rate is None:
-        optimizer_1 = tf.keras.optimizers.Adam()
-        optimizer_2 = tf.keras.optimizers.Adam()
-    else:
-        # in far away future I'll find out how the original authors handled
-        # utilisation of SGD for training of the net
-        optimizer_1 = tf.keras.optimizers.SGD(learning_rate=learning_rate)
-        optimizer_2 = tf.keras.optimizers.SGD(learning_rate=learning_rate)
+    optimizer_1 = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    optimizer_2 = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    
     checkpoint_prefix = os.path.join(checkpoint_dir, 'ckpt')
     checkpoint = tf.train.Checkpoint( model=model)
     if load_last:
