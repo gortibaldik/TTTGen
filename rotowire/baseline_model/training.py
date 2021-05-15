@@ -64,7 +64,8 @@ def create_cs_model( batch_size
                        , batch_size)
     cp_decoding_cell = ContentPlanDecoderCell( hidden_size
                                              , DotAttention
-                                             , batch_size)
+                                             , batch_size
+                                             , dropout_rate)
     encoder_from_cp = tf.keras.layers.Bidirectional(
         tf.keras.layers.LSTM( hidden_size
                             , return_sequences=True
