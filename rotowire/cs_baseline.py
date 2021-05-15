@@ -22,6 +22,7 @@ def _create_parser():
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--with_cp', action='store_true')
     parser.add_argument('--manual', action='store_true')
+    parser.add_argument('--load_last', action='store_true')
     return parser
 
 def _main(args):
@@ -100,7 +101,7 @@ def _main(args):
          , args.path
          , ix_to_tk
          , val_dataset
-         , load_last=False
+         , load_last=args.load_last
          , use_content_selection=args.with_cp
          , max_table_size=max_table_size
          , manual_training=args.manual)
