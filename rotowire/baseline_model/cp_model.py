@@ -40,7 +40,7 @@ class EncoderDecoderContentSelection(tf.keras.Model):
                             , "val_loss_cp" : tf.keras.metrics.SparseCategoricalCrossentropy(name='loss_cp'
                                                                                             , from_logits=True)}
         self._scheduled_sampling_rate = scheduled_sampling_rate
-        self._cp_training_rate = cp_training_rate
+        self._cp_training_rate = 1.0 - cp_training_rate
         self._truncation_skip_step = truncation_skip_step
         self._truncation_size = truncation_size
         self._generator = tf.random.Generator.from_non_deterministic_state()
@@ -192,7 +192,7 @@ class EncoderDecoderContentSelection(tf.keras.Model):
             truncated_data = ( sums[:, start:end, :]
                              , summaries[:, start+1:end+1]
                              , tf.convert_to_tensor(gen_or_teach)
-                             , train_cp_loss
+                             , tf.convert_to_tensor(train_cp_loss)
                              , content_plan[:, :cp_length - 1]
                              , content_plan[:, 1:cp_length]
                              , *tables)

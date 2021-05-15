@@ -111,6 +111,7 @@ def train( train_dataset
          , val_dataset = None
          , load_last : bool = False
          , use_content_selection : bool = False
+         , cp_training_rate : float = 0.2
          , max_table_size : int = None
          , manual_training : bool = True):
 
@@ -170,7 +171,8 @@ def train( train_dataset
                                                                     , reduction='none')
                      , scheduled_sampling_rate
                      , truncation_size
-                     , truncation_skip_step)
+                     , truncation_skip_step
+                     , cp_training_rate=cp_training_rate)
     # define callbacks
     tensorboard_dir = os.path.join(checkpoint_dir, 'tb_logs')
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=tensorboard_dir)
