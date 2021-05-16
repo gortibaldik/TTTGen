@@ -150,7 +150,7 @@ In table \ref{stats_overlap_rw} we can see how many of the unique tokens learned
 
 Firstly I want to present what kind of data is stored in the input tables, and how it is preprocessed. After that I show the final format of a record which is fed to the generation system.
 
-\subsubsection{Tabular Types}
+\subsubsection{Tabular Types} \label{tabular_types_section}
 
 There are 39 types (different headers of columns as discussed in section \ref{table_to_record_trans}). A type is associated to textual or integer value which describes either a team or an individual. There are only 7 types bound to textual values, out of which 2 are related to teams (\emph{TEAM-NAME}, \emph{TEAM-CITY}) and 5 to individuals (\emph{FIRST\_NA\-ME}$^*$, \emph{SE\-COND\_NAME}$^*$, \emph{PLAYER\_NAME}$^*$, \emph{START\_POSITION}$^*$, \emph{TEAM\_CI\-TY}$^*$)
 
@@ -275,7 +275,7 @@ As stated previously, the BPE should densify output summaries, however in certai
     \caption{\centering A part of transformed summary corresponding to the sample from figure \ref{fig:samplesummary}. $\star$ is used to mark that the following token formed the same word in the original text.} \label{ex_sum_final}
 \end{figure}
 
-\subsection{Cleaning}
+\subsection{Cleaning} \label{cleaning_section}
 
 During implementation of the Content Planning approach (discussed in section \ref{content_planning_subsubsection}) I found out that the authors of the method, \citep{puduppully2019datatotext}, have used only subset of training and validation data. They removed all the pairs summary-table where the "gold" summary contained information which wasn't linked to the input table. Figure \ref{faulty_summary} shows an example of such a summary.
 

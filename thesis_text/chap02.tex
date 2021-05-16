@@ -1,39 +1,77 @@
 \chapter{Data}
 
-One needs a lot of data if he wants to train his neural network. E.g. \citep{sennrich2016} trains the neural machine translation system on 4.2 million English-German sequence pairs. The Data-to-Text generation task má vyššie nároky na kvalitu datasetu. Potrebujeme, aby boli vstupné dáta štandardizované a aby výstupné texty zodpovedali vstupným dátam. Existuje viacero datasetov, ktoré spĺňajú túto podmienku. V tejto kapitole predstavím datasety WikiBIO a Rotowire, ktoré používam pre svoje experimenty.
+The goal of the thesis is to explore the possibilities of generating natural language representation of a sports match. Several questions arise from the assignment. Are we trying to create a general solution which would work for any sport ? What is the format of the input data ? How should the generated text look like ? In this section I try to answer these questions and present the challenge which we will deal with throughout the thesis.
 
-Tréning prebieha v plne supervised režime, teda potrebujeme ako vstupné štruktúrované dáta, tak aj výstupné sumáre. Zatiaľ čo vstupné štruktúrované dáta sú vo forme tabuliek, ktoré sú v preprocessingu (viac v kapitole \ref{chapPreproc}) upravené na formu, ktorá sa dá použiť ako vstup pre generačný systém, výstupné dáta sú vo forme tokenizovaných textov.
+\subsubsection{Narrowing the Task}
+The differences in the number of players, the environment, the rules etc. prevent us from creating one system for all the sports, therefore the task will be narrowed to one particular sport, the basketball.
+
+During a match of basketball, a set of statistics about teams and players is gathered. We want to generate a text, which will summarize and pick the most important information from the statistics.
+
+\subsubsection{Data requirements} \label{data_requirements_section}
+
+Our approach is to train a deep neural network model. We opt for supervized training regime where each input table is associated with a target text, and the model learns a conditional probability $p(text | input\_table)$. 
+
+In the introduction \ref{IntroductionChapter} I already pointed out that neural networks are excellent at learning a language model. However we want to learn to generate a text conditioned on the \emph{concrete match statistics}.
+
+This places high demands on the quality of the texts which are used as targets during training. The summaries should be connected to statistical data about the match, and contain the least possible amount of subjective, emotional information. Otherwise the model wouln't have possibility to learn how to interpret its inputs, and instead it would learn how to generate some invaluable emotional phrases.
+
+It is known that a lot of data is needed to train a deep neural network (e.g. \citep{sennrich2016} trains the neural machine translation system on 4.2 million English-German sequence pairs). Therefore it's unfeasible to collect and prepare our own dataset, and we choose to select from a high variety of publicly available datasets.
 
 \section{Rotowire dataset}
 
-Pre samotnú úlohu generovania textového popisu zápasu zo štruktúrovaných dát som si vybral dataset RotoWire \citep{wiseman2017}. Štruktúrované dáta sú vo forme tabuľky. Tabuľka obsahuje jednak hodnoty popisujúce celkové tímové štatistiky, jednak hodnoty, popisujúce štatistiky hráčov. Ako výstupné dáta slúžia sumáre jednotlivých zápasov z portálu venujúcemu sa real-time fantasy sports news \url{https://www.rotowire.com/basketball/} (see below).
+I've chosen the RotoWire dataset \citep{wiseman2017}. It contains a set of statistics-summary pairs, summaries being extracted from the portal focused on fantasy sport news, \url{https://www.rotowire.com/basketball/}.
+
+\subsection{Summaries}
+
+In section \ref{data_requirements_section} we have already discussed our demands on the summaries which will be used as targets.
+
+\citep{wiseman2017} experimented with one other summary origin, \url{https://www.sbnation.com/nba}, where articles are written by fans for fans. However such summaries haven't met the requirements ("many documents in the dataset focus on information not in the box- and line-scores") and the neural networks trained on these kind of summaries "performed poorly".
+
+Therefore we experiment only with the summaries from Rotowire fantasy sports news.
+
+\subsubsection{Fantasy sports}
+
+According to \citep{Tozzi1999}, the origins of the phenomenon of fantasy sports can be dated to the beginning of 1960s. The article tells a legend about a restaurant called La Rotisserie Francaise. There a group of "sportswriters, accountants and lawyers" started the first fantasy sport league. Rotowire, which name is derived from the name of the restaurant, is the source of all the target summaries in the dataset.
+
+Let's proceed and discuss the rules of the fantasy sport according to Rotowire\footnote{\url{https://www.rotowire.com/basketball/advice/} \label{footnote_2_fs}}. The fantasy league is created on top of a real world league, e.g. NBA. If you want to play, you choose a subset of NBA players and gain points based on their performance in the real-world NBA matches. You have limited resources and better players cost more. The selection must contain a basketballer for each position (therefore it is not possible to draft e.g. 5 point guards and no power forward). The points are awarded according to the role, so that defensive and offensive players gain you points for different achievements in a match. The leagues differ in their specifics and I advise an interested reader to check the Rotowire fantasy league rules\textsuperscript{\ref{footnote_2_fs}}.
+
+\subsubsection{Fantasy sports news}
+
+To succeed in the fantasy sport, one must keep a good track of the player statistics and injuries, the tendencies of team performances, the trends causing the emergence of a future star or a burn-out. From the beginning there exists a form of news specializing directly on fantasy league players. \url{https://www.rotowire.com/} is one of the most known ones. The articles tend to summarize the most important statistics as well as present a deeper understanding of the events that happened during the match. As noted by \citep{wiseman2017}, the articles are the ideal candidates for the target summaries of the structured data from the dataset.
 
 \subsection{Structured Data} \label{structured_data_rotowire}
 
-V tejto podsekcii si rozoberieme, aké dáta sa v tabuľke nachádzajú, a čo z nich sa dá využiť pri vytváraní sumáru. Pre prehľadnosť ich rozdelím na tri časti, kontextové údaje, tímové údaje a štatistiky a hráčske údaje a štatistiky. Keďže kontextové údaje sú vo vstupnej tabuľke zastúpené len ako informácia v ktorý deň sa zápas konal a vo väčšine sumárov táto informácia nie je použitá, rozhodol som sa ju tiež úplne vynechať z trénovacích dát. Všetky číselné údaje v tabuľkách sú tvorcami datasetu upravené na celočíselné hodnoty.
+The structured data is in form of multiple tables of statistics related to a particular NBA match. In this section I examine the tables, and hypothesize about their possible roles in the generation of a summary.
+
+To begin the examination, each datapoint contains a date when the match was played. This information isn't leveraged in the summaries\footnote{This isn't technically true, as the majority of summaries contain a phrase like \emph{"Team A defeated Team B on monday."}, however since the date is in form \emph{DD/MM/YYYY}, there isn't any chance the network could deduce the day of the week from the date.}, therefore I opt not to use it.
 
 \subsubsection{Team Statistics}
 
-Medzi tímové údaje rátam jednak mená klubov, mestá, kde kluby sídlia. \linebreak[4] Štatistiky sú jednak kontextové (počet predchádzajúcich zápasov, ktoré klub vyhral, resp. prehral) jednak zápasové (napríklad počet získaných bodov, percentuálna úspešnosť streľby z poľa atp.). Tímové údaje a štatistiky obsahujú celkovo 15 položiek pre každý tím, tvorcovia datasetu túto časť označujú ako \emph{line score} a ich celý výčet sa dá nájsť na githube tvorcov datasetu \footnote{\label{note1}\url{https://github.com/harvardnlp/boxscore-data}} Tabuľka \ref{tab_team_stats} z validačného datasetu môže poslúžiť ako dobrý príklad.
+A datapoint contains a separate table with statistics, called the \emph{line score}, for each of the opposing teams. Each \emph{line score} contains 15 fields, some of which we will discuss in this section. The full listing can be found on the official github of the dataset \footnote{\label{note1}\url{https://github.com/harvardnlp/boxscore-data}}
+
+Firstly there are fields with the team name and the city where the team is located.
+
+Next there is a set of numerical statistics. We can divide them to the contextual statistics (the number of wins and looses prior to the actual match), the team-totals (\emph{Team-total} means the overall team statistics. E.g. \emph{TEAM-PTS} is the sum of all the points scored by the players of the team), and the per-period point statistics (\emph{TEAM-PTS\_QTR1} - \emph{TEAM-PTS\_QTR4}). Table \ref{tab_team_stats} is a part of both line scores taken from the Rotowire dataset.
 
 \begin{table}[bh!]
-    \begin{tabular}{llllllll}
+    \centering
+    \begin{tabular}{lllllllll}
         \toprule
-        Name    & City         & PTS$_1$ & AST$_2$ & REB$_3$ & TOV$_4$ & Wins & Losses  \dots \\
+        Name    & City         & PTS$_1$ & AST$_2$ & REB$_3$ & TOV$_4$ & Wins & Losses  &\dots \\
         \midrule
-        Raptors & Toronto      & 122 & 22  & 42  & 12  & 11   & 6       \dots \\
-        76ers   & Philadelphia & 95  & 27  & 38  & 14  & 4    & 14      \dots \\
+        Raptors & Toronto      & 122 & 22  & 42  & 12  & 11   & 6       &\dots \\
+        76ers   & Philadelphia & 95  & 27  & 38  & 14  & 4    & 14     &\dots \\
         \bottomrule
-        \multicolumn{8}{l}{\footnotesize \textit{Note:} The statistics are accumulated across all the team players} \\
-        \multicolumn{8}{l}{\footnotesize $_1$ Points; $_2$ Assists; $_3$ Rebounds; $_4$ Turnovers}
-    \end{tabular}
-    \caption{Príklad tímových štatistík z datasetu Rotowire} \label{tab_team_stats}
+        \multicolumn{9}{l}{\footnotesize \textit{Note:} The statistics are accumulated across all the team players} \\
+        \multicolumn{9}{l}{\footnotesize $_1$ Points; $_2$ Assists; $_3$ Rebounds; $_4$ Turnovers}    \end{tabular}
+    \caption{\centering An example of the team statistics from the development part of the Rotowire dataset} \label{tab_team_stats}
 \end{table}
 
 \subsubsection{Player statistics}
-U každého hráča je údaj, za ktorý tím hrá, či je daný tím domáci, alebo či hráč patril do starting roster, alebo nastúpil z lavičky. Štatistiky sú len zápasové a medzi ne patria napríklad počet nahraných bodov, počet minút, ktoré hráč hral atp. Hráčske údaje a štatistiky čítajú 24 položiek, tvorcovia datasetu ich nazývajú \emph{box score} a čitateľa, ktorého zaujíma kompletný výpis položiek opäť odporúčame na github tvorcov datasetu \textsuperscript{\ref{note1}} a uvádzame aj príklad tabuľky z validačného datasetu \ref{tab_player_stats}.
 
-\begin{table}[bh!]
+The player statistics are gathered in a table called \emph{box score}. In each row there is an information about the player name, the city he plays for (since there are 2 teams originating in Los Angeles, the distinction is made by calling one \emph{LA} and the other one \emph{"Los Angeles"}), his position on the starting roster (or the \emph{N/A} value if he isn't in the starting lineup), and another 19 fields with statistics summing up the impact of the player in the match (e.g. points, assists, minutes played etc.). Again, the full listing can be found on github\textsuperscript{\ref{note1}} and table \ref{tab_player_stats} contains an example of a \emph{box score} from the dataset.
+
+\begin{table}[h!]
     \begin{tabular}{lllllll}
         \toprule
         Name             & Team City    & S\_POS$_1$ & PTS$_2$ & STL$_3$ & BLK$_4$        \dots \\
@@ -47,26 +85,15 @@ U každého hráča je údaj, za ktorý tím hrá, či je daný tím domáci, al
         \multicolumn{6}{l}{\footnotesize (e.g. player didn't appear on starting roster therefore his starting position is undefined)} \\
         \multicolumn{6}{l}{\footnotesize $_1$ Starting position ; $_2$ Points; $_3$ Steals; $_4$ Blocks}
     \end{tabular}
-    \caption{Príklad hráčskych štatistík z datasetu Rotowire}\label{tab_player_stats}
+    \caption{\centering An example of the player statistics from the development part of the Rotowire dataset}\label{tab_player_stats}
 \end{table}
-
-\subsection{Summaries}
-
-Kladieme vysoké nároky na sumáre. Jednak musia súvisieť s tabuľkou, jednak nechceme neurónovú sieť učiť niečo, čo by sa dalo rýchlo napísať pomocou jednoduchej šablóny. Preto potrebujeme sumáre, ktoré dokážu vytiahnuť z tabuľky hlbšie štatistiky a správne s nimi pracovať. Ako už vysvetľuje \citep{wiseman2017} obyčajné športové spravodajstvo zo stránok \url{https://www.sbnation.com/nba} nespĺňa tieto kritériá, keďže obsahuje priveľa informácií, ktoré sú založené na iných kontextoch, ako sú dáta v zápasovej tabuľke. Práve preto je zaujímavé sledovať fenomén fantasy športov.
-
-
-\subsubsection{Fantasy sports}
-
-Podľa \citep{Tozzi1999} môžeme datovať počiatky fenoménu fantasy športu do\linebreak[4]šesťdesiatych rokov dvadsiateho storočia. Podľa stránky RotoWire\footnote{\url{https://www.rotowire.com/basketball/advice/} \label{footnote_2_fs}} je základom fantasy športu vytvorenie tímov reálnych hráčov z ligy a získavanie bodov na základe ich výkonov v skutočných zápasoch. Bodovanie berie do úvahy, či ide o defenzívneho, alebo ofenzívneho hráča a je nutné vybrať hráča na každú pozíciu v hre. (čím sa zaručuje, že nemôžu existovať fantasy tímy, ktoré majú len point guardov). Disponujete obmedzenými zdrojmi na nákup hráčov a hráči, u ktorých je pravdepodobnejšie, že skórujú viac bodov, resp. získajú viac lôpt a tak podobne, stoja viac. Skutočné pravidlá sú jemne zložitejšie a tí, ktorých by fantasy ligy zaujímali odporúčame na dané stránky\textsuperscript{\ref{footnote_2_fs}}.
-
-\subsubsection{Fantasy sports news}
-
-Na to, aby hráč mohol uspieť vo fantasy lige, potrebuje mať dokonalý prehľad o štatistikách hráčov, o trendoch, o zraneniach, o tímoch, ktorým sa darí aj o tých, ktorým sa možno začne dariť neskôr. Práve preto už od začiatku organizovania fantasy líg existujú formy spravodajstva, ktoré sa špecializujú práve na hráčov fantasy športov. Podľa legendy popísanej \citep{Tozzi1999} sa hráči jednej z prvých fantasy líg schádzali v reštaurácii La Rotisserie Francaise, a podľa tejto reštaurácie je pomenovaná aj stránka špecializujúca sa na spracovávanie štatistík pre fanúšikov fantasy líg, \url{https://www.rotowire.com/}. Články písané o zápasoch oveľa viac berú do úvahy, čo sa v zápase udialo a zároveň poskytujú aj hlbší náhľad do kontextu zápasu. Preto ako píše \citep{wiseman2017} je pre generačné systémy ideálnejšie učiť sa generovať práve články podobné tým z RotoWire. 
 
 \subsection{Relation of summaries and tables}
 \definecolor{lightblue}{rgb}{.15,.77,.90}
 
-V tejto kapitole na jednoduchom príklade ukážem, ako sú štatistiky z tabuľky previazané so sumárom z RotoWire. Vo figure \ref{fig:samplesummary} je krásne vidieť, že väčšina údajov zo sumáru pochádza z tabuľky. Napriek tomu však text obsahuje niektoré údaje ( \sethlcolor{yellow} \hl{zvýraznené žltou farbou} ), ktoré v tabuľke vôbec nie sú a niektoré údaje (\sethlcolor{lightblue} \hl{zvýraznené modrou farbou} ), ktoré sú v tabuľke len implicitne a je ich potrebné odvodiť. Zatiaľ čo fakt, že keďže Terrence Ross má nedefinovanú štartovaciu pozíciu, tak musel nastúpiť do zápasu z lavičky je celkom zrejmý, informácia o tom, že Joel Embiid nehrá je dôležitá len vtedy, pokiaľ je Joel Embiid natoľko dôležitý hráč pre tím, že stojí za zmienku ho spomenúť. To je však kontext, ktorý v tabuľke spomenutý nie je a navyše informácia o tom, prečo nehrá nemôže byť jasná ani z kontextu celého korpusu dát.
+In this section I would like to show the relationship between the structured data and the target summary. Let's observe the data-point from the development part of the dataset in figure \ref{fig:samplesummary}. The non-highlighted text shows one-to-one correspondence with the structured data. The \sethlcolor{lightblue} \hl{blue-highlighted text} marks the information which is present in the input data only implicitly. However the level of implicitness varies. It is relatively easy to see that since Terrence Ross's starting position is "N/A", he must have started off the bench. On the other hand the fact that "The Raptors came into this game as a monster favorite" requires comparison of the winning-loosing records of both teams. The \sethlcolor{yellow} \hl{yellow-highlighted text} labels the information that isn't deducible from the input data and the network would have to learn to hallucinate to be able to generate such text.
+
+Somebody may argue that the observations do not sound favorable for the dataset. I see it as a big challenge and a possibility to apply advanced preprocessing as well as interesting architectural design of the neural networks. I will further elaborate on the issue of too noisy data in section \ref{cleaning_section}.
 
 \definecolor{lightgreen}{rgb}{.7,.9,.1}
 
@@ -121,7 +148,7 @@ V tejto kapitole na jednoduchom príklade ukážem, ako sú štatistiky z tabuľ
 };
 \end{tikzpicture}
 }
-\caption{ \small Príklad vstupných tabuliek a zlatého sumáru z datasetu. Žltou sú zvýraznené informácie nenachádzajúce sa v tabuľke, zatiaľ čo modrou sú zvýraznené informácie, ktoré z tabuľky a celého korpusu vyplývajú len implicitne.
+\caption{ \small A data-point from the development part of the Rotowire dataset. Yellow-highlighted text isn't based on the input data. Blue-highlighted text implicitly follows from the input data.
 }
 \label{fig:samplesummary}
 \end{figure*}
