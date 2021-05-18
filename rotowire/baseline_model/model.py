@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 import sys
-from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 from baseline_model.layers import Embedding, MLPEncodingCell, ContentSelectionCell, DecoderRNNCellJointCopy
 
 class Encoder(tf.keras.Model):
@@ -81,7 +80,7 @@ class EncoderCS(tf.keras.Model):
         all_states, _ = self._rnn(embedded)
         content_selected, *_ = self._cs_rnn(all_states, initial_state=(all_states, tf.zeros((), dtype=tf.int32)))
         avg = tf.reduce_mean(content_selected, axis=1)
-        return content_selected, avg
+        return content_selected, avg, avg, avg, avg
 
 class EncoderDecoderBasic(tf.keras.Model):
     def __init__( self

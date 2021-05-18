@@ -21,16 +21,31 @@ def create_basic_model( batch_size
                       , hidden_size
                       , attention_type
                       , decoderRNNInit
-                      , dropout_rate):
-    encoder = Encoder( word_vocab_size
-                     , word_emb_dim
-                     , tp_vocab_size
-                     , tp_emb_dim
-                     , ha_vocab_size
-                     , ha_emb_dim
-                     , entity_span
-                     , hidden_size
-                     , batch_size)
+                      , dropout_rate
+                      , base_model_with_content_selection : bool = False
+                      , max_table_size : int = None):
+    if base_model_with_content_selection:
+        encoder = EncoderCS( word_vocab_size
+                           , word_emb_dim
+                           , tp_vocab_size
+                           , tp_emb_dim
+                           , ha_vocab_size
+                           , ha_emb_dim
+                           , max_table_size
+                           , hidden_size
+                           , attention_type
+                           , batch_size)
+    else:
+        encoder = Encoder( word_vocab_size
+                         , word_emb_dim
+                         , tp_vocab_size
+                         , tp_emb_dim
+                         , ha_vocab_size
+                         , ha_emb_dim
+                         , entity_span
+                         , hidden_size
+                         , batch_size)
+
     decoderRNNCell = decoderRNNInit( word_vocab_size
                                    , word_emb_dim
                                    , hidden_size
@@ -113,7 +128,8 @@ def train( train_dataset
          , use_content_selection : bool = False
          , cp_training_rate : float = 0.2
          , max_table_size : int = None
-         , manual_training : bool = True):
+         , manual_training : bool = True
+         , base_model_with_content_selection : bool = False):
 
     if truncation_skip_step > truncation_size:
         raise RuntimeError(f"truncation_skip_step ({truncation_skip_step}) shouldn't be bigger"+
@@ -131,7 +147,9 @@ def train( train_dataset
                                   , hidden_size
                                   , attention_type
                                   , decoderRNNInit
-                                  , dropout_rate)
+                                  , dropout_rate
+                                  , base_model_with_content_selection=base_model_with_content_selection
+                                  , max_table_size=max_table_size)
     else:
         model = create_cs_model( batch_size
                                , max_table_size

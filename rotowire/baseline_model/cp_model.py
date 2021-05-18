@@ -71,8 +71,9 @@ class EncoderDecoderContentSelection(tf.keras.Model):
         cp_enc_outs = tf.TensorArray(tf.float32, size=cp_targets.shape[1])
         cp_enc_ins = tf.TensorArray(tf.int16, size=cp_targets.shape[1])
         with tf.GradientTape() as tape:
-            enc_outs, avg = self._encoder_content_selection(tables)
-            states = (avg, avg)
+            enc_outs, *out_states = self._encoder_content_selection(tables)
+            # encoder_content_selection returns 4 states, only the first two are used
+            states = (out_states[0], out_states[1])
             next_input = enc_outs[:, 0, :]
             # create content plan, evaluate the loss from the 
             # gold content plan
@@ -233,8 +234,8 @@ class EncoderDecoderContentSelection(tf.keras.Model):
         batch_size = cp_in.shape[0]
         cp_enc_outs = tf.TensorArray(tf.float32, size=cp_targets.shape[1])
         cp_enc_ins = tf.TensorArray(tf.int16, size=cp_targets.shape[1])
-        enc_outs, avg = self._encoder_content_selection(tables)
-        states = (avg, avg)
+        enc_outs, *out_states = self._encoder_content_selection(tables)
+        states = (out_states[0], out_states[1])
 
         next_input = enc_outs[:, 0, :]
         # create content plan, evaluate the loss from the 
@@ -305,8 +306,8 @@ class EncoderDecoderContentSelection(tf.keras.Model):
         cp_enc_outs = tf.TensorArray(tf.float32, size=content_plan.shape[1])
         cp_enc_ins = tf.TensorArray(tf.int16, size=content_plan.shape[1])
         cp_cp_ix = tf.TensorArray(tf.int32, size=content_plan.shape[1])
-        enc_outs, avg = self._encoder_content_selection(tables)
-        states = (avg, avg)
+        enc_outs, *out_states = self._encoder_content_selection(tables)
+        states = (out_states[0], out_states[1])
 
         # the first input to the encoder_content_planner is 0th record
         # zeroth record is the <<BOS>> record
