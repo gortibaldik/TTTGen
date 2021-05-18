@@ -211,7 +211,7 @@ I would like to reiterate that our motivation is to avoid the \emph{rare word pr
 
 \subsubsection{Number Transformations} \label{num_trans_rw}
 
-Just as \citep{wiseman2017} and \citep{puduppully2019datatotext}, we represent the numbers only by numerals. This preprocessing method partially fulfills both of our goals. Obviously it decreases the unique token count, but on top of that it makes copying easier. E. g. the sentence \emph{"Isaiah Thomas once again excelled , scoring 23 points, \textbf{three} assists and \textbf{three} rebounds."} is transformed to \emph{"Isaiah Thomas once again excelled , scoring 23 points, \textbf{3} assists and \textbf{3} rebounds."}. Under this setting, the network still has to learn the correspondence between record type and the summary token \emph{"AST"} $\cong$ \emph{"assists"} but without the need of linking \emph{"three"} to \emph{"3"} the connection of the phrase with record \emph{\{AST; 3; Isaiah\_Thomas; Home\}} should be much clearer. However some \emph{number-words} must be preserved as they form a part of a basketball terminology (e.g. \emph{three pointer}). The transformations are done with the help of the \emph{text2num} library\footnote{\url{https://github.com/allo-media/text2num}} which is also used by the authors cited above.
+Just as \citep{wiseman2017} and \citep{puduppully2019datatotext}, we represent the numbers only by numerals. This preprocessing method partially fulfills both of our goals. Obviously it decreases the unique token count, but on top of that it makes copying easier. E. g. the sentence \emph{"Isaiah Thomas once again excelled , scoring 23 points, \textbf{three} assists and \textbf{three} rebounds."} is transformed to \emph{"Isaiah Thomas once again excelled , scoring 23 points, \textbf{3} assists and \textbf{3} rebounds."}. Under this setting, the network still has to learn the correspondence between record type and the summary token \emph{"AST"} $\cong$ \emph{"assists"} but without the need of linking \emph{"three"} to \emph{"3"} the connection of the phrase with record \emph{\{AST; 3; Isaiah\_Thomas; Home\}} should be much clearer. However we preserve the word \emph{"three"} when it forms a part of a basketball terminology (e.g. \emph{three pointer}) to differentiate between these different meanings of the word. The transformations are done with the help of the \emph{text2num} library\footnote{\url{https://github.com/allo-media/text2num}} which is also used by the authors cited above.
 
 \subsubsection{Player name transformations} \label{player_nm_trans_summary}
 
@@ -226,8 +226,8 @@ At first we gather all the player names from the input tables. The transformatio
     \item \textbf{1. Extraction of player names from the summary} \hfill \\
     The summary is at first divided to sentences, using NLTK \footnote{\url{https://www.nltk.org/}} library. Then we traverse each sentence and extract the longest subsequences of tokens which appear in the set of the player names. This way, one-token name \emph{James} and two-token name \emph{James Harden} is extracted. (Although \emph{James Harden} hasn't played in the game and therefore the network cannot learn to copy his name, we extract it to densify the data, so the player is represented by the same token in all the summaries)
     \item \textbf{2. Resolution of one-token references and creation of transformation dictionary} \hfill \\
-    \emph{James Harden} is a two-token name matched in the first phase, so we assume that it is already full name of the player and we add a trivial transformation \emph{James Harden $\rightarrow$ James\_Harden}. \emph{James} is a one-token name which needs resolution. At first we look if anyone whose second (third \dots) name is \emph{James} hasn't already been mentioned in the summary. If not we proceed to searching through all the players in the match statistics. There we spot \emph{LeBron James} and add the transformation \emph{James $\rightarrow$ LeBron\_James}. Note that we assume, that no player is called only by his first name.
-    \item 3. Application of transformations \hfill \\
+    \emph{James Harden} is a two-token name matched in the first phase, so we assume that it is already full name of the player and we add a trivial transformation \emph{James Harden $\rightarrow$ James\_Harden}. \emph{James} is a one-token name which needs resolution. At first we look if anyone whose second (third \dots) name is \emph{James} hasn't already been mentioned in the summary. If not we proceed to searching through all the players in the match statistics. There we spot \emph{LeBron James} and add the transformation \emph{James $\rightarrow$ LeBron\_James}. Note that we create a unique transformation dictionary for each summary and we assume, that no player is called only by his first name.
+    \item \textbf{3. Application of transformations} \hfill \\
     The summary is traversed for the second time and the longest subsequences appearing in the transformation dictionary are substitued.
 \end{itemize}
 
@@ -248,13 +248,17 @@ At first we gather all the player names from the input tables. The transformatio
 
 \subsection{Vocabularies}
 
-To feed the data to the neural network, it must be in form of numerical values. The simplest approach would be to gather 5 different vocabularies, one for each of types, entities, values, home/away flags, and tokens from summaries, and assign a unique (in the respective vocabulary) number to each entry. However thanks to transformations described above we can merge vocabularies of entities, values and summary tokens, which opens up more possible learning strategies of the neural network.
+During preprocessing we collect the vocabulary of all the words from the training set. Each token is represented as an index to the vocab. This representation is fed to the initial layers of the neural network (embedding layers which will be discussed in section \ref{subsubsection:embeddings}). Therefore the network learns to process only the tokens belonging to the vocabulary and no new tokens can be introduced during inference.
 
-The limitation of the aproach is that during inference, any record value or entity unseen during training will need to be transformed to some form of \emph{UNK} token.
+We collect 3 different vocabularies, one for record types, one for home/away flags and one for all the entities, number values and tokens from the summaries.
 
 \subsection{Byte Pair Encoding} \label{bpeSection}
 
-The Byte Pair Encoding (BPE) \citep{sennrich2016} is a method of preprocessing of text. It was developed to enable the Neural Machine Translation models to operate on subword units. It allows them to generate and accept sequences of subwords and thus handle words unseen during training. Since in NBA there is a fixed set of cities, teams and players (only about 10 players from development and 10 from test set were unknown from training) this isn't our main concern. However we can use the BPE to lower the overall number of tokens in the output summaries, making them denser and allowing the neural network to possibly use richer vocabulary. I describe the algorithm, and show how it helped in the presented goals.
+The Byte Pair Encoding (BPE) \citep{sennrich2016} is a method of preprocessing of a text. It was developed to enable the Neural Machine Translation models to operate on subword units. It allows them to generate and accept sequences of subwords and thus handle words unseen during training. (E.g. there are words 'high', 'low', 'lower' in the training dataset, therefore under regular setting the network couldn't be able to generate or process word 'higher'. When operating on subwords 'high', 'low', 'er' this isn't an issue anymore since the network can learn to chain subwords 'high', 'er' to form the word unseen during training.)
+
+Since in NBA there is a fixed set of cities, teams and players (only about 10 players from development and 10 from test set were unknown from training) this isn't our main concern. However we can use the BPE to lower the size of the summary token vocabulary (E.g. looking at the previous example, even if the word 'higher' had been a part of the input vocabulary, the vocabulary of subwords would have still contained only subwords 'high', 'low', 'er'.) Thus the average frequency of a token increases as well as the generational capacity of the network.
+
+In this subsection I begin with a short explanation of the algorithm and conclude with the statistics of the fully transformed dataset.
 
 \subsubsection{Algorithm}
 
@@ -266,30 +270,40 @@ At the test time the text is divided to characters and the longest subsequences 
 
 \subsubsection{Application}
 
-As stated previously, the BPE should densify output summaries, however in certain situations it may be contraproductive. E.g. it may make copying harder by dividing single-token player name to multiple tokens. Therefore I apply the BPE to all the tokens except the ones which correspond to player/city/team names and numerical values. We set the number of iterations to 2000, which means that the overall vocabulary contains around 2800 tokens (there is about 700 players, 29 cities and 30 teams). An example of the final appearance of a summary after all the transformations mentioned in the chapter can be seen in figure \ref{ex_sum_final}. 
+As stated previously, the BPE should transform the output summaries to a sequence of subwords. However, in certain situations it may be contraproductive. E.g. it may make copying harder by dividing single-token player name to multiple tokens. Therefore I apply the BPE to all the tokens except the ones which correspond to player/city/team names and numerical values. We set the number of iterations to 2000, which means that the overall vocabulary contains around 2800 tokens (there is about 700 players, 29 cities and 30 teams). An example of the final appearance of a summary after all the transformations mentioned in the chapter can be seen in figure \ref{ex_sum_final}. 
 
 \begin{figure}[h]
-    \small
-    \centering
-    the host Toronto Raptors defeated the Philadelphia 76ers , 122 - 95 , at air canada center on monday . the Raptors came into this game as a monster fav$\star$ or$\star$ ite and they did n't le$\star$ ave any doub$\star$ t with this result . Toronto just continu$\star$ ou$\star$ s$\star$ ly pi$\star$ led it on , as they won each quarter by at least 4 points . the Raptors were l$\star$ ights - out shooting , as they went 55 percent from the field and 68 percent from three - point range . they also held the sixers to just 42 percent from the field and dominated the defensive rebounding , 34 - 26 . fas$\star$ t$\star$ break points was a huge difference as well , with Toronto winning that battle , 21 - 6 . Philadelphia ( 4 - 14 ) had to play this game without Joel\_Embiid ( rest ) and they cle$\star$ arly did n't have enough to compe$\star$ te with a poten$\star$ t Raptors squad . Robert\_Covington had 1 of his best games of the season though , tallying 20 points , 5 rebounds , 2 assists and 2 steals on 7 - of - 11 shooting . \dots
-    \caption{\centering A part of transformed summary corresponding to the sample from figure \ref{fig:samplesummary}. $\star$ is used to mark that the following token formed the same word in the original text.} \label{ex_sum_final}
+    \scalebox{0.85}{
+    \begin{tikzpicture}
+    \node(summary) [rectangle, draw,thick,fill=blue!0,text width=39em, rounded corners, inner sep =8pt, minimum height=1em, below=-2mm of tables]{
+        \baselineskip=100pt
+        \small
+        the host Toronto Raptors defeated the Philadelphia 76ers , 122 - 95 , at air canada center on monday . the Raptors came into this game as a monster fav$\star$ or$\star$ ite and they did n't le$\star$ ave any doub$\star$ t with this result . Toronto just continu$\star$ ou$\star$ s$\star$ ly pi$\star$ led it on , as they won each quarter by at least 4 points . the Raptors were l$\star$ ights - out shooting , as they went 55 percent from the field and 68 percent from three - point range . they also held the sixers to just 42 percent from the field and dominated the defensive rebounding , 34 - 26 . fas$\star$ t$\star$ break points was a huge difference as well , with Toronto winning that battle , 21 - 6 . Philadelphia ( 4 - 14 ) had to play this game without Joel\_Embiid ( rest ) and they cle$\star$ arly did n't have enough to compe$\star$ te with a poten$\star$ t Raptors squad . Robert\_Covington had 1 of his best games of the season though , tallying 20 points , 5 rebounds , 2 assists and 2 steals on 7 - of - 11 shooting . \dots
+    };
+    \end{tikzpicture} }
+    \caption{\centering A part of transformed summary corresponding to the sample from figure \ref{fig:samplesummary}. $\star$ is used to mark that the following token formed the same word in the original text. Note that in the original implementation @@ is used instead.} \label{ex_sum_final}
 \end{figure}
 
 \subsection{Cleaning} \label{cleaning_section}
 
 During implementation of the Content Planning approach (discussed in section \ref{content_planning_subsubsection}) I found out that the authors of the method, \citep{puduppully2019datatotext}, have used only subset of training and validation data. They removed all the pairs summary-table where the "gold" summary contained information which wasn't linked to the input table. Figure \ref{faulty_summary} shows an example of such a summary.
 
-In addition I also removed all the samples from the dataset about matches between teams from Los Angeles (Clippers and Lakers) where the distinction between different teams wasn't shown, and every player was listed as playing for "Los Angeles" (thus it was impossible to tell if he played for Clippers or Lakers).
+I use a subset of the subset used by Puduppully. In addition I also removed all the samples from the dataset about matches between teams from Los Angeles (Clippers and Lakers) where the distinction between different teams wasn't shown, and every player was listed as playing for "Los Angeles" (thus it was impossible to tell if he played for Clippers or Lakers).
 
 After removing all the non-valid pairs, the dataset size was reduced to 3369 train, 721 development and 727 test samples.
 
 There exist datasets based on RotoWire, which contain cleaner data and summaries corresponding better to input tables \citep{wang-2019-revisiting}, \citep{thomson-2020-sportsett}. However I choose to continue with the RotoWire dataset, as I am already accustomed to the format of the data.
 
 \begin{figure}[h]
-    \small
-    \centering
-    Following a week filled with trade rumors , Paul George came out of the All-Star break in fairly unimpressive fashion . In his first 4 games following the break , Paul George shot a combined 16 - of - 54 ( 29 percent ) from the field and was averaging just 14 points per game over that stretch . However , in his last 2 games , Paul George has flipped the script entirely and rattled off a pair of incredible offensive performances . Following Monday 's 36 - point performance in the Pacers ' loss to the Hornets , Paul George has now scored a combined 70 points over his last 2 games and did so while shooting a scorching 27 - of - 44 ( 61 percent ) from the field and 12 - of - 23 ( 52 percent ) from behind the arc . The performances from Paul George on Sunday and Monday were by far his best back - to - back shooting and scoring performances of the season .
-    \caption{\centering An example of a faulty summary. To illustrate how hard it is even to tell which teams played I purposely don't show the input table.} \label{faulty_summary}
+    \scalebox{0.85}{
+    \begin{tikzpicture}
+    \node(summary) [rectangle, draw,thick,fill=blue!0,text width=39em, rounded corners, inner sep =8pt, minimum height=1em, below=-2mm of tables]{
+        \baselineskip=100pt
+        \small
+        Following a week filled with trade rumors , Paul George came out of the All-Star break in fairly unimpressive fashion . In his first 4 games following the break , Paul George shot a combined 16 - of - 54 ( 29 percent ) from the field and was averaging just 14 points per game over that stretch . However , in his last 2 games , Paul George has flipped the script entirely and rattled off a pair of incredible offensive performances . Following Monday 's 36 - point performance in the Pacers ' loss to the Hornets , Paul George has now scored a combined 70 points over his last 2 games and did so while shooting a scorching 27 - of - 44 ( 61 percent ) from the field and 12 - of - 23 ( 52 percent ) from behind the arc . The performances from Paul George on Sunday and Monday were by far his best back - to - back shooting and scoring performances of the season .
+    };
+    \end{tikzpicture} }
+    \caption{\centering An example of a faulty summary. To illustrate how hard it is to tell even which teams played I purposely don't show the input table.} \label{faulty_summary}
 \end{figure}
 
 \subsection{Statistics of Transformed Dataset}
