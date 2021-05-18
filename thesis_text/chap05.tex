@@ -1,7 +1,7 @@
 \chapter{Experimental Set Up} \label{model_chapter}
-In this chapter I aim to clarify how I set up the neural network models for the experiments (which will be presented in the next chapter \ref{experiments_chapter}). Despite both datasets (WikiBIO, RotoWire) being created for modeling the same task (generation of text from structured data), I believe their characteristics are quite different (as shown in chapter about preprocessing \ref{chapPreproc}). Therefore I present different set of models used for each dataset. At first I present a \emph{baseline model}. Model, which is sufficiently competitive to be able to generate reasonable texts. Then I present changes to the architecture, which aim to improve the generation.
+In this chapter I aim to clarify how I set up the neural network models for the experiments (which will be discussed in the next chapter \ref{experiments_chapter}). At first I present a \emph{baseline model}. Model, which is sufficiently competitive to be able to generate reasonable texts. Then I present changes to the architecture, which aim to improve the generation.
 
-At first I try purely end-to-end approach by following the path set up by \citep{wiseman2017}. I create a baseline model, then improve it with the copy mechanism \ref{copy_mech_sec}. Next I choose to divide the task to \emph{content planning} and \emph{text generation} as proposed by \citep{puduppully2019datatotext}.
+I follow the path set up by \citep{wiseman2017}. I begin with purely end-to-end approach (Encoder-Decoder with attention).Next I try to improve it with the copy mechanism \ref{copy_mech_sec}. Next I choose to divide the task to \emph{content planning} and \emph{text generation} as proposed by \citep{puduppully2019datatotext}.
 
 \section{Truncated Backpropagation Through Time} \label{truncated_backprop_subsection}
 
@@ -9,7 +9,7 @@ It was really challenging to set up even the baseline model. Since the input seq
 
 Computing and updating gradient for each time-step of a sequence of 800 tokens has approximately the same cost as forward and backward pass in a feed-forward network that has 800 layers. \citep{williamsTBPTT} propose a less expensive method. Truncated Backpropagation Through Time (TBPTT) processes one time-step at a time, and every $t_1$ timesteps it runs BPTT for $t_2$ timesteps.
 
-My implementation of the algorithm cuts the original sequence of size $N$ to $( N - t_2 ) / t_1 + 1$ chunks (with possibly one more chunk if $(N - t_2)$ isn't divisible by $t_1$). Then I run \emph{"normal"} BPTT on the first chunk, keeping the hidden state of the network after $t_1$ steps. Then I fed in the hidden state as the initial state at the start of processing second chunk. Similarly afterwards.
+To illustrate my implementation of the algorithm, I show how I process an output sequence which is longer than 150 tokens. Let $t_1 = 50$, $t_2 = 100$. At first I let the network predict the first $100$ outputs and I keep the $50$-th hidden state of the decoder. Then I run the BPTT. Next the network (initialized with the hidden state from the $50$-th time-step) predicts positions $51$ to $150$, and again the BPTT is run. Similarly afterwards.
 
 \section{Baseline model} \label{sec_baseline_model_rotowire}
 
@@ -25,7 +25,7 @@ At first each feature is embedded to a fixed-dimensional space. Next the embeddi
 
 To create the initial state of the decoder, \citep{wiseman2017} calculated the mean of the records belonging to the particular entity and linearly transformed the concatenation of the means. (Simply, the concatenation is passed through \emph{tf.keras.la\-yers.Dense} without any activation function).
 
-To make the implementation simpler I observe that each player entity is represented by 22 records and each team entity by 15 records \ref{trans_in_tb_rw}.  Consequently I approximate the approach taken by \citep{wiseman2017} and mean pool over $\mathbf{e}$ with stride 22. (Which means that while means of players are exact, the team records are less than approximated) During my experiments I haven't seen any indication that this modification became the performance bottleneck of the model.
+To make the implementation simpler I observe that each player entity is represented by 22 records and each team entity by 15 records \ref{trans_in_tb_rw}.  Consequently I approximate the approach taken by \citep{wiseman2017} and mean pool over $\mathbf{e}$ with stride 22. (Which means that while means of players are exact, the means of team records are less than approximated) During my experiments I haven't seen any indication that this modification became the performance bottleneck of the model.
 
 \subsection{Decoder}
 
@@ -40,20 +40,20 @@ The model is trained end-to-end to minimize the cross-entropy loss (negative-log
 
 We use the \emph{teacher forcing} (as explained in section \ref{high-level_enc_dec_section}) during training and during the inference, we greedily approximate 
 \begin{equation}
-    \argmax_{\mathbf{\hat{y}}} p(\mathbf{\hat{y}} | \mathbf{s})
+    \mathbf{\hat{y}} = \argmax_{\mathbf{y'}} p(\mathbf{y'} | \mathbf{s})
 \end{equation}
 
 \begin{figure}[!h]
     \centering
-    \includegraphics[scale=0.18]{img/rotowire_baseline.jpg}
+    \includegraphics[scale=0.195]{img/rotowire_baseline.jpg}
     \footnotesize{\\ \textit{Note:} green cells are embedding layers, orange cells are feed-forward networks}
     \caption{\centering The Rotowire baseline model at the second time-step.} \label{rotowire_baseline_vis}
 \end{figure}
 
 \begin{figure}[!h]
     \centering
-    \includegraphics[scale=0.35]{img/rotowire_joint_copy.jpg}
-    \footnotesize{\\ \textit{Note:} green cells are embedding layers, orange cells are feed-forward networks \\ $\alpha$ is the alignment vector produced by the copy attention; $r$ is the input record.}
+    \includegraphics[scale=0.24]{img/rotowire_joint_copy.jpg}
+    \footnotesize{\\ \textit{Note:} green cells are embedding layers, orange cells are feed-forward networks \\ $\alpha$ is the alignment vector produced by the copy attention; $r_i.value$ is the value portion of the $i$-th input record.}
     \caption{\centering The Joint-Copy extension of the baseline model at second time-step.} \label{rotowire_joint_copy_vis}
 \end{figure}
 
@@ -61,13 +61,13 @@ We use the \emph{teacher forcing} (as explained in section \ref{high-level_enc_d
 
 In the previous chapter \ref{rare_word_problem}, I underlined \emph{hallucinations} as one of the problems of the Encoder-Decoder architecture. In the task on RotoWire dataset it basically means that during training, the model learns that it should put \emph{some number} at a specific place in the sentence. We would like it to generate the \emph{exact value}.
 
-Therefore as the next step I incorporate the \emph{Joint Copy mechanism} \citep{gu2016incorporating} (already described in \ref{copy_mech_sec}). The encoder rests intact, however in the decoder I use another attention module to point to specific record from the input table and a feed-forward network which models if the model should generate or copy.
+Therefore as the next step I incorporate the \emph{Joint Copy mechanism} \citep{gu2016incorporating}, \citep{yang2016referenceaware} (already described in \ref{copy_mech_sec}). The encoder rests intact, however in the decoder I use another attention module to point to specific record from the input table and a feed-forward network which models if the model should generate or copy.
 
 The generational path is the same as in the baseline model. In the copy path I use the alignment vector from the newly added attention as weights, to compute the weighted sum of the value portion of input records. The visualization can be seen in the figure \ref{rotowire_joint_copy_vis}.
 
 \section{Content Selection and Planning}
 
-Rather than training end-to-end, \citep{puduppully2019datatotext} suggest to divide the task to \emph{content planning} and \emph{text generation}. During the \emph{content planning} stage the model selects some records from the input table and organizes them to a \emph{content plan}. The \emph{content plan} describes "what to say, and in what order". During the \emph{text generation} stage, the model generates the text based on the records pointed to by the \emph{content plan}.
+Rather than training end-to-end, \citep{puduppully2019datatotext} suggest to divide the task to \emph{content planning} and \emph{text generation}. The \emph{content plan} describes "what to say, and in what order". During the \emph{content planning} stage the model selects some records from the input table and organizes them to a \emph{content plan}. During the \emph{text generation} stage, the model generates the text based on the records pointed to by the \emph{content plan}.
 
 Both tasks are modelled with \emph{the same} Encoder and with \emph{separate} Decoders.
 
@@ -93,11 +93,11 @@ The Encoder thus creates a sequence of \emph{context aware} representations $\{\
 
 \subsection{Content Planning} \label{content_planning_subsubsection}
 
-\citep{wiseman2017} experimented with conditional copy approach, in which the latent \emph{switch} probability isn't marginalized out. Hence, there exists pointer sequence for each summary in the train and validation dataset. The sequence corresponds to the order in which entities and values from the sequence of input records appear in the output summary. \citep{puduppully2019datatotext} suggested that instead of just modelling the switch probability, we can train a Decoder, which extracts these pointers from the original table.
+\citep{wiseman2017} experimented with conditional copy approach, in which the latent \emph{switch} probability isn't marginalized out. Hence, there exists pointer sequence for each summary in the train and validation dataset. The sequence corresponds to the order in which entities and values from the sequence of input records appear in the output summary. \citep{puduppully2019datatotext} suggested that instead of just modelling the switch probability, we can train a Decoder to extract these pointers from the original table.
 
-As suggested, the Decoder is a one layer LSTM which operates on the \emph{context aware} representations $\hat{\mathbf{r}}^{cs}$. Its hidden states are initialized with $avg(\{\hat{r}_t^{cs}\}_{t=1}^m)$. \citep{puduppully2019datatotext} haven't elaborated on the exact approach, hence it is probable that I have diverged a little bit from the intentions of original authors.
+As suggested, the Content Plan Decoder is a one layer LSTM which operates on the \emph{context aware} representations $\hat{\mathbf{r}}^{cs}$. Its hidden states are initialized with $avg(\{\hat{r}_t^{cs}\}_{t=1}^m)$. \citep{puduppully2019datatotext} haven't elaborated on the exact approach, hence it is probable that I have diverged a little bit from the intentions of original authors.
 
-The Decoder from the baseline model is trained to start the generation when it sees the \emph{\textless BOS\textgreater} token. Since the Content Plan Decoder operates on $\hat{\mathbf{r}}^{cs}$ I've choosen to prepend a special \emph{\textless BOS\textgreater} record to the sequence of input records, and also a pointer to the \emph{\textless BOS\textgreater} record is prepended to each content plan. Therefore instead of teaching the Content Plan Decoder to start generating content plan when seeing a special value, I teach it to do so when seeing \emph{the encoded representation of the special value}. The same approach is taken at the end, with the \emph{\textless EOS\textgreater} record.
+The Text Decoder is trained to start the generation when it sees the \emph{\textless BOS\textgreater} token. Since the Content Plan Decoder operates on $\hat{\mathbf{r}}^{cs}$ I've choosen to prepend a special \emph{\textless BOS\textgreater} record to the sequence of input records, and also a pointer to the \emph{\textless BOS\textgreater} record is prepended to each content plan. Therefore instead of teaching the Content Plan Decoder to start generating content plan when seeing a special value, I teach it to do so when seeing \emph{the encoded representation of the special value}. The same approach is taken at the end, with the \emph{\textless EOS\textgreater} record.
 
 \begin{table}
     \centering \small
