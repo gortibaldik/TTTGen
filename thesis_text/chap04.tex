@@ -4,7 +4,7 @@ To generate text from structured data I make use of deep neural networks. In pre
 The most common way to tackle the sequence to sequence problem is to use the Encoder-Decoder architecture proposed by \citep{sutskever2014sequence}. It is the main approach I used throughout this thesis. In this chapter I introduce the concepts behind the encoder-decoder architecture, its shortcomings (fixed vocabulary and thus problems with generation of words unseen during training, divergence and hallucinations) and ways to overcome these shortcomings (the attention mechanism, the copy mechanisms, the further transformations of input sequences). Since it is not the purpose of this work, only the basics of the concepts are presented, and I provide links to papers, books and tutorials which helped me on my path to understanding.
 
 \subsubsection{Notation}
-Many papers diverge on the notation and calling conventions of the architectures. Therefore I choosed to adopt the notation used in \emph{Tensorflow Keras API, version 2.x} \citep{tensorflow2015-whitepaper}. Specifically in the field of recurrencies it is discutable if the paper refers to \emph{tf.keras.layers.RNNCell} or to \emph{tf.keras.layers.RNN}. I believe that they can be used interchangeably in the context of this chapter, hence I (deliberately) choose the latter notation (\emph{without 'Cell'}).
+Many papers diverge on the notation and naming conventions of the architectures. Therefore I choosed to adopt the notation used in \emph{Tensorflow Keras API, version 2.x} \citep{tensorflow2015-whitepaper}. Specifically in the field of recurrencies it is discutable if the paper refers to \emph{tf.keras.layers.RNNCell} or to \emph{tf.keras.layers.RNN}. I believe that they can be used interchangeably in the context of this chapter, hence I (deliberately) choose the latter notation (\emph{without 'Cell'}).
 
 \subsubsection{A Note About Embeddings}
 
@@ -16,30 +16,31 @@ Proposed by \citep{sutskever2014sequence} the Encoder-Decoder is composed of 2 r
 
 \subsection{Recurrent Neural Network}
 
-Let $\mathbf{x}=(x^{(1)},\dots,x^{(t)})$ be the input. The standard Feed-Forward Network (\emph{tf.keras.layers.Dense}) has different set of weights for each input time-step $x^{(t)}$, therefore the number of time-steps of the input needs to be known in advance.
+Let $\boldsymbol{x}=(x^{(1)},\dots,x^{(t)})$ be the input. The standard Feed-Forward Network (\emph{tf.keras.layers.Dense}) has a different set of weights for each input time-step $x^{(t)}$, therefore the number of time-steps of the input needs to be known in advance.
 
 \begin{figure}[!h]
 \centering
-\begin{equation}
-y = activation(W\mathbf{x} + b)
-\end{equation}
 The Feed-Forward Neural Network
-\begin{align} \label{basic_rnn}
-\begin{split}
-    &h_t = f_h(x_t, h_{t-1}) \\
-    &y_t = h_t
-\end{split}
-\end{align}
-The Recurrent Neural Network \\
-\footnotesize{\textit{Note:} $h_t$ is the hidden state, and $y_t$ is the output at $t$-th timestep}
+\begin{equation}
+\boldsymbol{y} = activation(W\boldsymbol{x} + b) \mbox{}
+\end{equation}
 \end{figure}
 \interfootnotelinepenalty=10000
-On the contrary, the Recurrent Neural Network (RNN) \citep{rumelhart_rnn1988} (\emph{tf.keras.layers.SimpleRNN}) shares the same set of weights for each time-step and in addition it keeps a hidden state. At each time-step we update the hidden state and compute the output as in equation \ref{basic_rnn}. The computation can be visualized either as a loop, or as a feed-forward network with shared weights \ref{vis_rnn}.
+On the contrary, the Recurrent Neural Network (RNN) \citep{rumelhart_rnn1988} (\emph{tf.keras.layers.SimpleRNN}) shares the same set of weights between time-steps and in addition it keeps a hidden state. At each time-step the hidden state is updated and used to calculate the output as in equation \ref{basic_rnn}. The computation can be visualized either as a loop, or as a feed-forward network with shared weights \ref{vis_rnn}.
 
 
 \begin{figure}[!h]
-    \includegraphics[width=138mm, height=35.6mm]{img/RNN-unrolled.png}
-    \caption{Possible visualizations of RNN \citep{Olah2015}} \label{vis_rnn}
+    \centering
+    The Recurrent Neural Network
+    \begin{align} \label{basic_rnn}
+    \begin{split}
+        &h_t = f_h(x_t, h_{t-1}) \\
+        &y_t = f_t(h_t)
+    \end{split}
+    \end{align}
+    \footnotesize{\textit{Note:} $h_t$ is the hidden state; $y_t$ is the output at $t$-th timestep; tf.keras.layers.SimpleRNN uses $f_t = id$ as default.}
+    \includegraphics[width=121.41mm, height=41.4mm]{img/simple_rnn.jpg}
+    \caption{Visualizations of the RNN} \label{vis_rnn}
 \end{figure}
 
 The network is trained by back-propagation through time (BPPT) \citep{bpptWerbos1990}. It has been shown that the RNN suffers from vanishing / exploding gradient problems \citep{hochreiter1997}.\footnote{I believe that discussion about BPPT and exploding/vanishing gradient problems is beyond the scope of this work. Therefore I refer the reader craving for further explanation to \citep{Goodfellow-et-al-2016} and to referenced papers.} Which cause that either the RNN cannot learn anything or it is really unstable. These difficulties are adressed by more sophisticated architectures such as Gated Recurrent Unit\footnote{Although it is one of the most known architectures I used only LSTM for my experiments. } \citep{cho2014learning} or Long Short-Term Memory \citep{hochreiter1997}.
@@ -47,7 +48,7 @@ The network is trained by back-propagation through time (BPPT) \citep{bpptWerbos
 
 \subsection{Long Short-Term Memory}
 
-The Long Short-Term Memory (\emph{tf.ke\-ras.lay\-ers.LSTM}) addresses the problem of vanishing gradient. It does so by adding a special cell state for capturing long range context and a series of gating mechanisms. The latter update the cell state and regulate the flow of gradient through the network (as shown in figure \ref{lstm}). The more in-depth explanation can be found in \citep{Olah2015}.
+The Long Short-Term Memory (\emph{tf.ke\-ras.lay\-ers.LSTM}) addresses the vanishing gradient problem. It does so by adding a special cell state for capturing long range context and series of gating mechanisms. The latter update the cell state and regulate the flow of gradient through the network (as shown in figure \ref{lstm}). The more in-depth explanation can be found in \citep{Olah2015}.
 
 \begin{figure}[!ht]
     \begin{gather}
@@ -96,7 +97,7 @@ Despite having many advantages (variable length of the input and output sequence
 
 \subsubsection{Fixed-dimensional Representation of the Input Sequence} \label{fixed_repre_problem}
 
-It has been shown by \citep{cho2014properties} that the performance of the Encoder-Decoder architecture "suffers significantly from the length of sentences". \citep{bahdanau2016neural} hypothesize that it may be because all of the information from the source sequence is encoded to the fixed-dimensional vector. Both mentioned papers understand word \emph{"long"} as \emph{longer than 30 tokens}. From the chapter about the preprocessing \ref{chapPreproc}, we know that there are more than 40 records in the average input from the WikiBIO dataset and more than 300 records in the average input from the RotoWire dataset. Consequently this particular problem should be seen in our task. 
+It has been shown by \citep{cho2014properties} that the performance of the Encoder-Decoder architecture "suffers significantly from the length of sentences". \citep{bahdanau2016neural} hypothesize that it may be because all of the information from the source sequence is encoded to the fixed-dimensional vector. Both mentioned papers understand word \emph{"long"} as \emph{longer than 30 tokens}. From the chapter about the preprocessing \ref{chapPreproc}, we know that there are more than 300 records in the average input from the RotoWire dataset. Consequently this particular problem should be seen in our task. 
 
 \subsubsection{Rare-word Problem and Hallucinations} \label{rare_word_problem}
 
@@ -105,29 +106,32 @@ In the standard Encoder-Decoder, the output is a distribution over the output vo
 \begin{enumerate}
     \item It essentially means that e.g. words 'the' and 'Roberta' compete against each other, although one depends purely on the language skill (perhaps the next token after 'the' would be superlative) and the other one on the input sequence (which probably mentions some AI research).
     \item As pointed out by e.g. \citep{gulcehre2016pointing}, (although not on this particular example) word 'Roberta' occurs less frequently in the training data than the word 'the', thus it is "difficult to learn a good representation of the word, which results in poor performance"\footnote{The problem is called \emph{The Rare-Word Problem.}}
-    \item Networks tend to \emph{hallucinate} the facts. E.g. from the record \emph{\{type:transfor\-mer; value:GPT\}} network generates a sentence "The famous example of transformer architecture is BERT." To put it simply, the network knows it should talk about some transformer, therefore each word describing some kind of a transformer is somewhat probable, even if it wasn't seen in the actual input.
-    \item \emph{The softmax function} which is used for calculation of the distribution is computationally expensive. This doesn't matter in the task over the RotoWire dataset, where we see only about 11 300 words\footnote{The number before any preprocessing.}. However in WikiBIO task with more than 400 000 unique tokens it is simply unfeasible to compute the softmax.
+    \item Networks tend to \emph{hallucinate} the facts. E.g. from the record \emph{\{type:transfor\-mer; value:GPT\}} network generates a sentence "The famous example of transformer architecture is BERT." To put it simply, the network knows it should talk mention a transformer, therefore each word describing some kind of a transformer is somewhat probable, even if it wasn't seen in the actual input.
 \end{enumerate}
 
-I've already shown one way to overcome some of the issues in subsection \ref{bpeSection}. However in the section \ref{copy_mech_sec} I'll show how to get around these problems with a clever neural network architecture.
+I have already discussed how to increase the average frequency of a token to minimize the Rare-Word Problem through preprocessing (section \ref{bpeSection}). In the following sections I show the methods which handle hallucinations (section \ref{copy_mech_sec}).
 
 \section{Attention Mechanism}
 
-At first I show the Attention mechanism which should cope with the issue of fixed-dimensional representation of the input sequence \ref{fixed_repre_problem}. As stated by \citep{bahdanau2016neural} "The most important distinguishing feature of this approach from the basic encoder-decoder is that it does not attempt to encode a whole input sequence into a single fixed-length vector".
+The Attention mechanism should cope with the issue of fixed-dimensional representation of the input sequence \ref{fixed_repre_problem}. As stated by \citep{bahdanau2016neural} "The most important distinguishing feature of this approach from the basic encoder-decoder is that it does not attempt to encode a whole input sequence into a single fixed-length vector".
 
-The encoder is an recurrent neural network\footnote{From now on, I'll stick to refer to \emph{recurrent neural network} as to the neural network consisting of at least one \emph{tf.keras.layers.RNN} or relatives.}. From the overall architecture (figure \ref{enc_dec_visualization}) we can see that only the last hidden state of the encoder is used, although there are encoder outputs for each time-step. \citep{bahdanau2016neural} proposes an architecture which takes advantage of this simple observation. In my work I use a little refinement, proposed by \citep{luong2015effective}.\footnote{Since I don't experiment with the original Bahdanau attention, I only show the Luong's approach. \citep{luong2015effective} shows all the differences between his and Bahdanau's approach in section 3.1 of the paper.}
+The encoder is a recurrent neural network\footnote{From now on, I'll stick to refer to \emph{recurrent neural network} as to the neural network consisting of at least one \emph{tf.keras.layers.RNN} or relatives.}. From the overall architecture (figure \ref{enc_dec_visualization}) we can see that only the last hidden state of the encoder is used, although there are encoder outputs for each time-step. \citep{bahdanau2016neural} propose an architecture which takes advantage of this simple observation. In my work I use a little refinement, proposed by \citep{luong2015effective}.\footnote{Since I don't experiment with the original Bahdanau attention, I only show the Luong's approach. \citep{luong2015effective} shows all the differences between his and Bahdanau's approach in section 3.1 of the paper.}
 
 \subsection{Computation}
 
-The Attention mechanism calculates its outputs at each time-step. Let $\mathbf{s_t} = (s_{t,1},\dots,s_{t,m})$, which is called the \emph{score vector}. Its elements are computed using \emph{a score function} (which we will talk about below \ref{score_input_feeding}):
+Let's start with the description of the computation that produces the attention output.
+
+As stated previously, the Encoder encodes the input sequence to \emph{encoder outputs} $\boldsymbol{e} = (e_1, \dots, e_m)$ and the Decoder RNN is initialized with the last hidden state of the Encoder.
+
+Let $d_t$ be the output of the Decoder RNN at $t$-th time-step. At first we calculate the \emph{score vector} $\boldsymbol{s_t} = (s_{t,1},\dots,s_{t,m})$. Its elements are computed using \emph{a score function} (which we will talk about below \ref{score_input_feeding}):
 \begin{equation}
     s_{t,i} = score(e_i, d_t)
 \end{equation}
-$e_i$ are the outputs of the encoder and $d_t$ is the actual output of the decoder. According to \citep{bahdanau2016neural}, the alignment vector $\mathbf{a_t}$
+According to \citep{bahdanau2016neural}, the alignment vector $\boldsymbol{a_t}$
 \begin{equation}
-    \mathbf{a_t} = softmax(\mathbf{s_t})
+    \boldsymbol{a_t} = softmax(\boldsymbol{s_t})
 \end{equation}
-"scores how well the inputs around position $j$ and the output at position $i$ match". The weighted sum of the outputs of the encoder, is called a \emph{context vector} for time-step $t$.
+"scores how well the inputs around position $i$ and the output at position $t$ match". The weighted sum of the outputs of the encoder, is called a \emph{context vector} for time-step $t$.
 \begin{equation}
     c_t = \sum_{i=1}^m{a_{t,i}e_i}
 \end{equation}
@@ -146,12 +150,12 @@ score(e_i, d_t)\!=\!\begin{cases}
 \end{cases}
 \end{equation*}
 
-The same author also states that the fact that the attentional decisions are made independently is \emph{suboptimal}. Hence the \emph{Input Feeding} approach is proposed to allow the model to take into acount its previous decisions. It simply means that the next input is the concatenation $[y_t, att_t]$.
+The same author also states that the fact that the attentional decisions are made independently is \emph{suboptimal}. Hence the \emph{Input Feeding} approach is proposed to allow the model to take into acount its previous decisions. It simply means that the next input is the concatenation $[y_t, att_t]$ (as shown in figure \ref{input_feeding_attention}).
 
 \begin{figure}[!h]
     \centering
     \includegraphics[width=82.80mm, height=101.85mm]{img/att_luong.jpg}
-    \caption{\centering The Attention mechanism at the second time-step. Dotted line represents the input feeding approach.}
+    \caption{\centering The Attention mechanism at the second time-step. Dotted line represents the input feeding approach.} \label{input_feeding_attention}
 \end{figure}
 
 
@@ -160,23 +164,35 @@ The copy mechanism is a further extension of the attention mechanism. In this se
 
 \subsection{Pointer Networks}
 
-The Pointer networks \citep{vinyals2015pointer} leverage the fact that the alignment vector $\mathbf{a_t}$  can be seen as \emph{a pointer} to the input sequence. Consequently instead of computing the weighted sum (\emph{context vector}) and an MLP on top of that as the Attention models, they utilize the \emph{alignment vector} as an output.
+The Pointer networks \citep{vinyals2015pointer} leverage the fact that the alignment vector $\boldsymbol{a_t}$  can be seen as \emph{a pointer} to the input sequence. Consequently instead of computing the weighted sum (\emph{context vector}) and an MLP on top of that as the Attention models, they utilize the \emph{alignment vector} as an output.
 
 \subsection{Approaches to Copying}
 
-\citep{gulcehre2016pointing} notes that the ability to point is useless in the generation task if the network is always forced to point. Therefore they introduce a new switching network that outputs a binary variable $z_t$ , which models the probability of the required action being pointing or generating. \citep{yang2016referenceaware} propose similar approach but he marginalizes out the switch output $z_t$. Let $\mathbf{e} = (e_1, \dots, e_m)$ be the encoder outputs, $\mathbf{s} = (r_1, \dots, r_m)$ the sequence of input records, $d_t$ be the decoder output at the actual time-step, and $ATTN$ be the Attention as presented in the previous section. The predicted word is calculated as follows:
+\citep{gulcehre2016pointing} note that the ability to point is useless in the generation task if the network is always forced to point. Therefore they introduce a new switching network that outputs a binary variable $z_t$ , which models the probability of the required action being pointing or generating.
+
+Let $\boldsymbol{e} = (e_1, \dots, e_m)$ be the encoder outputs, $\boldsymbol{x} = (x_1, \dots, x_m)$ the input sequence, $d_t$ the output of the Decoder RNN at the actual time-step, and $ATTN$ the Attention as presented in the previous section.
+
+The probability of gold output $y_t$ and gold switch decision $z_t$ is decomposed to $p^{gen}(y_t|\boldsymbol{x})$ (the probability that $y_t$ should be generated), $p^{switch}(z_t|\boldsymbol{x})$ (the probability that we should copy) and $p^{copy\_pos}(y_t = x_i |\boldsymbol{x})$ (the probability that $y_t$ should be copied from the input position i).:
 \begin{gather}
-    \mathbf{a_t} = ATTN(\mathbf{e}, d_t) \\
-    p^{copy}(y_t | \mathbf{s}) = \mathbf{a_t} \\
-    \mathbf{c_t} = \sum_{i=1}^m{e_i * a_{t, i}} \\
-    p^{switch}(z_t | \mathbf{s}) = sigmoid(W_{switch}[\mathbf{c_t}, d_t]) \\
-    p^{gen}(y_t | \mathbf{s}) = softmax(W_{gen}[\mathbf{c_t}, d_t]) \\
-    p(y_t | \mathbf{s}) = p^{gen}(y_t | \mathbf{s})(1 - p^{switch}(1 | \mathbf{s})) + p^{copy}(y_t | \mathbf{s})p(1 | \mathbf{s})
+    \boldsymbol{a_t} = ATTN(\boldsymbol{e}, d_t) \\
+    p^{copy\_pos}(y_t = x_i | \boldsymbol{x}) = a_{t, i} \\
+    \boldsymbol{c_t} = \sum_{i=1}^m{e_i * a_{t, i}} \\
+    p^{switch}(z_t | \boldsymbol{s}) = sigmoid(W_{switch}[\boldsymbol{c_t}, d_t]) \\
+    p^{gen}(y_t | \boldsymbol{s}) = softmax(W_{gen}[\boldsymbol{c_t}, d_t])
 \end{gather}
 
-Since $p^{copy}(y_t)$ needs to be a distribution over the output vocabulary and in both tasks the output and the input vocabularies are the same, I compute the sum of \emph{the one-hot encoded inputs}, weighted by the alignment vector.
+\citep{gulcehre2016pointing} explicitly model each of these probabilities (therefore the targets contain 3 values for each time-step). \citep{yang2016referenceaware} marginalize out the switch probability $z_t$, and they model $p = p^{copy} * p^{switch} + p^{gen} * (1 - p^{switch})$.
+
+To be able to follow their path, I take the one-hot encoding of each input and compute the weighted sum:
 \begin{equation}
-    p^{copy}(y_t) = \sum_{i=1}^m{a_{t,i} * x_i}
+    p^{copy}(y_t|\boldsymbol{x}) = \sum_{i=1}^m{p^{copy\_pos}(y_t = x_i | \boldsymbol{x}) * x_i}
+\end{equation}
+
+Throughout our task the input and output vocabularies are shared, therefore the weighted sum of the inputs has the same dimensionality as the output generation distribution $p^{gen}$.
+
+Consequently, the probability of the gold output $y_t$ at time-step $t$ is computed as follows:
+\begin{equation}
+    p(y_t|\boldsymbol{x}) = p^{gen}(y_t|\boldsymbol{x})*(1-p^{switch}(1|\boldsymbol{x})) + p^{copy}(y_t|\boldsymbol{x})*p^{switch}(1|\boldsymbol{x})
 \end{equation}
 
 \begin{figure}[hb]
