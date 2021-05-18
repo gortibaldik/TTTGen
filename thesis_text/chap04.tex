@@ -6,7 +6,7 @@ The most common way to tackle the sequence to sequence problem is to use the Enc
 \subsubsection{Notation}
 Many papers diverge on the notation and naming conventions of the architectures. Therefore I choosed to adopt the notation used in \emph{Tensorflow Keras API, version 2.x} \citep{tensorflow2015-whitepaper}. Specifically in the field of recurrencies it is discutable if the paper refers to \emph{tf.keras.layers.RNNCell} or to \emph{tf.keras.layers.RNN}. I believe that they can be used interchangeably in the context of this chapter, hence I (deliberately) choose the latter notation (\emph{without 'Cell'}).
 
-\subsubsection{A Note About Embeddings} \label{subsubsection:embeddings}
+\subsubsection{A Note About Embeddings} \label{subsection:embeddings}
 
 An embedding is a low dimensional continuous representation of discrete variables\footnote{I took the sentence from the accepted answer on stack overflow as it is the best description I have found. It is the first and the last time I "cite" from stack overflow. Source : \url{https://datascience.stackexchange.com/questions/53995/what-does-embedding-mean-in-machine-learning}}. In this work I don't experiment with pretrained word embeddings, and I tune only the embedding-dimension hyperparameter, which adjusts the dimensionality of the trained continuous representation of the input.
 

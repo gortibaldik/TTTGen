@@ -1,6 +1,6 @@
-\chapter{Preprocessing and Statistics of the Datasets} \label{chapPreproc}
+\chapter{Preprocessing and Statistics of the Dataset} \label{chapPreproc}
 
-To generate text from structured data I choose the Deep Neural Networks and specifically the Encoder-Decoder (ED) neural architecture (section \ref{neural_nets_chapter}). The ED suited to process sequential one dimensional data, however we cope with two dimensional tables. In this chapter I describe how I handle the problem. In addition I further analyze the data and propose cleaning methods and reason about motivations for selected techniques.
+To generate text from structured data I choose the Deep Neural Networks and specifically the Encoder-Decoder (ED) neural architecture (section \ref{neural_nets_chapter}). The ED suited to process sequential one dimensional data, however we cope with two dimensional tables. In this chapter I present the statistics of the dataset \emph{before any preprocessing}. Next I elaborate about the methods of preprocessing and cleaning of the data. In the end I show the statistics of the dataset with all the transformations applied.
 
 \section{Transforming Tables to Records} \label{table_to_record_trans}
 
@@ -41,13 +41,9 @@ I use the same notation as \citep{liang-etal-2009-learning}. Table $\mathcal{T}$
     \caption{An example of records obtained by transforming table \ref{ex_seq_rec}} \label{ex_seq_rec}
 \end{figure}
 
-\section{RotoWire} \label{rotowire_preproc_section}
+\section{Dataset Statistics} \label{assumptions_ref}
 
-Firstly I present the statistics of the dataset \emph{before any preprocessing}. Next I elaborate about the methods of preprocessing and cleaning of the data. In the end I show the statistics of the dataset with all the transformations applied.
-
-\subsection{Dataset Statistics} \label{assumptions_ref}
-
-I believe that the challenges posed by the RotoWire dataset can be summarized in a set of statistics. In this subsection I want to present the most important ones to help reader to understand the nature of the problem. 
+I believe that the challenges posed by the RotoWire dataset can be summarized in a set of statistics. In this section I want to present the most important ones to help reader to understand the nature of the problem. 
 
 Firstly, the target summaries as well as the sequences of input records are really long compared to other datasets modelling the same task (e.g. WikiBIO \citep{lebret2016neural}, WeatherGOV \citep{liang-etal-2009-learning}, RoboCup \citep{chen2008robocup}).
 
@@ -57,7 +53,7 @@ Thirdly, there are many values which represent facts, e.g. values that cannot be
 
 The original dataset as prepared by \citep{wiseman2017}, is already divided to train (3398 samples), development (727 samples) and test (728 samples) sets. \emph{In the statistics presented below I state that there are only 3397 samples in the train set because one of the samples is the famous Lorem Ipsum template.}
 
-\subsubsection{Length-wise Statistics}
+\subsection{Length-wise Statistics}
 
 The input tables contain huge amount of information. 2 teams and up to 30 players participate in a match of basketball. After transformation to a sequence, a player is represented by 24 and a team by 15 records. The type field $r.type$ is the only trait distinguishing the team and player records. Table \ref{stats_tables_orig_rw} summarizes the length statistics of the input sequences. 
 
@@ -76,7 +72,7 @@ The input tables contain huge amount of information. 2 teams and up to 30 player
     \caption{Statistics of tables as used by \citep{wiseman2017}} \label{stats_tables_orig_rw}
 \end{table}
 
-There is much greater variance in the lengths of output summaries. The longest sequence of input records is 1.34 - times longer than the shortest one, while the factor between longest and shortest summaries is more than 5. The size of inputs and outputs places high memory and computation demands on the GPUs used for training, and needs a special treatment (as will be explained in section \ref{truncated_backprop_subsection}).
+There is much greater variance in the lengths of output summaries. The longest sequence of input records is 1.34 - times longer than the shortest one, while the factor between longest and shortest summaries is more than 5. The size of inputs and outputs places high memory and computation demands on the GPUs used for training, and needs a special treatment (as will be explained in section \ref{truncated_backprop_subsubsection}).
 
 \begin{table}[h!]
     \centering
@@ -94,7 +90,7 @@ There is much greater variance in the lengths of output summaries. The longest s
 \end{table}
 
 
-\subsubsection{Occurrences of Unique Tokens}
+\subsection{Occurrences of Unique Tokens}
 
 While the length of the inputs and the outputs increases computational demands, another common issue is the \emph{rare word problem}. If a token appears only sporadically in the train data, the generation system can't recognize how to use it. After discussions with my advisor I think it is reasonable to expect that the system should learn a good representation of a token if it appears at least 5 times in the train set.
 
@@ -146,19 +142,19 @@ In table \ref{stats_overlap_rw} we can see how many of the unique tokens learned
     \caption{Overlap of train dataset summaries and valid/test dataset summaries} \label{stats_overlap_rw}
 \end{table}
 
-\subsection{Transformations of Input Tables} \label{trans_in_tb_rw}
+\section{Transformations of Input Tables} \label{trans_in_tb_rw}
 
 Firstly I want to present what kind of data is stored in the input tables, and how it is preprocessed. After that I show the final format of a record which is fed to the generation system.
 
-\subsubsection{Tabular Types} \label{tabular_types_section}
+\subsection{Tabular Types} \label{tabular_types_section}
 
 There are 39 types (different headers of columns as discussed in section \ref{table_to_record_trans}). A type is associated to textual or integer value which describes either a team or an individual. There are only 7 types bound to textual values, out of which 2 are related to teams (\emph{TEAM-NAME}, \emph{TEAM-CITY}) and 5 to individuals (\emph{FIRST\_NA\-ME}$^*$, \emph{SE\-COND\_NAME}$^*$, \emph{PLAYER\_NAME}$^*$, \emph{START\_POSITION}$^*$, \emph{TEAM\_CI\-TY}$^*$)
 
-\subsubsection{Numerical values}
+\subsection{Numerical values}
 
 The other 32 types desribe absolute (\emph{TEAM-PTS}\footnote{Team Points}, \emph{FTM}\footnote{Number of converted free throws by an individual, \emph{"free throws made"}} \dots) or relative integer values (\emph{TEAM-FT\_PCT}, \emph{FT\_PCT}\footnote{\emph{team/player free throw percentage}}, \dots). During preprocessing no changes are made to any tabular numerical value\footnote{\citep{wiseman2017} already converted all the relative values to integers. I don't consider this as a preprocessing since only the converted values are available in the dataset.}.
 
-\subsubsection{Textual values} \label{trans_p_nms}
+\subsection{Textual values} \label{trans_p_nms}
 
 Regarding the textual values, I consider each as a single token. Since the names of teams are already one word long (with one exception needing a transformation \emph{Trail Blazers $\rightarrow$ Trail\_Blazers}) the transformation is rather trivial. The similar observation applies to names of cities (with 6 exceptions: \emph{Oklahoma\_City}, \emph{San\_Antonio}, \emph{New\_Orleans}, \emph{Los\_Angeles}, \emph{Golden\_State}, \emph{New\_York}), and start positions.
 
@@ -170,13 +166,13 @@ My approach is based on the idea that more dense data leads to easier learning p
 
 Consequently \emph{FIRST\_NAME} and \emph{SECOND\_NAME} records aren't needed anymore which results in another benefit, shorter inputs. (as there are 22 - 30 players involved in the match, the size of inputs becomes about 10 \% (44 - 60 records) shorter)
 
-\subsubsection{Entities}
+\subsection{Entities}
 
 The type information tells us what represents the number or text in the value field. However it is the entity field which brings together all the records describing the same player or team. Let's show an example of records about a star player, \emph{Stephen Curry}. His name is stored in a record of type \emph{PLAYER\_NAME}, and value \emph{Stephen\_Curry}. To link all the information about him together, each record has an entity field labelled \emph{Stephen\_Curry}. Similarly all the records of a team with \emph{TEAM\_NAME} : \emph{\textbf{A}} have the same entity field, \emph{\textbf{A}}.
 
 At last, we should notice that the overall team information is the union of the accumulated team stats (e.g. the number of points scored by all the players of a team) and the collection of statistics of the individuals playing for the team. Therefore the record also contains \emph{HOME/AWAY} field which brings together all the statistics about the home side and the away side.
 
-\subsubsection{Record Format}
+\subsection{Record Format}
 
 The records fed into the generation system contain the following fields:
 
@@ -205,15 +201,15 @@ The generation system should be able to understand the meaning of a record and s
     \caption{An example of a player and a team record.} \label{rotowire_record_example}
 \end{figure}
 
-\subsection{Preprocessing of Summaries}
+\section{Preprocessing of Summaries}
 
 I would like to reiterate that our motivation is to avoid the \emph{rare word problem} and to make copying words from the sequences of input records as easy as possible. Therefore we opt for methods which reduce the number of tokens, increase their average frequency (because the system couldn't learn the most sporadic ones anyway), and transform the tokens describing the tabular data to the same form as is used in the table (so copying is trivial).
 
-\subsubsection{Number Transformations} \label{num_trans_rw}
+\subsection{Number Transformations} \label{num_trans_rw}
 
 Just as \citep{wiseman2017} and \citep{puduppully2019datatotext}, we represent the numbers only by numerals. This preprocessing method partially fulfills both of our goals. Obviously it decreases the unique token count, but on top of that it makes copying easier. E. g. the sentence \emph{"Isaiah Thomas once again excelled , scoring 23 points, \textbf{three} assists and \textbf{three} rebounds."} is transformed to \emph{"Isaiah Thomas once again excelled , scoring 23 points, \textbf{3} assists and \textbf{3} rebounds."}. Under this setting, the network still has to learn the correspondence between record type and the summary token \emph{"AST"} $\cong$ \emph{"assists"} but without the need of linking \emph{"three"} to \emph{"3"} the connection of the phrase with record \emph{\{AST; 3; Isaiah\_Thomas; Home\}} should be much clearer. However we preserve the word \emph{"three"} when it forms a part of a basketball terminology (e.g. \emph{three pointer}) to differentiate between these different meanings of the word. The transformations are done with the help of the \emph{text2num} library\footnote{\url{https://github.com/allo-media/text2num}} which is also used by the authors cited above.
 
-\subsubsection{Player name transformations} \label{player_nm_trans_summary}
+\subsection{Player name transformations} \label{player_nm_trans_summary}
 
 The generation system should be able to create a summary of player's actions in the game based on the records describing his match-statistics. It is common that at first a player is mentioned by his full name (e.g. \emph{Stephen Curry}) and after that only by his second name (\emph{Curry}). Also more than 97 \% of all the players have exactly 2 names (first, last). This leaves out 17 players with longer names the most extreme case being \emph{Luc Richard Mbah a Moute}, who is represented in the whole dataset by 6 different combinations of ellipsis in his name.
 
@@ -246,21 +242,21 @@ At first we gather all the player names from the input tables. The transformatio
     \caption{Example of transformation of player names leveraging the knowledge of players on the rosters as well as of all players from the train set.} \label{cmp_original_vs_mine}
 \end{figure}
 
-\subsection{Vocabularies}
+\section{Vocabularies}
 
-During preprocessing we collect the vocabulary of all the words from the training set. Each token is represented as an index to the vocab. This representation is fed to the initial layers of the neural network (embedding layers which will be discussed in section \ref{subsubsection:embeddings}). Therefore the network learns to process only the tokens belonging to the vocabulary and no new tokens can be introduced during inference.
+During preprocessing we collect the vocabulary of all the words from the training set. Each token is represented as an index to the vocab. This representation is fed to the initial layers of the neural network (embedding layers which will be discussed in section \ref{subsection:embeddings}). Therefore the network learns to process only the tokens belonging to the vocabulary and no new tokens can be introduced during inference.
 
 We collect 3 different vocabularies, one for record types, one for home/away flags and one for all the entities, number values and tokens from the summaries.
 
-\subsection{Byte Pair Encoding} \label{bpeSection}
+\section{Byte Pair Encoding} \label{bpeSection}
 
 The Byte Pair Encoding (BPE) \citep{sennrich2016} is a method of preprocessing of a text. It was developed to enable the Neural Machine Translation models to operate on subword units. It allows them to generate and accept sequences of subwords and thus handle words unseen during training. (E.g. there are words 'high', 'low', 'lower' in the training dataset, therefore under regular setting the network couldn't be able to generate or process word 'higher'. When operating on subwords 'high', 'low', 'er' this isn't an issue anymore since the network can learn to chain subwords 'high', 'er' to form the word unseen during training.)
 
 Since in NBA there is a fixed set of cities, teams and players (only about 10 players from development and 10 from test set were unknown from training) this isn't our main concern. However we can use the BPE to lower the size of the summary token vocabulary (E.g. looking at the previous example, even if the word 'higher' had been a part of the input vocabulary, the vocabulary of subwords would have still contained only subwords 'high', 'low', 'er'.) Thus the average frequency of a token increases as well as the generational capacity of the network.
 
-In this subsection I begin with a short explanation of the algorithm and conclude with the statistics of the fully transformed dataset.
+In this section I begin with a short explanation of the algorithm and conclude with the statistics of the fully transformed dataset.
 
-\subsubsection{Algorithm}
+\subsection{Algorithm}
 
 I use the implementation of the algorithm from the authors of the BPE paper\footnote{\url{https://github.com/rsennrich/subword-nmt}}, which is also downloadable as a standalone python package. The idea is to divide each token from the train set to characters, and add them to the \emph{symbol vocabulary}. Iterating over the text each time we merge together the most common pair of succeeding characters to create a new symbol. The symbol is added to the vocabulary and each occurrence of the pair is substitued by it. At the end (after $N$ iterations, where $N$ is the hyperparameter of the algorithm), the symbol vocabulary contains all the characters and newly created symbols.
 
@@ -268,7 +264,7 @@ In practice it is more efficient to create a token vocabulary (tokens are weigh\
 
 At the test time the text is divided to characters and the longest subsequences of characters appearing in the symbol vocabulary are transformed to the corresponding symbol.
 
-\subsubsection{Application}
+\subsection{Application}
 
 As stated previously, the BPE should transform the output summaries to a sequence of subwords. However, in certain situations it may be contraproductive. E.g. it may make copying harder by dividing single-token player name to multiple tokens. Therefore I apply the BPE to all the tokens except the ones which correspond to player/city/team names and numerical values. We set the number of iterations to 2000, which means that the overall vocabulary contains around 2800 tokens (there is about 700 players, 29 cities and 30 teams). An example of the final appearance of a summary after all the transformations mentioned in the chapter can be seen in figure \ref{ex_sum_final}. 
 
@@ -284,7 +280,7 @@ As stated previously, the BPE should transform the output summaries to a sequenc
     \caption{\centering A part of transformed summary corresponding to the sample from figure \ref{fig:samplesummary}. $\star$ is used to mark that the following token formed the same word in the original text. Note that in the original implementation @@ is used instead.} \label{ex_sum_final}
 \end{figure}
 
-\subsection{Cleaning} \label{cleaning_section}
+\section{Cleaning} \label{cleaning_section}
 
 During implementation of the Content Planning approach (discussed in section \ref{content_planning_subsubsection}) I found out that the authors of the method, \citep{puduppully2019datatotext}, have used only subset of training and validation data. They removed all the pairs summary-table where the "gold" summary contained information which wasn't linked to the input table. Figure \ref{faulty_summary} shows an example of such a summary.
 
@@ -306,9 +302,9 @@ There exist datasets based on RotoWire, which contain cleaner data and summaries
     \caption{\centering An example of a faulty summary. To illustrate how hard it is to tell even which teams played I purposely don't show the input table.} \label{faulty_summary}
 \end{figure}
 
-\subsection{Statistics of Transformed Dataset}
+\section{Statistics of Transformed Dataset}
 
-In this subsection I want to summarize all the transformations applied to the summaries and tables and present the statistics of the summaries after transformations.
+In this section I want to summarize all the transformations applied to the summaries and tables and present the statistics of the summaries after transformations.
 
 At first we converted all the tokens in the value and entity fields of a record to a single token. Next we transformed all the numerical values in the summaries to numerals and all the player names to a single token to allow direct copying from the input records. At the end we applied the Byte Pair Encoding to all the remaining tokens to decrease the overall number of tokens and increase the average frequency of a token.
 
