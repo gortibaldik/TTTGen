@@ -1,23 +1,21 @@
-\chapter{Models} \label{model_chapter}
+\chapter{Experimental Set Up} \label{model_chapter}
 In this chapter I aim to clarify how I set up the neural network models for the experiments (which will be presented in the next chapter \ref{experiments_chapter}). Despite both datasets (WikiBIO, RotoWire) being created for modeling the same task (generation of text from structured data), I believe their characteristics are quite different (as shown in chapter about preprocessing \ref{chapPreproc}). Therefore I present different set of models used for each dataset. At first I present a \emph{baseline model}. Model, which is sufficiently competitive to be able to generate reasonable texts. Then I present changes to the architecture, which aim to improve the generation.
-
-\section{Rotowire}
 
 At first I try purely end-to-end approach by following the path set up by \citep{wiseman2017}. I create a baseline model, then improve it with the copy mechanism \ref{copy_mech_sec}. Next I choose to divide the task to \emph{content planning} and \emph{text generation} as proposed by \citep{puduppully2019datatotext}.
 
-\subsection{Truncated Backpropagation Through Time} \label{truncated_backprop_subsection}
+\section{Truncated Backpropagation Through Time} \label{truncated_backprop_subsection}
 
 It was really challenging to set up even the baseline model. Since the input sequences are about 600 records long and output sequences are more than 300 tokens in average (and the outputs are padded with \emph{\textless PAD\textgreater} token to approximately 800 tokens), it wasn't possible to fit the model into the GPU memory. (The GPUs at \url{https://aic.ufal.mff.cuni.cz} have about 8GBs of memory\footnote{The exact GPU used on AIC cluster is NVIDIA GeForce GTX 1080})
 
-Computing and updating gradient for each time-step of a sequence of 800 tokens has approximately the same cost as forward and backward pass in a feed-forward network that has 800 layers. \citep{williamsTBPTT} proposes a less expensive method. Truncated Backpropagation Through Time (TBPTT) processes one time-step at a time, and every $t_1$ timesteps it runs BPTT for $t_2$ timesteps.
+Computing and updating gradient for each time-step of a sequence of 800 tokens has approximately the same cost as forward and backward pass in a feed-forward network that has 800 layers. \citep{williamsTBPTT} propose a less expensive method. Truncated Backpropagation Through Time (TBPTT) processes one time-step at a time, and every $t_1$ timesteps it runs BPTT for $t_2$ timesteps.
 
 My implementation of the algorithm cuts the original sequence of size $N$ to $( N - t_2 ) / t_1 + 1$ chunks (with possibly one more chunk if $(N - t_2)$ isn't divisible by $t_1$). Then I run \emph{"normal"} BPTT on the first chunk, keeping the hidden state of the network after $t_1$ steps. Then I fed in the hidden state as the initial state at the start of processing second chunk. Similarly afterwards.
 
-\subsection{Baseline model} \label{sec_baseline_model_rotowire}
+\section{Baseline model} \label{sec_baseline_model_rotowire}
 
 I use a non-recurrent Encoder and a two-layer LSTM decoder with Luong-style attention as the baseline model. At first I present how the encoding of input records works, then I talk about the text generation. I highlight all the differences between my approach and the one taken by \citep{wiseman2017}. The visualization of the model is shown in the figure \ref{rotowire_baseline_vis}.
 
-\subsubsection{Encoder}
+\subsection{Encoder}
 
 The Encoder should process the input records created from the input table (section \ref{table_to_record_trans}) to create the partial outputs at each time-step and the initial hidden state for the Decoder.
 
@@ -29,11 +27,11 @@ To create the initial state of the decoder, \citep{wiseman2017} calculated the m
 
 To make the implementation simpler I observe that each player entity is represented by 22 records and each team entity by 15 records \ref{trans_in_tb_rw}.  Consequently I approximate the approach taken by \citep{wiseman2017} and mean pool over $\mathbf{e}$ with stride 22. (Which means that while means of players are exact, the team records are less than approximated) During my experiments I haven't seen any indication that this modification became the performance bottleneck of the model.
 
-\subsubsection{Decoder}
+\subsection{Decoder}
 
 The Decoder is a 2-layer LSTM network with attention mechanism. The LSTMs are initialized with states prepared in the previous section. I opted to use the Luong style attention with input feeding \citep{luong2015effective}. I described in section \ref{score_input_feeding} that we use the concatenation of the last attentional decision and the last gold output as the actual input to the first layer of LSTMs. However at the first time-step, when the input is the \emph{\textless BOS\textgreater} token, there is no \emph{last attentional decision}. Hence for this purpose I use one of the initial states prepared by the Encoder.
 
-\subsubsection{Training and Inference}
+\subsection{Training and Inference}
 
 The model is trained end-to-end to minimize the cross-entropy loss (negative-log likelihood) of the gold output summary $\mathbf{y}$ given the sequence of input records $\mathbf{s}$.
 \begin{equation}
@@ -59,7 +57,7 @@ We use the \emph{teacher forcing} (as explained in section \ref{high-level_enc_d
     \caption{\centering The Joint-Copy extension of the baseline model at second time-step.} \label{rotowire_joint_copy_vis}
 \end{figure}
 
-\subsection{Improving the Baseline with Copy Mechanisms}
+\section{Improving the Baseline with Copy Mechanisms}
 
 In the previous chapter \ref{rare_word_problem}, I underlined \emph{hallucinations} as one of the problems of the Encoder-Decoder architecture. In the task on RotoWire dataset it basically means that during training, the model learns that it should put \emph{some number} at a specific place in the sentence. We would like it to generate the \emph{exact value}.
 
@@ -67,13 +65,13 @@ Therefore as the next step I incorporate the \emph{Joint Copy mechanism} \citep{
 
 The generational path is the same as in the baseline model. In the copy path I use the alignment vector from the newly added attention as weights, to compute the weighted sum of the value portion of input records. The visualization can be seen in the figure \ref{rotowire_joint_copy_vis}.
 
-\subsection{Content Selection and Planning}
+\section{Content Selection and Planning}
 
 Rather than training end-to-end, \citep{puduppully2019datatotext} suggest to divide the task to \emph{content planning} and \emph{text generation}. During the \emph{content planning} stage the model selects some records from the input table and organizes them to a \emph{content plan}. The \emph{content plan} describes "what to say, and in what order". During the \emph{text generation} stage, the model generates the text based on the records pointed to by the \emph{content plan}.
 
 Both tasks are modelled with \emph{the same} Encoder and with \emph{separate} Decoders.
 
-\subsubsection{Content Selection}
+\subsection{Content Selection}
 
 \citep{puduppully2019datatotext} improves the baseline encoder by incorporating \emph{context awareness}. At first the input records are encoded in the same way as in the baseline model \ref{sec_baseline_model_rotowire}, the self-attention is used to model the "importance vis-a-vis other records in the table".
 
@@ -93,7 +91,7 @@ The Encoder thus creates a sequence of \emph{context aware} representations $\{\
     \caption{Content Selection mechanism (image is directly from \citep{puduppully2019datatotext})} \label{content_selection_pudupully}
 \end{figure}
 
-\subsubsection{Content Planning} \label{content_planning_subsubsection}
+\subsection{Content Planning} \label{content_planning_subsubsection}
 
 \citep{wiseman2017} experimented with conditional copy approach, in which the latent \emph{switch} probability isn't marginalized out. Hence, there exists pointer sequence for each summary in the train and validation dataset. The sequence corresponds to the order in which entities and values from the sequence of input records appear in the output summary. \citep{puduppully2019datatotext} suggested that instead of just modelling the switch probability, we can train a Decoder, which extracts these pointers from the original table.
 
@@ -101,7 +99,7 @@ As suggested, the Decoder is a one layer LSTM which operates on the \emph{contex
 
 The Decoder from the baseline model is trained to start the generation when it sees the \emph{\textless BOS\textgreater} token. Since the Content Plan Decoder operates on $\hat{\mathbf{r}}^{cs}$ I've choosen to prepend a special \emph{\textless BOS\textgreater} record to the sequence of input records, and also a pointer to the \emph{\textless BOS\textgreater} record is prepended to each content plan. Therefore instead of teaching the Content Plan Decoder to start generating content plan when seeing a special value, I teach it to do so when seeing \emph{the encoded representation of the special value}. The same approach is taken at the end, with the \emph{\textless EOS\textgreater} record.
 
-\begin{table}[]
+\begin{table}
     \centering \small
     \begin{tabular}{llll}
         \toprule
