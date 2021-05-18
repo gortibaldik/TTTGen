@@ -7,8 +7,16 @@ print_info() {
   echo -n "number of tokens with more than five occurrences: "
   grep -nh '5$' "${file}" | tail -1 | cut -f1 -d:
 }
-
+# initialization of all the settable attributes to ""
+# just to be sure they aren't set
+content_plan=""
+format=""
+npy=""
+to_txt=""
+tfrecord=""
 advanced_transformations=""
+
+# positional arguments
 rotowire_dir=$3
 out_dir=$2
 num_merges=$1
@@ -28,6 +36,8 @@ while :; do
         --adv) advanced_transformations="SET"
         ;;
         --content_plan) content_plan="SET"
+        ;;
+        --order_records) order_records="SET"
         ;;
         *) break
     esac
@@ -162,6 +172,10 @@ if [ ! -z "${content_plan}" ]; then
                         "${rotowire_dir}/content_plans/valid.txt" >> "${file_name}"
 fi
 
+if [ ! -z "${order_records}" ]; then
+  script="${script} --order_records"
+fi
+
 if [ ! -d "${dataset_dir}" ]; then
   mkdir "${dataset_dir}"
 fi
@@ -175,7 +189,6 @@ echo "cleaning"
 rm "${out_dir}/tmp_vocab.txt"
 for f in "train" "valid" "test"
 do
-  rm "${out_dir}/${f}_pfa.txt"
   rm "${out_dir}/${f}_pfbpe_vocab_${num_merges}.txt"
 done
 echo "done"

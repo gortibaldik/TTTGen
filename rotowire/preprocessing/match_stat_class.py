@@ -24,21 +24,31 @@ class MatchStat:
                 , cell_dict : OccurrenceDict = _placeholder_dict
                 , word_dict : OccurrenceDict = None
                 , process_summary : bool = True
-                , words_limit : int = None):
+                , words_limit : int = None
+                , order_records : bool = False):
         dct = EnumDict(match_dict)
         if not self._is_summary_valid(dct):
             return
         home_city = dct[MatchStatEntries.home_city]
         vis_city = dct[MatchStatEntries.vis_city]
-        self.box_score = BoxScore(
-            dct[MatchStatEntries.box_score], home_city, vis_city, player_dict, cell_dict
-        )
-        self.home_line = LineScore(
-            dct[MatchStatEntries.home_line], home_city, vis_city, city_dict, team_name_dict, cell_dict
-        )
-        self.vis_line = LineScore(
-            dct[MatchStatEntries.vis_line], home_city, vis_city, city_dict, team_name_dict, cell_dict
-        )
+        self.box_score = BoxScore( dct[MatchStatEntries.box_score]
+                                 , home_city
+                                 , vis_city
+                                 , player_dict
+                                 , cell_dict
+                                 , order_records=order_records)
+        self.home_line = LineScore( dct[MatchStatEntries.home_line]
+                                  , home_city
+                                  , vis_city
+                                  , city_dict
+                                  , team_name_dict
+                                  , cell_dict)
+        self.vis_line = LineScore( dct[MatchStatEntries.vis_line]
+                                 , home_city
+                                 , vis_city
+                                 , city_dict
+                                 , team_name_dict
+                                 , cell_dict)
         self.home_name = dct[MatchStatEntries.home_name]
         self.vis_name = dct[MatchStatEntries.vis_name]
         od = OccurrenceDict()
@@ -46,8 +56,12 @@ class MatchStat:
         eos_value = od.get_eos()
         bos_record = Record(bos_value, bos_value, bos_value, bos_value)
         eos_record = Record(eos_value, eos_value, eos_value, eos_value)
-        self.records = [bos_record, eos_record] + self.box_score.records +\
-            self.home_line.records + self.vis_line.records
+        if order_records:
+            self.records = [bos_record, eos_record] + self.home_line.records +\
+                self.vis_line.records + self.box_score.records    
+        else:
+            self.records = [bos_record, eos_record] + self.box_score.records +\
+                self.home_line.records + self.vis_line.records
         if process_summary:
             self.summary = Summary( dct[MatchStatEntries.summary]
                                   , word_dict

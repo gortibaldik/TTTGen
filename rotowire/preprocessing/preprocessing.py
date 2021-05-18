@@ -505,8 +505,7 @@ def _main():
     if args.activity == _extract_activity_descr:
         output_paths, all_named_entities, cell_dict_overall, max_table_length = _prepare_for_extract(args, set_names)
     elif args.activity == _create_dataset_descr:
-        input_paths, output_paths, total_vocab, max_table_length, \
-            max_summary_length, max_plan_length = create_prepare(args, set_names, input_paths)
+        input_paths, output_paths, create_dataset_kwargs = create_prepare(args, set_names, input_paths)
     elif args.activity == _gather_stats_descr:
         output_paths = set_names
 
@@ -540,15 +539,10 @@ def _main():
             else:
                 gather_json_stats(input_path, logger, train_dict, transform_player_names=args.transform_players)
         elif args.activity == _create_dataset_descr:
-            create_dataset(
-                input_path,
-                output_path,
-                total_vocab,
-                max_plan_length=max_plan_length,
-                max_summary_length=max_summary_length,
-                max_table_length=max_table_length,
-                logger=logger
-            )
+            create_dataset( input_path
+                          , output_path
+                          , logger=logger
+                          , **create_dataset_kwargs)
 
     if args.activity == _extract_activity_descr and args.entity_vocab_path is not None:
         all_named_entities.sort().save(args.entity_vocab_path)

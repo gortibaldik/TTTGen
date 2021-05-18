@@ -15,7 +15,8 @@ class BoxScore:
                 , home_city
                 , away_city
                 , player_dict
-                , cell_dict):
+                , cell_dict
+                , order_records=False):
         """
         Creates the records from the BoxScore
         BoxScore contains information about all the players, their stats, which team they're part of
@@ -26,14 +27,25 @@ class BoxScore:
         self._dct.pop(BoxScoreEntries.first_name)
         self._dct.pop(BoxScoreEntries.second_name)
         self._records = []
+        pts_rec_pairs = []
 
         for player_number in self.get_player_numbers(self._dct):
-            self._records += self.extract_player_info( player_number
-                                                     , self._dct
-                                                     , home_city
-                                                     , away_city
-                                                     , player_dict
-                                                     , cell_dict)
+            player_pts, player_records = self.extract_player_info( player_number
+                                                                 , self._dct
+                                                                 , home_city
+                                                                 , away_city
+                                                                 , player_dict
+                                                                 , cell_dict)
+            # the ordering is postponed until all the players are processed                             
+            if order_records:
+                pts_rec_pairs.append((player_pts, player_records))
+            else:
+                self._records += player_records
+        
+        # we order the players by their point totals during the matches
+        if order_records:
+            for _, rec in sorted(pts_rec_pairs, key=lambda x: x[0], reverse=True):
+                self._records += rec
 
     @staticmethod
     def get_player_numbers(dct : EnumDict):
@@ -59,6 +71,8 @@ class BoxScore:
         # Lakers and Clippers
         dct.mapmap(BoxScoreEntries.team_city, player_number, transform_city_name)
         dct[BoxScoreEntries.player_name][player_number] = player_name
+        points_scored_str = dct[BoxScoreEntries.pts][player_number]
+        points_scored = 0 if points_scored_str == "N/A" else int(points_scored_str)
 
         for key in dct.keys():
             value = "_".join(dct[BoxScoreEntries(key)][player_number].strip().split())
@@ -71,7 +85,7 @@ class BoxScore:
                     home_away
                 )
             )
-        return records
+        return (points_scored, records)
 
     @property
     def records(self):

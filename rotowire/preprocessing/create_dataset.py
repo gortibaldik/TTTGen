@@ -26,6 +26,12 @@ def create_dataset_parser(subparsers):
         required=True
     )
     create_dataset_parser.add_argument(
+        '--order_records',
+        action='store_true',
+        help="If true, the input tables will contain teams in the first records and players" +\
+                "sorted by their point totals"
+    )
+    create_dataset_parser.add_argument(
         '--content_plans_dir',
         help="path to directory with content plans created by Puduppully et al. 2019",
         type=str,
@@ -101,14 +107,18 @@ def create_prepare(args, set_names, input_paths):
     if args.content_plans_dir is not None:
         with open(os.path.join(args.content_plans_dir, "config.txt"), 'r') as f:
             mlcp = int(f.read().strip().split('\n')[0])
-    return input_paths, output_paths, tk_vocab, mlt, mls, mlcp
+    return input_paths, output_paths, { "tk_vocab": tk_vocab
+                                      , "mlt": mlt
+                                      , "mls": mls
+                                      , "mlcp": mlcp
+                                      , "order_records": args.order_records }
 
 def create_content_plan_ids( content_plan_path
-                           , max_plan_length
+                           , mlcp
                            , pad_value
                            , tables
                            , logger):
-    plan_ids = np.full(shape=(len(tables), max_plan_length), fill_value=pad_value, dtype=np.int16)
+    plan_ids = np.full(shape=(len(tables), mlcp), fill_value=pad_value, dtype=np.int16)
     with open(content_plan_path, 'r', encoding='utf8') as f:
         logger(f"Working with {content_plan_path}")
         lines = f.read().strip().split('\n')
@@ -236,18 +246,20 @@ class UnkStat:
         return self._unk_token
 
 
-def create_dataset( in_paths
-                  , out_paths : str
+def create_dataset( input_paths
+                  , output_paths
                   , tk_vocab
-                  , max_plan_length
-                  , max_summary_length
-                  , max_table_length
+                  , mlcp # max length content plan
+                  , mls # max length summary
+                  , mlt # max length table
+                  , order_records
                   , logger):
-    summary_path, json_path, cplan_path = in_paths
+    summary_path, json_path, cplan_path = input_paths
 
     tables = [ m.records for m in extract_matches_from_json( json_path
                                                            , word_dict=None
-                                                           , process_summary=False)]
+                                                           , process_summary=False
+                                                           , order_records=order_records)]
 
     with open(summary_path, 'r') as f:
         file_content = f.read().strip().split('\n')
@@ -272,14 +284,14 @@ def create_dataset( in_paths
     cplan_ids = None
     if cplan_path is not None:
         cplan_ids = create_content_plan_ids( cplan_path
-                                           , max_plan_length
+                                           , mlcp
                                            , pad_value
                                            , tables
                                            , logger)
 
-    np_in = np.full(shape=[len(tables), 4, max_table_length], fill_value=pad_value, dtype=np.int16)
+    np_in = np.full(shape=[len(tables), 4, mlt], fill_value=pad_value, dtype=np.int16)
     # add space for special tokens
-    np_target = np.full(shape=[len(tables), max_summary_length + 2], fill_value=pad_value, dtype=np.int16)
+    np_target = np.full(shape=[len(tables), mls + 2], fill_value=pad_value, dtype=np.int16)
     unk_stat = UnkStat(tk_vocab)
 
     for m_ix, (table, summary) in enumerate(zip(tables, summaries)):
@@ -300,30 +312,30 @@ def create_dataset( in_paths
                                                       , unk_stat)
         np_target[m_ix, len(summary_tokens) + 1]  = tk_to_ix[tp_vocab.get_eos()]
     
-    logger(f"{out_paths[0]} : {unk_stat.get_unk_stat()} tokens assigned for OOV words")
+    logger(f"{output_paths[0]} : {unk_stat.get_unk_stat()} tokens assigned for OOV words")
 
-    extension = os.path.splitext(out_paths[0])[1]
+    extension = os.path.splitext(output_paths[0])[1]
     if extension == ".txt":
         save_np_to_txt( np_in
                       , np_target
                       , cplan_ids
-                      , out_paths
+                      , output_paths
                       , logger
                       , summary_path
                       , json_path)
     elif extension == ".npy":
-        logger(f"summaries {summary_path} -> {out_paths[1]}")
-        logger(f"tables {json_path} -> {out_paths[0]}")
+        logger(f"summaries {summary_path} -> {output_paths[1]}")
+        logger(f"tables {json_path} -> {output_paths[0]}")
         logger("--- saving to .npy")
-        np.save(out_paths[0], np_in)
-        np.save(out_paths[1], np_target)
+        np.save(output_paths[0], np_in)
+        np.save(output_paths[1], np_target)
         if cplan_ids is not None:
-            np.save(out_paths[2], cplan_ids)
+            np.save(output_paths[2], cplan_ids)
     elif extension == ".tfrecord":
         save_np_to_tfrecord( np_in
                            , np_target
                            , cplan_ids
-                           , out_paths[0]
+                           , output_paths[0]
                            , logger
                            , summary_path
                            , json_path)
