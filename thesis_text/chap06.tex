@@ -1,28 +1,42 @@
 \chapter{Experiments} \label{experiments_chapter}
-Firstly I would like to elaborate on the selection of the hyperparameters. Then I present few of the generated biographies (based on the input infoboxes from WikiBIO dataset) and some generated summaries (based on the input tables from RotoWire dataset).
 
-\section{Development Methods}
+In the previous chapters I have presented the dataset (chapter \ref{chapter:data}), and discussed challenges which arise from its properties (chapter \ref{chapPreproc}). Next I described the neural network architectures (chapter \ref{neural_nets_chapter}) which served as building blocks for the models introduced in chapter \ref{model_chapter}. Now I want to connect all the parts together, elaborate on the trainining of the models and analyze their results.
 
-At first I want to talk about the methods taken to find the best hyperparameter settings during the development of models.
+Let me recap the main challenges we face, and hypothesize about the ideal generation system. Firstly, the target summaries are really long. The ideal system should remember what has already been generated and shouldn't produce duplications. Secondly, the targets contain a lot of facts based on the input structured data. The ideal system should copy these facts from the input and reduce \emph{hallucinations}. Lastly, the generated text should be as close to English as possible \emph{while meeting the requirements described previously}.
 
-To avoid the famous underfitting and overfitting problems (more in section 5.2 in \citep{Goodfellow-et-al-2016}), I use the validation (development) part of the respective dataset 
-\section{BLEU}
-What it is, why do I use such a metric for evaluating the data.
+\section{Evaluation Methods}
 
-\section{Manual evaluation}
-How the summaries for manual evaluation are chosen, how many people do evaluate the predicted summaries.
+During evaluation I want to measure which model resembles the hypothetical ideal model the most. To do so, I report the BLEU score \citep{papineni2002} of the generated summaries on the development and test sets. Although it is the gold standard, there are many people arguing against its usage as a performance metric \citep{celikyilmaz2021evaluation}, and I found that the networks producing more factually correct statements doesn't score better. Therefore I also manually evaluate a subset of the generated summaries. I focus on the factual correctness, the reduplications and inter-sentential coherence. (If two sentences in the generated summary doesn't contradict each other)
 
-\section{Other evaluation approaches}
-Which approaches are presented in the read papers, which improvements should be made.
+\citep{wiseman2017} proposed three custom automated metrics to evaluate the performance of their models. They call them \emph{Content Selection} ("how well the generated document matches the gold document in terms of selecting which records to generate"), \emph{Relation Generation} ("how well the system is able to generate text containing factual (i.e., correct) records") and \emph{Content Ordering} ("how well the system orders the records it chooses to discuss"). The metrics are implemented in outdated neural network framework \emph{Torch} and I wasn't able to execute it on my computers. After discussions with my advisor we agreed to not adopt these methods.
 
-\section{Results of the baseline model}
-Learned which teams play, what are the greatest stars of each team, although the summaries diverge, only first few sentences from the generated summaries are relevant.
+\section{Baseline Model}
 
-\section{Dropout}
-What it is, where I apply the dropout - on the decoder LSTM cells.
+At first I describe the hyperparameter choice. I embed the \emph{type} and \emph{home/away} fields to $\mathbb{R}^{300}$ and \emph{entity} and \emph{value} fields to $\mathbb{R}^{600}$. All the hidden states of the LSTMs as well as the representation of the input record (produced by Feed-Forward Network as described in \ref{sec_baseline_model_rotowire}) are in $\mathbb{R}^{600}$.
 
-\section{Scheduled Sampling}
-What it is, how it solves the divergence of the summaries.
+\subsection{Results}
 
-\section{Copy methods}
-How do they help the model to choose more relevant data from the table, how do they fare in the concurrence of the baseline model.
+
+
+\section{Implementation Details}
+
+As stated in the introduction this thesis is highly theoretical and experimental. The implementation serves as proof-of-concept and doesn't aim to be used in the production.
+
+All the models and preprocessing methods were developed in \emph{python 3.8} and \emph{tensorflow 2.4.1}. However the code is compatible with \emph{python 3.6} and \emph{tensorflow 2.3} (the versions used on Artifical Intelligence Cluster (AIC) where the training was executed). The implementation is divided into two modules, \emph{preprocessing} and \emph{training}.
+
+\subsection{Preprocessing Module}
+
+The preprocessing happens in four steps.
+\begin{enumerate}
+    \item Filtering out the faulty data-points (section \ref{cleaning_section}) from the original dataset.
+    \item Extraction and transformation of the summaries from the cleaned dataset.
+    \item Byte Pair Encoding of the summaries. (As explained in section \ref{bpeSection} I use the \emph{subword-nmt} module by \citep{sennrich2016}.)
+    \item Construction of the dataset from the encoded summaries and the cleaned data. 
+\end{enumerate}
+Each step is implemented in \emph{python} and the steps are connected by a shell script.
+
+\subsection{Training Module}
+
+The training module contains implementation of layers and models discussed in previous chapters as well as training, evaluation and inference methods. It makes use of \emph{graph execution}\footnote{\url{https://www.tensorflow.org/guide/intro_to_graphs}} during training and \emph{eager execution}\footnote{\url{https://www.tensorflow.org/guide/eager}} during evaluation and prediction.
+
+The code is available at \url{https://github.com/gortibaldik/TTTGen/}.
