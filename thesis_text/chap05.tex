@@ -9,7 +9,7 @@ It was really challenging to set up even the baseline model. Since the input seq
 
 Computing and updating gradient for each time-step of a sequence of 800 tokens has approximately the same cost as forward and backward pass in a feed-forward network that has 800 layers. \citep{williamsTBPTT} propose a less expensive method. Truncated Backpropagation Through Time (TBPTT) processes one time-step at a time, and every $t_1$ timesteps it runs BPTT for $t_2$ timesteps.
 
-To illustrate my implementation of the algorithm, I show how I process an output sequence which is longer than 150 tokens. Let $t_1 = 50$, $t_2 = 100$. At first I let the network predict the first $100$ outputs and I keep the $50$-th hidden state of the decoder. Then I run the BPTT. Next the network (initialized with the hidden state from the $50$-th time-step) predicts positions $51$ to $150$, and again the BPTT is run. Similarly afterwards.
+To illustrate my implementation of the algorithm, I show how I process an output sequence which is longer than 150 tokens. Let $t_1 = 50$, $t_2 = 100$. At first I let the network predict the first $100$ outputs and run the BPTT. I keep aside the $50$-th hidden state of the decoder. Next the network (initialized with the hidden state from the $50$-th time-step) predicts positions $51$ to $150$, and again the BPTT is run. Similarly afterwards.
 
 \section{Baseline model} \label{sec_baseline_model_rotowire}
 
@@ -17,7 +17,7 @@ I use a non-recurrent Encoder and a two-layer LSTM decoder with Luong-style atte
 
 \subsection{Encoder}
 
-The Encoder should process the input records created from the input table (section \ref{table_to_record_trans}) to create the partial outputs at each time-step and the initial hidden state for the Decoder.
+The Encoder should process the input records (the formation of a record is explained in section \ref{table_to_record_trans}) to create the partial outputs at each time-step and the initial hidden state for the Decoder.
 
 I described in section \ref{trans_in_tb_rw} that each record $r$ consists of 4 different features: \emph{type}, \emph{value}, \emph{entity} and a \emph{home/away flag} depicting if the record belongs to home or away team.
 
