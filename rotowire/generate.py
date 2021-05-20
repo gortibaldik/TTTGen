@@ -1,8 +1,6 @@
 from preprocessing.load_dataset import load_tf_record_dataset, load_values_from_config
-from baseline_model.training import train
-from baseline_model.layers import DotAttention, ConcatAttention, DecoderRNNCell, DecoderRNNCellJointCopy
-from baseline_model.model import Encoder, EncoderDecoderBasic
-from baseline_model.training import create_basic_model, create_cs_model
+from neural_nets.layers import DotAttention, ConcatAttention, DecoderRNNCell, DecoderRNNCellJointCopy
+from neural_nets.training import create_basic_model, create_cs_model
 from argparse import ArgumentParser
 import os
 import tensorflow as tf

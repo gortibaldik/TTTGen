@@ -87,9 +87,9 @@ class EncoderDecoderContentSelection(tf.keras.Model):
                     # the neural network is taught to predict
                     # indices shifted by 1
                     loss_cp += self._calc_loss( alignment
-                                            , cp_targets[:, t]
-                                            , self._loss_fn_cp
-                                            , ["loss_cp", "accuracy_cp"])
+                                              , cp_targets[:, t]
+                                              , self._loss_fn_cp
+                                              , ["loss_cp", "accuracy_cp"])
                 
                 # prepare inputs for encoder
                 # indices are shifted by 1

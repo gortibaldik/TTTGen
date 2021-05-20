@@ -1,6 +1,6 @@
 from preprocessing.load_dataset import load_tf_record_dataset, load_values_from_config
-from baseline_model.training import train
-from baseline_model.layers import DotAttention, ConcatAttention, DecoderRNNCell, DecoderRNNCellJointCopy
+from neural_nets.training import train
+from neural_nets.layers import DotAttention, ConcatAttention, DecoderRNNCell, DecoderRNNCellJointCopy
 from argparse import ArgumentParser
 import os
 
@@ -24,6 +24,7 @@ def _create_parser():
     parser.add_argument('--cp_training_rate', type=float, default=0.2)
     parser.add_argument('--manual', action='store_true')
     parser.add_argument('--load_last', action='store_true')
+    parser.add_argument('--with_cs', action='store_true')
     return parser
 
 def _main(args):
@@ -106,7 +107,8 @@ def _main(args):
          , use_content_selection=args.with_cp
          , cp_training_rate=args.cp_training_rate
          , max_table_size=max_table_size
-         , manual_training=args.manual)
+         , manual_training=args.manual
+         , base_model_with_content_selection=args.with_cs)
 
 if __name__ == "__main__":
     parser = _create_parser()
