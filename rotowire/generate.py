@@ -1,6 +1,7 @@
 from preprocessing.load_dataset import load_tf_record_dataset, load_values_from_config
 from neural_nets.layers import DotAttention, ConcatAttention, DecoderRNNCell, DecoderRNNCellJointCopy
 from neural_nets.training import create_basic_model, create_cs_model
+from neural_nets.baseline_model import BeamSearchAdapter
 from argparse import ArgumentParser
 import os
 import tensorflow as tf
@@ -24,6 +25,8 @@ def _create_parser():
     parser.add_argument('--decoder_type', type=str, default="joint")
     parser.add_argument('--dropout_rate', type=float, default=0.2)
     parser.add_argument('--with_cp', action='store_true')
+    parser.add_argument('--beam_search', action='store_true')
+    parser.add_argument('--beam_size', type=int, default=5)
     return parser
 
 def add_dummy_content_plans( dataset
@@ -33,7 +36,34 @@ def add_dummy_content_plans( dataset
                types, entities, values, has
     dataset = dataset.map(map_fn)
     return dataset
+
+
+def beam_search( model
+               , dataset
+               , beam_size
+               , eos):
+    model = BeamSearchAdapter( model
+                             , beam_size
+                             , eos)
+    model.compile()
+    predictions = None
+    for batch in dataset:
+        out_sentence, out_predecessors = model(batch)
+        actual_predictions = np.zeros(shape=out_sentence[:, :, 0].shape, dtype=np.int16)
+        for batch_dim in range(out_sentence.shape[0]):
+            best = 0
+            sum = out_sentence[batch_dim]
+            pred = out_predecessors[batch_dim]
+            for index in range(out_sentence.shape[1] - 1, -1, -1):
+                actual_predictions[batch_dim, index] = sum[index, best].numpy()
+                best = pred[index, best].numpy()
+        if predictions is None:
+            predictions = actual_predictions
+        else:
+            np.append(predictions, actual_predictions, axis=0)
     
+    return predictions
+
 
 def generate( model
             , dataset
@@ -41,10 +71,18 @@ def generate( model
             , dir_path
             , eos
             , ix_to_tk
+            , use_beam_search : bool = False
+            , beam_size : int = 5
             , max_cp_size = None):
     if max_cp_size is not None:
         dataset = add_dummy_content_plans(dataset, max_cp_size)
-    predictions = model.predict(dataset)
+    if not use_beam_search:
+        predictions = model.predict(dataset)
+    else:
+        predictions = beam_search( model
+                                 , dataset
+                                 , beam_size
+                                 , eos)
     targets = None
     for tgt in dataset.as_numpy_iterator():
         summaries, *_ = tgt
@@ -187,7 +225,9 @@ def _main(args):
                 , args.output_path
                 , eos
                 , ix_to_tk
-                , cp_size)
+                , use_beam_search=args.beam_search
+                , beam_size=args.beam_size
+                , max_cp_size=cp_size)
     
 
 if __name__ == "__main__":

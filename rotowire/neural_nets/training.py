@@ -1,4 +1,5 @@
-from .model import Encoder, EncoderDecoderBasic, EncoderCS
+from .encoders import Encoder, EncoderCS
+from .baseline_model import EncoderDecoderBasic
 from .cp_model import EncoderDecoderContentSelection
 from .layers import DecoderRNNCell, DecoderRNNCellJointCopy, DotAttention, ConcatAttention, \
                     ContentPlanDecoderCell
