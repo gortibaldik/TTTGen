@@ -4,6 +4,7 @@ from neural_nets.training import create_basic_model, create_cs_model
 from neural_nets.baseline_model import BeamSearchAdapter
 from argparse import ArgumentParser
 import os
+import time
 import tensorflow as tf
 import numpy as np
 from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
@@ -47,6 +48,8 @@ def beam_search( model
                              , eos)
     model.compile()
     predictions = None
+    batch_ix = 1
+    start = time.time()
     for batch in dataset:
         out_sentence, out_predecessors = model(batch)
         actual_predictions = np.zeros(shape=out_sentence[:, :, 0].shape, dtype=np.int16)
@@ -61,6 +64,12 @@ def beam_search( model
             predictions = actual_predictions
         else:
             np.append(predictions, actual_predictions, axis=0)
+        
+        if (batch_ix % 10) == 0:
+            end = time.time()
+            print(f"batch {batch_ix} generated, elapsed {end-start} seconds")
+            start = end
+        batch_ix += 1
     
     return predictions
 
