@@ -68,19 +68,23 @@ The Long Short-Term Memory (\emph{tf.ke\-ras.lay\-ers.LSTM}) addresses the vanis
 
 \subsection{High-level Overview of Encoder-Decoder Architecture} \label{high-level_enc_dec_section}
 
-As stated by \citep{sutskever2014sequence}, the main goal of the encoder-decoder architecture is to model the conditional probability $p(y_1,\dots,y_n | x_1,\dots,x_m)$ of the output sequence $y_1,\dots,y_n$ conditioned on the input sequence $x_1,\dots,x_m$. It uses two separate \emph{recurrent networks}\footnote{Here I refer to \emph{recurrent network} as to a complex consisting of at least one RNN/LSTM/GRU/\dots rather than to a single recurrent layer.}. The first, called Encoder, produces a fixed-dimensional representation $r$ of the input sequence. $r$ is then used to initialize the hidden states of the second recurrent network, called a Decoder. The Decoder then generates the output sequence as in equation \ref{enc_dec_base}.
+As stated by \citep{sutskever2014sequence}, the main goal of the encoder-decoder architecture is to estimate the conditional probability $p(y_1,\dots,y_n | x_1,\dots,x_m)$ of the output sequence $y_1,\dots,y_n$ conditioned on the input sequence $x_1,\dots,x_m$. It uses two separate \emph{recurrent networks}\footnote{Here I refer to \emph{recurrent network} as to a complex consisting of at least one RNN/LSTM/GRU/\dots rather than to a single recurrent layer.}. The first, called the Encoder, processes the input sequence. Its last hidden state represents a fixed-dimensional representation $r$ of the input. $r$ is then used to initialize the hidden state of the second recurrent network, called the Decoder, which models the conditional probability of the output sequence (equation \ref{equation:enc_dec_lm}).
 
-\begin{equation} \label{enc_dec_base}
-p(y_1,\dots,y_n | x_1,\dots,x_m) = \prod_{t=1}^{n}{p(y_t | r, y_1,\dots,y_{t-1})}
+\begin{equation} \label{equation:enc_dec_lm}
+    p(y_1,\dots, y_n | x_1,\dots, x_m) = \prod_{t=1}^n{p(y_t | r, y_1, \dots, y_{t-1})}
 \end{equation}
 
-The Encoder part is straight-forward, however in the Decoder part two important questions arise:
-\begin{enumerate}
-    \item What should be the inputs to the Decoder
-    \item When should we stop decoding (generating the output sequence)
-\end{enumerate}
+The dimensionality of the output of the Decoder at time-step $t$ is the same as the size of the output vocabulary. The softmax (equation \ref{equation:softmax}) over the outputs is used to represent the distribution $p(y_t | r, y_1, \dots, y_{t-1})$.
 
-As visualized in figure \ref{enc_dec_visualization}, to tell the Decoder when to \emph{start} generation, a special \emph{\textless BOS \textgreater} token (\emph{beginning of sequence}) is fed in. The decoding phase is slightly different during training and inference. During training, the inputs of the decoder are targets from the \emph{previous} time-step. This process is called \emph{teacher forcing}. After the last time-step, the target is the special \emph{\textless EOS \textgreater} token (\emph{end of sequence}). In the inference phase, the last output of the Decoder is fed in as the input, and the decoding finishes after producing the \emph{\textless EOS \textgreater} token.
+\begin{equation} \label{equation:softmax}
+    softmax(\boldsymbol{x})_i = \frac{e^{x_i}}{\sum_{j=1}^n{e^{x_j}}}
+\end{equation}
+
+\subsubsection{Training}
+
+The Decoder is trained under the \emph{teacher-forcing} regime. The main gist of this approach is to feed the gold output $y_{t-1}$ as the input at time-step $t$. Since there is no zeroth gold output I use a special \emph{\textless BOS \textgreater} (\emph{beginning of sequence}) token as the first input to the Decoder.
+
+Another special token, the \emph{\textless EOS \textgreater} (\emph{end of sequence}) token is appended at the end of each target sequence. This way we train the model to explicitly show when the generation is over (therefore the produced sequences can be of variable length). The visualization of the approach is shown in figure \ref{enc_dec_visualization}.
 
 \begin{figure}[!h]
     \centering
@@ -90,6 +94,17 @@ As visualized in figure \ref{enc_dec_visualization}, to tell the Decoder when to
     \footnotesize{none of the Encoder's outputs is used}
     \caption{\centering Visualization of the training of the Encoder-Decoder Architecture with \emph{teacher forcing}.} \label{enc_dec_visualization}
 \end{figure}
+
+\subsubsection{Inference}
+
+In the inference phase, we want to find a sequence of tokens $y_1,\dots,y_n$ which maximizes the probability
+\begin{align}
+    p_{model}(\boldsymbol{y} | \boldsymbol{x}) &= p_{model}(y_1|\boldsymbol{x})p_{model}(y_2|y_1, \boldsymbol{x})\dots p_{model}(y_N|y_1,\dots,y_{N-1}, \boldsymbol{x})\\
+    &= \prod_{t=1}^N{p_{model}(y_t|y_1,\dots,y_{t-1}, \boldsymbol{x})}
+\end{align}
+
+Calculating all $\mathcal{O}(N^{|V|})$ sequences and choosing the maximal is surely the most accurate option, although computationaly infeasible. Therefore we only approximate the optimal solution. Two used approaches (greedy decoding and beam search) will be discussed in the chapter about the experiments \ref{experiments_chapter}.
+
 
 \subsection{Problems of the Encoder-Decoder Architecture}
 
