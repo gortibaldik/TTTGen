@@ -25,6 +25,7 @@ def _create_parser():
     parser.add_argument('--manual', action='store_true')
     parser.add_argument('--load_last', action='store_true')
     parser.add_argument('--with_cs', action='store_true')
+    parser.add_argument('--with_csbidir', action='store_true')
     return parser
 
 def _main(args):
@@ -108,7 +109,8 @@ def _main(args):
          , cp_training_rate=args.cp_training_rate
          , max_table_size=max_table_size
          , manual_training=args.manual
-         , base_model_with_content_selection=args.with_cs)
+         , encoder_cs_flag=args.with_cs
+         , encoder_cs_bidir_flag=args.with_csbidir)
 
 if __name__ == "__main__":
     parser = _create_parser()

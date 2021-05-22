@@ -26,6 +26,8 @@ def _create_parser():
     parser.add_argument('--decoder_type', type=str, default="joint")
     parser.add_argument('--dropout_rate', type=float, default=0.2)
     parser.add_argument('--with_cp', action='store_true')
+    parser.add_argument('--with_cs', action='store_true')
+    parser.add_argument('--with_csbidir', action='store_true')
     parser.add_argument('--beam_search', action='store_true')
     parser.add_argument('--beam_size', type=int, default=5)
     return parser
@@ -191,7 +193,10 @@ def _main(args):
                                   , hidden_size
                                   , attention
                                   , decoder_rnn
-                                  , args.dropout_rate)
+                                  , args.dropout_rate
+                                  , encoder_cs_flag=args.with_cs
+                                  , encoder_cs_bidir_flag=args.with_csbidir
+                                  , max_table_size=max_table_size)
         # compile the model - enables eager execution (my custom change)
         model.compile( tf.keras.optimizers.Adam()
                      , tf.keras.losses.SparseCategoricalCrossentropy()
