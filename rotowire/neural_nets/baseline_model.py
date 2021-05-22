@@ -61,7 +61,7 @@ class EncoderDecoderBasic(tf.keras.Model):
         final_state = None
         final_last_out = None
         with tf.GradientTape() as tape:
-            enc_outs, *last_hidden_rnn = self._encoder(tables)
+            enc_outs, *last_hidden_rnn = self._encoder(tables, training=True)
             if initial_state is None:
                 initial_state = [ last_hidden_rnn[-1]
                                 , *last_hidden_rnn ]
@@ -152,7 +152,7 @@ class EncoderDecoderBasic(tf.keras.Model):
         dec_inputs = tf.expand_dims(summaries, axis=-1)[:, :max_sum_size, :]
         targets = summaries[:, 1:max_sum_size+1]
 
-        enc_outs, *last_hidden_rnn = self._encoder(tables)
+        enc_outs, *last_hidden_rnn = self._encoder(tables, training=False)
 
         if isinstance(self._decoder_cell, DecoderRNNCellJointCopy):
             enc_ins = tf.one_hot(tf.cast(tables[2], tf.int32), self._decoder_cell._word_vocab_size) # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
@@ -193,7 +193,7 @@ class EncoderDecoderBasic(tf.keras.Model):
         dec_inputs = tf.expand_dims(summaries, axis=-1)
         dec_in = dec_inputs[:, 0, :] # start tokens
 
-        enc_outs, *last_hidden_rnn = self._encoder(tables)
+        enc_outs, *last_hidden_rnn = self._encoder(tables, training=False)
 
         if isinstance(self._decoder_cell, DecoderRNNCellJointCopy):
             enc_ins = tf.one_hot(tf.cast(tables[2], tf.int32), self._decoder_cell._word_vocab_size) # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
@@ -238,7 +238,7 @@ class BeamSearchAdapter(tf.keras.Model):
         dec_inputs = tf.expand_dims(summaries, axis=-1)
         dec_in = dec_inputs[:, 0, :] # start tokens
 
-        enc_outs, *last_hidden_rnn = self._encoder(tables)
+        enc_outs, *last_hidden_rnn = self._encoder(tables, training=False)
 
         if isinstance(self._decoder_cell, DecoderRNNCellJointCopy):
             enc_ins = tf.one_hot(tf.cast(tables[2], tf.int32), self._decoder_cell._word_vocab_size) # pylint: disable=unexpected-keyword-arg, no-value-for-parameter

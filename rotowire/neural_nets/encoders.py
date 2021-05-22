@@ -79,3 +79,37 @@ class EncoderCS(tf.keras.Model):
         content_selected, *_ = self._cs_rnn(all_states, initial_state=(all_states, tf.zeros((), dtype=tf.int32)))
         avg = tf.reduce_mean(content_selected, axis=1)
         return content_selected, avg, avg, avg, avg
+
+class EncoderCSBi(tf.keras.Model):
+    def __init__( self
+                , word_vocab_size
+                , word_emb_dim
+                , tp_vocab_size
+                , tp_emb_dim
+                , ha_vocab_size
+                , ha_emb_dim
+                , max_seq_size
+                , hidden_size
+                , attention_type
+                , batch_size
+                , dropout_rate):
+        super(EncoderCSBi, self).__init__()
+        self._encoder_cs = EncoderCS( word_vocab_size
+                                    , word_emb_dim
+                                    , tp_vocab_size
+                                    , tp_emb_dim
+                                    , ha_vocab_size
+                                    , ha_emb_dim
+                                    , max_seq_size
+                                    , hidden_size
+                                    , attention_type
+                                    , batch_size)
+        self._bidir = tf.keras.layers.Bidirectional( tf.keras.layers.LSTM( hidden_size
+                                                                         , return_sequences=True
+                                                                         , return_state=True
+                                                                         , dropout=dropout_rate)
+                                                   , merge_mode='sum')
+
+    def call(self, inputs, training=False):
+        encoded, avg, *_ = self._encoder_cs(inputs)
+        return self._bidir(encoded, training=training)
