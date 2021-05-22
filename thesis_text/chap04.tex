@@ -66,7 +66,7 @@ The Long Short-Term Memory (\emph{tf.ke\-ras.lay\-ers.LSTM}) addresses the vanis
     \caption{Visualization of LSTM \citep{Olah2015}} \label{lstm}
 \end{figure}
 
-\subsection{High-level Overview of Encoder-Decoder Architecture} \label{high-level_enc_dec_section}
+\subsection{High-level Overview of Encoder-Decoder Architecture} \label{subsection:high_level_encoder_decoder}
 
 As stated by \citep{sutskever2014sequence}, the main goal of the encoder-decoder architecture is to estimate the conditional probability $p(y_1,\dots,y_n | x_1,\dots,x_m)$ of the output sequence $y_1,\dots,y_n$ conditioned on the input sequence $x_1,\dots,x_m$. It uses two separate \emph{recurrent networks}\footnote{Here I refer to \emph{recurrent network} as to a complex consisting of at least one RNN/LSTM/GRU/\dots rather than to a single recurrent layer.}. The first, called the Encoder, processes the input sequence. Its last hidden state represents a fixed-dimensional representation $r$ of the input. $r$ is then used to initialize the hidden state of the second recurrent network, called the Decoder, which models the conditional probability of the output sequence (equation \ref{equation:enc_dec_lm}).
 

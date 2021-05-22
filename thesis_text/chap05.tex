@@ -11,7 +11,7 @@ Computing and updating gradient for each time-step of a sequence of 800 tokens h
 
 To illustrate my implementation of the algorithm, I show how I process an output sequence which is longer than 150 tokens. Let $t_1 = 50$, $t_2 = 100$. At first I let the network predict the first $100$ outputs and run the BPTT. I keep aside the $50$-th hidden state of the decoder. Next the network (initialized with the hidden state from the $50$-th time-step) predicts positions $51$ to $150$, and again the BPTT is run. Similarly afterwards.
 
-\section{Baseline model} \label{sec_baseline_model_rotowire}
+\section{Baseline model} \label{section:baseline_model}
 
 I use a non-recurrent Encoder and a two-layer LSTM decoder with Luong-style attention as the baseline model. At first I present how the encoding of input records works, then I talk about the text generation. I highlight all the differences between my approach and the one taken by \citep{wiseman2017}. The visualization of the model is shown in the figure \ref{rotowire_baseline_vis}.
 
@@ -38,7 +38,7 @@ The model is trained end-to-end to minimize the cross-entropy loss (negative-log
     \min \sum_{(\mathbf{s}, \mathbf{y}) \in \mathcal{D} }{-log\ p(\mathbf{y}|\mathbf{s})}
 \end{equation}
 
-We use the \emph{teacher forcing} (as explained in section \ref{high-level_enc_dec_section}) during training and during the inference, we greedily approximate 
+We use the \emph{teacher forcing} (as explained in section \ref{subsection:high_level_encoder_decoder}) during training and during the inference, we approximate the most probable output sequence (either greedily or by using beam-search, explained in chapter \ref{experiments_chapter}).
 \begin{equation}
     \mathbf{\hat{y}} = \argmax_{\mathbf{y'}} p(\mathbf{y'} | \mathbf{s})
 \end{equation}
@@ -73,7 +73,7 @@ Both tasks are modelled with \emph{the same} Encoder and with \emph{separate} De
 
 \subsection{Content Selection}
 
-\citep{puduppully2019datatotext} improves the baseline encoder by incorporating \emph{context awareness}. At first the input records are encoded in the same way as in the baseline model \ref{sec_baseline_model_rotowire}, the self-attention is used to model the "importance vis-a-vis other records in the table".
+\citep{puduppully2019datatotext} improves the baseline encoder by incorporating \emph{context awareness}. At first the input records are encoded in the same way as in the baseline model \ref{section:baseline_model}, the self-attention is used to model the "importance vis-a-vis other records in the table".
 
 Specifically, we compute
 \begin{align*}
