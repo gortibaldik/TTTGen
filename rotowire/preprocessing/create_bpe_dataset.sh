@@ -10,6 +10,8 @@ print_info() {
 # initialization of all the settable attributes to ""
 # just to be sure they aren't set
 content_plan=""
+order_records=""
+prun_records=""
 format=""
 npy=""
 to_txt=""
@@ -39,6 +41,9 @@ while :; do
         ;;
         --order_records) order_records="SET"
         ;;
+        --prun_records) prun_records="SET"
+                        order_records="SET"
+        ;;
         *) break
     esac
     shift
@@ -51,7 +56,8 @@ if [ ! -f "${out_dir}/codes_train_${num_merges}.txt" ]; then
   ./learn_bpe_codes.sh "${num_merges}" \
                       "${out_dir}" \
                       "${rotowire_dir}" \
-                      "${advanced_transformations}"
+                      "${advanced_transformations}" \
+                      "${prun_records}"
   DELETE_VOCAB=1
   echo -e "---\n"
 fi
@@ -174,6 +180,10 @@ fi
 
 if [ ! -z "${order_records}" ]; then
   script="${script} --order_records"
+fi
+
+if [ ! -z "${prun_records}" ]; then
+  script="${script} --prun_records"
 fi
 
 if [ ! -d "${dataset_dir}" ]; then

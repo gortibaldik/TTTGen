@@ -203,7 +203,9 @@ def extract_summaries_from_json( json_file_path
                                , exception_teams=False
                                , words_limit=None
                                , all_named_entities: OccurrenceDict = None
-                               , cell_dict_overall: OccurrenceDict = None):
+                               , cell_dict_overall: OccurrenceDict = None
+                               , order_records : bool = False
+                               , prun_records : bool = False):
     word_dict = OccurrenceDict()
     player_dict = OccurrenceDict()
     team_name_dict = OccurrenceDict()
@@ -216,7 +218,9 @@ def extract_summaries_from_json( json_file_path
                                        , team_name_dict=team_name_dict
                                        , cell_dict=cell_dict
                                        , word_dict=word_dict
-                                       , words_limit=words_limit)
+                                       , words_limit=words_limit
+                                       , order_records=order_records
+                                       , prun_records=prun_records)
     max_table_length = 0
     for match in matches:
        if max_table_length < len(match.records): max_table_length = len(match.records)
@@ -488,6 +492,18 @@ def _create_parser():
         help="where to save the max_table_length",
         default=None
     )
+    extract_summaries_parser.add_argument(
+        '--order_records',
+        action='store_true',
+        help="If true, the input tables will contain teams in the first records and players" +\
+                " sorted by their point totals"
+    )
+    extract_summaries_parser.add_argument(
+        '--prun_records',
+        action='store_true',
+        help="The input tables will contain the advanced stats of 3 most productive players and only mins, " +\
+                "pts, ast of the remaining ones, APPLIES ONLY WHEN order_records is set"
+    )
     create_dataset_parser(subparsers)
     return parser
 
@@ -527,7 +543,9 @@ def _main():
                 lowercase=args.lowercase,
                 words_limit=args.words_limit,
                 all_named_entities=all_named_entities,
-                cell_dict_overall=cell_dict_overall
+                cell_dict_overall=cell_dict_overall,
+                order_records=args.order_records,
+                prun_records=args.prun_records
             )
             if mtl > max_table_length: max_table_length = mtl
         elif args.activity == _gather_stats_descr:

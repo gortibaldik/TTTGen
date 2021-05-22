@@ -29,7 +29,13 @@ def create_dataset_parser(subparsers):
         '--order_records',
         action='store_true',
         help="If true, the input tables will contain teams in the first records and players" +\
-                "sorted by their point totals"
+                " sorted by their point totals"
+    )
+    create_dataset_parser.add_argument(
+        '--prun_records',
+        action='store_true',
+        help="The input tables will contain the advanced stats of 3 most productive players and only mins, " +\
+                "pts, ast of the remaining ones, APPLIES ONLY WHEN order_records is set"
     )
     create_dataset_parser.add_argument(
         '--content_plans_dir',
@@ -111,7 +117,8 @@ def create_prepare(args, set_names, input_paths):
                                       , "mlt": mlt
                                       , "mls": mls
                                       , "mlcp": mlcp
-                                      , "order_records": args.order_records }
+                                      , "order_records": args.order_records
+                                      , "prun_records": args.prun_records}
 
 def create_content_plan_ids( content_plan_path
                            , mlcp
@@ -253,13 +260,15 @@ def create_dataset( input_paths
                   , mls # max length summary
                   , mlt # max length table
                   , order_records
+                  , prun_records
                   , logger):
     summary_path, json_path, cplan_path = input_paths
 
     tables = [ m.records for m in extract_matches_from_json( json_path
                                                            , word_dict=None
                                                            , process_summary=False
-                                                           , order_records=order_records)]
+                                                           , order_records=order_records
+                                                           , prun_records=prun_records)]
 
     with open(summary_path, 'r') as f:
         file_content = f.read().strip().split('\n')

@@ -16,7 +16,8 @@ class BoxScore:
                 , away_city
                 , player_dict
                 , cell_dict
-                , order_records=False):
+                , order_records=False
+                , prun_records=False):
         """
         Creates the records from the BoxScore
         BoxScore contains information about all the players, their stats, which team they're part of
@@ -44,8 +45,38 @@ class BoxScore:
         
         # we order the players by their point totals during the matches
         if order_records:
+            ix = 0
             for _, rec in sorted(pts_rec_pairs, key=lambda x: x[0], reverse=True):
-                self._records += rec
+                if prun_records:
+                    if ix < 10:
+                        self._records += self.filter_records(rec, ix < 3)
+                    ix += 1
+                else:
+                    self._records += rec
+
+    @staticmethod
+    def filter_records( records
+                      , advanced_stats : bool):
+        to_be_kept = { BoxScoreEntries.ast
+                     , BoxScoreEntries.min
+                     , BoxScoreEntries.pts
+                     , BoxScoreEntries.team_city
+                     , BoxScoreEntries.player_name}
+        to_be_prunned = { BoxScoreEntries.start_position
+                        , BoxScoreEntries.second_name
+                        , BoxScoreEntries.first_name}
+        filtered_records = []
+        if not advanced_stats:
+            for r in records:
+                if BoxScoreEntries(r.type) in to_be_kept:
+                    filtered_records.append(r)
+        else:
+            for r in records:
+                if BoxScoreEntries(r.type) not in to_be_prunned:
+                    filtered_records.append(r)
+        
+        return filtered_records
+        
 
     @staticmethod
     def get_player_numbers(dct : EnumDict):

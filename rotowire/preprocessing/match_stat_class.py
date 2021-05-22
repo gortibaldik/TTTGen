@@ -25,7 +25,8 @@ class MatchStat:
                 , word_dict : OccurrenceDict = None
                 , process_summary : bool = True
                 , words_limit : int = None
-                , order_records : bool = False):
+                , order_records : bool = False
+                , prun_records : bool = False):
         dct = EnumDict(match_dict)
         if not self._is_summary_valid(dct):
             return
@@ -36,7 +37,8 @@ class MatchStat:
                                  , vis_city
                                  , player_dict
                                  , cell_dict
-                                 , order_records=order_records)
+                                 , order_records=order_records
+                                 , prun_records=prun_records)
         self.home_line = LineScore( dct[MatchStatEntries.home_line]
                                   , home_city
                                   , vis_city
