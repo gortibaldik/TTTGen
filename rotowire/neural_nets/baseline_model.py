@@ -267,8 +267,8 @@ class BeamSearchAdapter(tf.keras.Model):
                 dec_in, mask, nlogsum, initial_state = hypotheses.pop(0)
                 mask = tf.math.logical_not(tf.math.logical_or(tf.math.logical_not(mask) , dec_in == self._eos))
                 pred, (hatt, h1, c1, h2, c2) = self._decoder_cell( (dec_in, *aux_inputs)
-                                                                    , initial_state
-                                                                    , training=False)
+                                                                 , initial_state
+                                                                 , training=False)
                 top_predicted = tf.math.top_k(pred, k=actual_beam_size, sorted=True)
                 ixs = top_predicted.indices * tf.cast(mask, dtype=tf.int32) # pylint: disable=no-value-for-parameter, unexpected-keyword-arg
                 vals = tf.math.log(top_predicted.values) * tf.cast(mask, dtype=tf.float32) # pylint: disable=no-value-for-parameter, unexpected-keyword-arg
