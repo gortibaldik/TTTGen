@@ -65,7 +65,7 @@ def beam_search( model
         if predictions is None:
             predictions = actual_predictions
         else:
-            np.append(predictions, actual_predictions, axis=0)
+            predictions = np.append(predictions, actual_predictions, axis=0)
         
         if (batch_ix % 10) == 0:
             end = time.time()
