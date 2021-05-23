@@ -13,6 +13,8 @@ data2text-plan-py/
 
 # ignore test files
 test.py
+compilation_dir/
 
 # ignore result files
 results/
+gold_sums/
