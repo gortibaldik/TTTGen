@@ -57,7 +57,7 @@ We use the \emph{teacher forcing} (as explained in section \ref{subsection:high_
     \caption{\centering The Joint-Copy extension of the baseline model at second time-step.} \label{rotowire_joint_copy_vis}
 \end{figure}
 
-\section{Improving the Baseline with Copy Mechanisms}
+\section{Improving the Baseline with Copy Mechanisms} \label{section:copy_mechanism_intro}
 
 In the previous chapter \ref{rare_word_problem}, I underlined \emph{hallucinations} as one of the problems of the Encoder-Decoder architecture. In the task on RotoWire dataset it basically means that during training, the model learns that it should put \emph{some number} at a specific place in the sentence. We would like it to generate the \emph{exact value}.
 
@@ -118,7 +118,7 @@ The Text Decoder is trained to start the generation when it sees the \emph{\text
         \multicolumn{4}{c}{\footnotesize \textit{Note:} The extract corresponds to sentence: "The host Toronto} \\
         \multicolumn{4}{c}{\footnotesize Raptors defeated the Philadelphia 76ers , 122 - 95\dots "}
     \end{tabular}
-    \caption{An extract from the content plan corresponding to the summary from the figure \ref{fig:samplesummary}}
+    \caption{An extract from the content plan corresponding to the summary from the figure \ref{figure:samplesummary}}
 \end{table}
 
 Either baseline Decoder or Joint-Copy Decoder can operate on the generated content plan, to generate the output summary.

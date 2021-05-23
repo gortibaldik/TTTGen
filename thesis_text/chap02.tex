@@ -89,7 +89,7 @@ The player statistics are gathered in a table called \emph{box score}. In each r
 \section{Relation of summaries and tables}
 \definecolor{lightblue}{rgb}{.15,.77,.90}
 
-In this section I would like to show the relationship between the structured data and the target summary. Let's observe the data-point from the development part of the dataset in figure \ref{fig:samplesummary}. The non-highlighted text shows one-to-one correspondence with the structured data. The \sethlcolor{lightblue} \hl{blue-highlighted text} marks the information which is present in the input data only implicitly. However the level of implicitness varies. It is relatively easy to see that since Terrence Ross's starting position is "N/A", he must have started off the bench. On the other hand the fact that "The Raptors came into this game as a monster favorite" requires comparison of the winning-loosing records of both teams. The \sethlcolor{yellow} \hl{yellow-highlighted text} labels the information that isn't deducible from the input data and the network would have to learn to hallucinate to be able to generate such text.
+In this section I would like to show the relationship between the structured data and the target summary. Let's observe the data-point from the development part of the dataset in figure \ref{figure:samplesummary}. The non-highlighted text shows one-to-one correspondence with the structured data. The \sethlcolor{lightblue} \hl{blue-highlighted text} marks the information which is present in the input data only implicitly. However the level of implicitness varies. It is relatively easy to see that since Terrence Ross's starting position is "N/A", he must have started off the bench. On the other hand the fact that "The Raptors came into this game as a monster favorite" requires comparison of the winning-loosing records of both teams. The \sethlcolor{yellow} \hl{yellow-highlighted text} labels the information that isn't deducible from the input data and the network would have to learn to hallucinate to be able to generate such text.
 
 Somebody may argue that the observations do not sound favorable for the dataset. I see it as a big challenge and a possibility to apply advanced preprocessing as well as interesting architectural design of the neural networks. I will further elaborate on the issue of too noisy data in section \ref{cleaning_section}.
 
@@ -106,8 +106,7 @@ Somebody may argue that the observations do not sound favorable for the dataset.
     \begin{center}
         \begin{tabular}{lcccccc}
         \toprule
-        {}      & WIN & LOSS & PTS$_1$ & FG\_PCT$_2$ & REB$_3$ & AST$_4$ \ldots \\
-        TEAM    &     &      &     &         &    &           \\
+        TEAM      & WIN & LOSS & PTS$_1$ & FG\_PCT$_2$ & REB$_3$ & AST$_4$ \ldots \\
         \midrule
         Raptors & 11  & 6    & 122 & 55      & 42 & 22        \\
         76ers   & 4   & 14   & 95  & 42      & 38 & 27        \\
@@ -117,8 +116,7 @@ Somebody may argue that the observations do not sound favorable for the dataset.
 
         \begin{tabular}{llllllll}
             \toprule
-            {}                & City         & PTS$_1$ & AST$_4$ & REB$_3$ & FG$_5$  & FGA$_6$ & S\_POS$_7$ $\ldots$ \\
-            PLAYER            &              &     &     &     &     &     &                 \\
+            PLAYER                & City         & PTS$_1$ & AST$_4$ & REB$_3$ & FG$_5$  & FGA$_6$ & S\_POS$_7$ $\ldots$ \\
             \midrule
             Kyle Lowry        & Toronto      & 24  & 8   & 4   & 7   & 9   & G               \\
             Terrence Ross     & Toronto      & 22  & 0   & 3   & 8   & 11  & N/A             \\
@@ -148,5 +146,5 @@ Somebody may argue that the observations do not sound favorable for the dataset.
 }
 \caption{ \small A data-point from the development part of the Rotowire dataset. Yellow-highlighted text isn't based on the input data. Blue-highlighted text implicitly follows from the input data.
 }
-\label{fig:samplesummary}
+\label{figure:samplesummary}
 \end{figure*}
