@@ -1,7 +1,7 @@
 from preprocessing.load_dataset import load_tf_record_dataset, load_values_from_config
 from neural_nets.layers import DotAttention, ConcatAttention, DecoderRNNCell, DecoderRNNCellJointCopy
 from neural_nets.training import create_basic_model, create_cs_model
-from neural_nets.baseline_model import BeamSearchAdapter
+from neural_nets.beam_search_adapter import BeamSearchAdapter
 from neural_nets.cp_model import GreedyAdapter
 from argparse import ArgumentParser
 import os
@@ -31,6 +31,7 @@ def _create_parser():
     parser.add_argument('--with_csbidir', action='store_true')
     parser.add_argument('--beam_search', action='store_true')
     parser.add_argument('--beam_size', type=int, default=5)
+    parser.add_argument('--from_gold_cp', action='store_true')
     return parser
 
 def add_dummy_content_plans( dataset
@@ -45,10 +46,12 @@ def add_dummy_content_plans( dataset
 def beam_search( model
                , dataset
                , beam_size
-               , eos):
+               , eos
+               , max_cp_size):
     model = BeamSearchAdapter( model
                              , beam_size
-                             , eos)
+                             , eos
+                             , max_cp_size)
     model.compile()
     predictions = None
     batch_ix = 1
@@ -85,12 +88,14 @@ def generate( model
             , ix_to_tk
             , use_beam_search : bool = False
             , beam_size : int = 5
-            , max_cp_size = None
-            , csap_model : bool = False):
-    if csap_model:
-        model = GreedyAdapter(model)
+            , max_cp_size : int = 80
+            , csap_model : bool = False
+            , from_gold_cp : bool = False
+            , add_cp : bool = False):
+    if csap_model and not use_beam_search:
+        model = GreedyAdapter(model, max_cp_size, from_gold_cp)
         model.compile()
-    if max_cp_size is not None:
+    if add_cp:
         dataset = add_dummy_content_plans(dataset, max_cp_size)
     if not use_beam_search:
         predictions = model.predict(dataset)
@@ -98,7 +103,8 @@ def generate( model
         predictions = beam_search( model
                                  , dataset
                                  , beam_size
-                                 , eos)
+                                 , eos
+                                 , max_cp_size)
     targets = None
     for tgt in dataset.as_numpy_iterator():
         summaries, *_ = tgt
@@ -233,11 +239,10 @@ def _main(args):
     print(status.assert_existing_objects_matched())
 
     ix_to_tk = dict([(value, key) for key, value in tk_to_ix.items()])
-    for data, file_prefix in [(test_dataset, "test_"), (val_dataset, "val_")]:
-        if file_prefix == "test_" and args.with_cp:
-            cp_size = max_cp_size
-        else:
-            cp_size = None
+    pairs = [(val_dataset, "val_")]
+    if not args.from_gold_cp:
+      pairs.append((test_dataset, "test_"))
+    for data, file_prefix in pairs:
         generate( model
                 , data
                 , file_prefix
@@ -246,8 +251,10 @@ def _main(args):
                 , ix_to_tk
                 , use_beam_search=args.beam_search
                 , beam_size=args.beam_size
-                , max_cp_size=cp_size
-                , csap_model=args.with_cp)
+                , max_cp_size=max_cp_size
+                , csap_model=args.with_cp
+                , from_gold_cp=args.from_gold_cp
+                , add_cp=(file_prefix == "test_"))
     
 
 if __name__ == "__main__":

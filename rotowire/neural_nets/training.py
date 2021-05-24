@@ -199,7 +199,7 @@ def train( train_dataset
                      , truncation_size
                      , truncation_skip_step)
     else:
-        model.compile( optimizer_1
+        model.compile( optimizer_1 # pylint: disable=too-many-function-args, unexpected-keyword-arg
                      , optimizer_2
                      , tf.keras.losses.SparseCategoricalCrossentropy( from_logits=True # cp loss
                                                                     , reduction='none')
