@@ -154,7 +154,7 @@ There are 39 types (different headers of columns as discussed in section \ref{ta
 
 The other 32 types desribe absolute (\emph{TEAM-PTS}\footnote{Team Points}, \emph{FTM}\footnote{Number of converted free throws by an individual, \emph{"free throws made"}} \dots) or relative integer values (\emph{TEAM-FT\_PCT}, \emph{FT\_PCT}\footnote{\emph{team/player free throw percentage}}, \dots). During preprocessing no changes are made to any tabular numerical value\footnote{\citep{wiseman2017} already converted all the relative values to integers. I don't consider this as a preprocessing since only the converted values are available in the dataset.}.
 
-\subsection{Textual values} \label{trans_p_nms}
+\subsection{Textual values} \label{subsection:table_text_transformations}
 
 Regarding the textual values, I consider each as a single token. Since the names of teams are already one word long (with one exception needing a transformation \emph{Trail Blazers $\rightarrow$ Trail\_Blazers}) the transformation is rather trivial. The similar observation applies to names of cities (with 6 exceptions: \emph{Oklahoma\_City}, \emph{San\_Antonio}, \emph{New\_Orleans}, \emph{Los\_Angeles}, \emph{Golden\_State}, \emph{New\_York}), and start positions.
 
@@ -164,7 +164,7 @@ The original take on the problem is different to mine. The authors of the datase
 
 My approach is based on the idea that more dense data leads to easier learning path for the generation system. Therefore I transform the name of each player to a single token. To make copying possible a preprocessing of the output summaries as described in \ref{player_nm_trans_summary} must take place. 
 
-Consequently \emph{FIRST\_NAME} and \emph{SECOND\_NAME} records aren't needed anymore which results in another benefit, shorter inputs. (as there are 22 - 30 players involved in the match, the size of inputs becomes about 10 \% (44 - 60 records) shorter)
+Consequently \emph{FIRST\_NAME} and \emph{SECOND\_NAME} records aren't needed anymore. Number of records belonging to a particular player is thus reduced to $22$ and the overall number of records which describe one match is decreased by about $10$\%. (There are $22$ - $30$ players involved in the match, therefore $44$ - $60$ records are removed.)
 
 \subsection{Entities}
 
@@ -282,7 +282,7 @@ As stated previously, the BPE should transform the output summaries to a sequenc
 
 \section{Cleaning} \label{cleaning_section}
 
-During implementation of the Content Planning approach (discussed in section \ref{content_planning_subsubsection}) I found out that the authors of the method, \citep{puduppully2019datatotext}, have used only subset of training and validation data. They removed all the pairs summary-table where the "gold" summary contained information which wasn't linked to the input table. Figure \ref{faulty_summary} shows an example of such a summary.
+During implementation of the Content Planning approach (discussed in section \ref{subsection:content_planning}) I found out that the authors of the method, \citep{puduppully2019datatotext}, have used only subset of training and validation data. They removed all the pairs summary-table where the "gold" summary contained information which wasn't linked to the input table. Figure \ref{faulty_summary} shows an example of such a summary.
 
 I use a subset of the subset used by Puduppully. In addition I also removed all the samples from the dataset about matches between teams from Los Angeles (Clippers and Lakers) where the distinction between different teams wasn't shown, and every player was listed as playing for "Los Angeles" (thus it was impossible to tell if he played for Clippers or Lakers).
 
