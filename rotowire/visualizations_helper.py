@@ -184,8 +184,12 @@ def create_latex_table_sum( data
                           , max_table_size
                           , ix_to_tk
                           , ix_to_tp
-                          , out_path):
-    _, types, entities, values, has = data
+                          , out_path
+                          , content_plan):
+    if content_plan:
+      _, _,  types, entities, values, has = data
+    else:
+      _, types, entities, values, has = data
     types, entities, values, has = types[0].numpy(), entities[0].numpy(), values[0].numpy(), has[0].numpy()
 
     entity_span = 22
@@ -238,7 +242,7 @@ def main(args):
     for key, value in vars(args).items():
         print(f"{key} : {value}")
     max_table_size, max_summary_size, max_cp_size = \
-        load_values_from_config( config_path, load_cp=False)
+        load_values_from_config( config_path, load_cp=args.content_plan)
     batch_size = 1
 
     if args.dataset == "test":
@@ -256,13 +260,16 @@ def main(args):
     else:
         raise RuntimeError("Invalid name of the dataset! (only test | valid are allowed)")
     
+    with_cp = args.content_plan if args.dataset != "test" else False
     dataset, _, tk_to_ix, tp_to_ix, ha_to_ix, pad, bos, eos \
             = load_tf_record_dataset( path=path
                                     , vocab_path=vocab_path
                                     , batch_size=batch_size
                                     , shuffle=False
                                     , preprocess_table_size=max_table_size
-                                    , preprocess_summary_size=max_summary_size)
+                                    , preprocess_summary_size=max_summary_size
+                                    , preprocess_cp_size=max_cp_size
+                                    , with_content_plans=with_cp)
     
     ix_to_tk = dict([(value, key) for key, value in tk_to_ix.items()])
     ix_to_tp = dict([(value, key) for key, value in tp_to_ix.items()])
@@ -279,7 +286,8 @@ def main(args):
                                   , max_table_size
                                   , ix_to_tk
                                   , ix_to_tp
-                                  , args.out_path)
+                                  , args.out_path
+                                  , (args.content_plan and (args.dataset != "test")))
             break
 
 
@@ -290,5 +298,6 @@ if __name__ == "__main__":
     parser.add_argument("summaries_path", type=str)
     parser.add_argument("dataset", type=str)
     parser.add_argument("out_path", type=str)
+    parser.add_argument("--content_plan", action='store_true')
     parser.add_argument("--gold", action='store_true')
     main(parser.parse_args())
