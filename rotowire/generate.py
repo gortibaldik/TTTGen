@@ -2,6 +2,7 @@ from preprocessing.load_dataset import load_tf_record_dataset, load_values_from_
 from neural_nets.layers import DotAttention, ConcatAttention, DecoderRNNCell, DecoderRNNCellJointCopy
 from neural_nets.training import create_basic_model, create_cs_model
 from neural_nets.baseline_model import BeamSearchAdapter
+from neural_nets.cp_model import GreedyAdapter
 from argparse import ArgumentParser
 import os
 import time
@@ -84,7 +85,11 @@ def generate( model
             , ix_to_tk
             , use_beam_search : bool = False
             , beam_size : int = 5
-            , max_cp_size = None):
+            , max_cp_size = None
+            , csap_model : bool = False):
+    if csap_model:
+        model = GreedyAdapter(model)
+        model.compile()
     if max_cp_size is not None:
         dataset = add_dummy_content_plans(dataset, max_cp_size)
     if not use_beam_search:
@@ -241,7 +246,8 @@ def _main(args):
                 , ix_to_tk
                 , use_beam_search=args.beam_search
                 , beam_size=args.beam_size
-                , max_cp_size=cp_size)
+                , max_cp_size=cp_size
+                , csap_model=args.with_cp)
     
 
 if __name__ == "__main__":

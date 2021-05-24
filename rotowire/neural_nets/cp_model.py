@@ -369,3 +369,103 @@ class EncoderDecoderContentSelection(tf.keras.Model):
             _input = tf.expand_dims(predicted, axis=1)
         self.last_content_plan = cp_cp_ix
         return result_preds
+
+from neural_nets.cp_model import EncoderDecoderContentSelection
+from neural_nets.layers import DecoderRNNCellJointCopy
+import numpy as np
+
+class GreedyAdapter(tf.keras.Model):
+    def __init__( self
+                , encoder_decoder : EncoderDecoderContentSelection):
+        super(GreedyAdapter, self).__init__()
+        self._encoder_content_selection = encoder_decoder._encoder_content_selection
+        self._encoder_content_planner = encoder_decoder._encoder_content_planner
+        self._encoder_from_cp = encoder_decoder._encoder_from_cp
+        self._text_decoder = encoder_decoder._text_decoder
+
+    def compile(self):
+        super(GreedyAdapter, self).compile(run_eagerly=True)
+    
+    def predict_step(self, batch_data):
+        summaries, content_plan, *tables = batch_data
+        # prepare summaries
+        max_sum_size = summaries.shape[1] - 1
+        dec_in = tf.expand_dims(summaries, axis=-1)[:, :max_sum_size, :]
+
+        batch_size = content_plan.shape[0]
+        cp_enc_outs = tf.TensorArray(tf.float32, size=content_plan.shape[1])
+        cp_enc_ins = tf.TensorArray(tf.int16, size=content_plan.shape[1])
+        cp_cp_ix = tf.TensorArray(tf.int32, size=content_plan.shape[1])
+        enc_outs, *out_states = self._encoder_content_selection(tables)
+        states = (out_states[0], out_states[1])
+
+        # the first input to the encoder_content_planner is 0th record
+        # zeroth record is the <<BOS>> record
+        next_input = enc_outs[:, 0, :]
+        mask = tf.ones(shape=next_input.shape[0], dtype=tf.bool)
+
+        # create content plan
+        # next input of the encoder_content_planner is its last output
+        for t in range(content_plan.shape[1] - 10):
+            # we want to mask all the outputs after generation of the EOS token, which 
+            # happens to have value of 2
+            (_, alignment), states = self._encoder_content_planner( (next_input, enc_outs)
+                                                                  , states=states
+                                                                  , training=False)
+            
+            # prepare next_input and gather inputs for the encoder
+
+            # get max indices
+            max_alignment = tf.argmax(alignment, axis=-1, output_type=tf.dtypes.int32)
+
+            max_alignment = max_alignment * tf.cast(mask, dtype=tf.int32) # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
+            mask = tf.math.logical_not(tf.math.logical_or(tf.math.logical_not(mask), max_alignment == 2))
+
+            # change the value of max alignment so that it points to one record lower
+            # if <<EOS>> was already generated point to the last record of the table, the <<PAD>>
+            # record
+            ic = tf.where(max_alignment != 0, max_alignment - 1, enc_outs.shape[1] - 1)
+            ic = tf.where(ic != 1, ic, ic + 1)
+            if t == content_plan.shape[1] - 11:
+                ic = tf.where(mask != False, tf.ones(mask.shape, dtype=tf.dtypes.int32) * 2, tf.cast(mask, dtype=tf.dtypes.int32))
+            indices = tf.stack([tf.range(batch_size), tf.cast(ic, tf.int32)], axis=1)
+
+            # get correct values from tables
+            vals = tf.gather_nd(tables[2], indices)
+            next_input = tf.gather_nd(enc_outs, indices)
+
+            # save for decoder
+            cp_cp_ix = cp_cp_ix.write(t, ic)
+            enc_outs_zeroed = tf.where(tf.expand_dims(indices[:, 1] == (enc_outs.shape[1] - 1), 1), tf.zeros(next_input.shape), next_input)
+            cp_enc_outs = cp_enc_outs.write(t, enc_outs_zeroed)
+            cp_enc_ins = cp_enc_ins.write(t, vals)
+
+        cp_enc_outs = tf.transpose(cp_enc_outs.stack(), [1, 0, 2])
+        cp_enc_ins = tf.transpose(cp_enc_ins.stack(), [1, 0])
+        cp_cp_ix = tf.transpose(cp_cp_ix.stack(), [1, 0])
+
+        # encode generated content plan
+        cp_enc_outs, *last_hidden_rnn = self._encoder_from_cp(cp_enc_outs, training=False)
+
+        # prepare states and inputs for the text decoder
+        if isinstance(self._text_decoder, DecoderRNNCellJointCopy):
+            enc_ins = tf.one_hot(tf.cast(cp_enc_ins, tf.int32), self._text_decoder._word_vocab_size) # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
+            aux_inputs = (cp_enc_outs, enc_ins) # value portion of the record needs to be copied
+        else:
+            aux_inputs = (cp_enc_outs,)
+
+        # decode text from the encoded content plan
+        states = [ last_hidden_rnn[-1], *last_hidden_rnn ]
+        # zeroth token is the <<BOS>> token
+        _input = dec_in[:, 0, :]
+        result_preds = np.zeros(summaries.shape, dtype=np.int)
+        for t in range(dec_in.shape[1]):
+            last_out, states = self._text_decoder( (_input, *aux_inputs)
+                                                 , states=states
+                                                 , training=False)
+
+            predicted = tf.argmax(last_out, axis=1).numpy()
+            result_preds[:, t] = predicted
+            _input = tf.expand_dims(predicted, axis=1)
+        self.last_content_plan = cp_cp_ix
+        return result_preds
