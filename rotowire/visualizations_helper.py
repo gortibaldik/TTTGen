@@ -119,25 +119,52 @@ figure_template = """%%% The main file. It contains definitions of basic paramet
 
         \\begin{{tabular}}{{llllllll}}
             \\toprule
-            PLAYER  & City         & PTS$_1$ & AST$_4$ & REB$_3$ & FG$_5$  & FGA$_6$ & S\\_POS$_7$ $\\ldots$ \\\\
+            PLAYER  & City         & PTS$_1$ & AST$_4$ & REB$_3$ & FG$_5$  & FGA$_6$ & S\\_POS$_7$  \\\\
             \\midrule
-            {PLAYER_NAME_1} & {TEAM_CITY_1} & {PTS_1} & {AST_1} & {REB_1} & {FGM_1} & {FGA_1} & {START_POSITION_1} $\\ldots$ \\\\
-            {PLAYER_NAME_2} & {TEAM_CITY_2} & {PTS_2} & {AST_2} & {REB_2} & {FGM_2} & {FGA_2} & {START_POSITION_2} $\\ldots$ \\\\
-            {PLAYER_NAME_3} & {TEAM_CITY_3} & {PTS_3} & {AST_3} & {REB_3} & {FGM_3} & {FGA_3} & {START_POSITION_3} $\\ldots$ \\\\
-            {PLAYER_NAME_4} & {TEAM_CITY_4} & {PTS_4} & {AST_4} & {REB_4} & {FGM_4} & {FGA_4} & {START_POSITION_4} $\\ldots$ \\\\
-            {PLAYER_NAME_5} & {TEAM_CITY_5} & {PTS_5} & {AST_5} & {REB_5} & {FGM_5} & {FGA_5} & {START_POSITION_5} $\\ldots$ \\\\
-            {PLAYER_NAME_6} & {TEAM_CITY_6} & {PTS_6} & {AST_6} & {REB_6} & {FGM_6} & {FGA_6} & {START_POSITION_6} $\\ldots$ \\\\
-            {PLAYER_NAME_7} & {TEAM_CITY_7} & {PTS_7} & {AST_7} & {REB_7} & {FGM_7} & {FGA_7} & {START_POSITION_7} $\\ldots$ \\\\
-            {PLAYER_NAME_8} & {TEAM_CITY_8} & {PTS_8} & {AST_8} & {REB_8} & {FGM_8} & {FGA_8} & {START_POSITION_8} $\\ldots$ \\\\
-            {PLAYER_NAME_9} & {TEAM_CITY_9} & {PTS_9} & {AST_9} & {REB_9} & {FGM_9} & {FGA_9} & {START_POSITION_9} $\\ldots$ \\\\
-            {PLAYER_NAME_10} & {TEAM_CITY_10} & {PTS_10} & {AST_10} & {REB_10} & {FGM_10} & {FGA_10} & {START_POSITION_10} $\\ldots$ \\\\
-            {PLAYER_NAME_11} & {TEAM_CITY_11} & {PTS_11} & {AST_11} & {REB_11} & {FGM_11} & {FGA_11} & {START_POSITION_11} $\\ldots$ \\\\
-            {PLAYER_NAME_12} & {TEAM_CITY_12} & {PTS_12} & {AST_12} & {REB_12} & {FGM_12} & {FGA_12} & {START_POSITION_12} $\\ldots$ \\\\
-            {PLAYER_NAME_13} & {TEAM_CITY_13} & {PTS_13} & {AST_13} & {REB_13} & {FGM_13} & {FGA_13} & {START_POSITION_13} $\\ldots$ \\\\
+            {PLAYER_NAME_1} & {TEAM_CITY_1} & {PTS_1} & {AST_1} & {REB_1} & {FGM_1} & {FGA_1} & {START_POSITION_1}  \\\\
+            {PLAYER_NAME_2} & {TEAM_CITY_2} & {PTS_2} & {AST_2} & {REB_2} & {FGM_2} & {FGA_2} & {START_POSITION_2}  \\\\
+            {PLAYER_NAME_3} & {TEAM_CITY_3} & {PTS_3} & {AST_3} & {REB_3} & {FGM_3} & {FGA_3} & {START_POSITION_3}  \\\\
+            {PLAYER_NAME_4} & {TEAM_CITY_4} & {PTS_4} & {AST_4} & {REB_4} & {FGM_4} & {FGA_4} & {START_POSITION_4}  \\\\
+            {PLAYER_NAME_5} & {TEAM_CITY_5} & {PTS_5} & {AST_5} & {REB_5} & {FGM_5} & {FGA_5} & {START_POSITION_5}  \\\\
+            {PLAYER_NAME_6} & {TEAM_CITY_6} & {PTS_6} & {AST_6} & {REB_6} & {FGM_6} & {FGA_6} & {START_POSITION_6}  \\\\
+            {PLAYER_NAME_7} & {TEAM_CITY_7} & {PTS_7} & {AST_7} & {REB_7} & {FGM_7} & {FGA_7} & {START_POSITION_7}  \\\\
+            {PLAYER_NAME_8} & {TEAM_CITY_8} & {PTS_8} & {AST_8} & {REB_8} & {FGM_8} & {FGA_8} & {START_POSITION_8}  \\\\
+            {PLAYER_NAME_9} & {TEAM_CITY_9} & {PTS_9} & {AST_9} & {REB_9} & {FGM_9} & {FGA_9} & {START_POSITION_9}  \\\\
+            {PLAYER_NAME_10} & {TEAM_CITY_10} & {PTS_10} & {AST_10} & {REB_10} & {FGM_10} & {FGA_10} & {START_POSITION_10}  \\\\
+            {PLAYER_NAME_11} & {TEAM_CITY_11} & {PTS_11} & {AST_11} & {REB_11} & {FGM_11} & {FGA_11} & {START_POSITION_11}  \\\\
+            {PLAYER_NAME_12} & {TEAM_CITY_12} & {PTS_12} & {AST_12} & {REB_12} & {FGM_12} & {FGA_12} & {START_POSITION_12}  \\\\
+            {PLAYER_NAME_13} & {TEAM_CITY_13} & {PTS_13} & {AST_13} & {REB_13} & {FGM_13} & {FGA_13} & {START_POSITION_13}  \\\\
+            \\ldots
+        \\end{{tabular}}
+        \\begin{{tabular}}{{llllllllll}}
+            \\toprule
+            PLAYER  & BLK         & FG3A & FG3 & FTA & FT  & MIN & STL & PF & TO \\\\
+            \\midrule
+            {PLAYER_NAME_1} & {BLK_1} & {FG3A_1} & {FG3M_1} & {FTA_1} & {FTM_1} & {MIN_1} & {STL_1} & {PF_1} & {TO_1}\\\\
+            {PLAYER_NAME_2} & {BLK_2} & {FG3A_2} & {FG3M_2} & {FTA_2} & {FTM_2} & {MIN_2} & {STL_2} & {PF_2} & {TO_2} \\\\
+            {PLAYER_NAME_3} & {BLK_3} & {FG3A_3} & {FG3M_3} & {FTA_3} & {FTM_3} & {MIN_3} & {STL_3} & {PF_3} & {TO_3} \\\\
+            {PLAYER_NAME_4} & {BLK_4} & {FG3A_4} & {FG3M_4} & {FTA_4} & {FTM_4} & {MIN_4} & {STL_4} & {PF_4} & {TO_4} \\\\
+            {PLAYER_NAME_5} & {BLK_5} & {FG3A_5} & {FG3M_5} & {FTA_5} & {FTM_5} & {MIN_5} & {STL_5} & {PF_5} & {TO_5} \\\\
+            {PLAYER_NAME_6} & {BLK_6} & {FG3A_6} & {FG3M_6} & {FTA_6} & {FTM_6} & {MIN_6} & {STL_6} & {PF_6} & {TO_6} \\\\
+            {PLAYER_NAME_7} & {BLK_7} & {FG3A_7} & {FG3M_7} & {FTA_7} & {FTM_7} & {MIN_7} & {STL_7} & {PF_7} & {TO_7} \\\\
+            {PLAYER_NAME_8} & {BLK_8} & {FG3A_8} & {FG3M_8} & {FTA_8} & {FTM_8} & {MIN_8} & {STL_8} & {PF_8} & {TO_8} \\\\
+            {PLAYER_NAME_9} & {BLK_9} & {FG3A_9} & {FG3M_9} & {FTA_9} & {FTM_9} & {MIN_9} & {STL_9} & {PF_9} & {TO_9} \\\\
+            {PLAYER_NAME_10} & {BLK_10} & {FG3A_10} & {FG3M_10} & {FTA_10} & {FTM_10} & {MIN_10} & {STL_10} & {PF_10} & {TO_10} \\\\
+            {PLAYER_NAME_11} & {BLK_11} & {FG3A_11} & {FG3M_11} & {FTA_11} & {FTM_11} & {MIN_11} & {STL_11} & {PF_11} & {TO_11} \\\\
+            {PLAYER_NAME_12} & {BLK_12} & {FG3A_12} & {FG3M_12} & {FTA_12} & {FTM_12} & {MIN_12} & {STL_12} & {PF_12} & {TO_12} \\\\
+            {PLAYER_NAME_13} & {BLK_13} & {FG3A_13} & {FG3M_13} & {FTA_13} & {FTM_13} & {MIN_13} & {STL_13} & {PF_13} & {TO_13} \\\\
             \\ldots
         \\end{{tabular}}
     \\end{{center}}
 }}; % end of node
+\\end{{tikzpicture}}
+}}
+\\end{{figure*}}
+
+\\begin{{figure*}}[h!]
+\\centering
+\\scalebox{{0.75}}{{
+\\begin{{tikzpicture}}
 \\node(summary) [rectangle, draw,thick,fill=blue!0,text width=39em, rounded corners, inner sep =8pt, minimum height=1em, below=-2mm of tables]{{
     \\baselineskip=100pt
     \\small
