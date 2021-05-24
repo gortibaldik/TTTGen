@@ -71,7 +71,7 @@ Rather than training end-to-end, \citep{puduppully2019datatotext} suggest to div
 
 Both tasks are modelled with \emph{the same} Encoder and with \emph{separate} Decoders.
 
-\subsection{Content Selection}
+\subsection{Content Selection} \label{subsection:content_selection}
 
 \citep{puduppully2019datatotext} improves the baseline encoder by incorporating \emph{context awareness}. At first the input records are encoded in the same way as in the baseline model \ref{section:baseline_model}, the self-attention is used to model the "importance vis-a-vis other records in the table".
 
@@ -91,7 +91,7 @@ The Encoder thus creates a sequence of \emph{context aware} representations $\{\
     \caption{Content Selection mechanism (image is directly from \citep{puduppully2019datatotext})} \label{content_selection_pudupully}
 \end{figure}
 
-\subsection{Content Planning} \label{content_planning_subsubsection}
+\subsection{Content Planning} \label{subsection:content_planning}
 
 \citep{wiseman2017} experimented with conditional copy approach, in which the latent \emph{switch} probability isn't marginalized out. Hence, there exists pointer sequence for each summary in the train and validation dataset. The sequence corresponds to the order in which entities and values from the sequence of input records appear in the output summary. \citep{puduppully2019datatotext} suggested that instead of just modelling the switch probability, we can train a Decoder to extract these pointers from the original table.
 
