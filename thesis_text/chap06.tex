@@ -223,6 +223,7 @@ Contrary to observations on the baseline model neither greedy decoding nor beam 
         Copy$_G$ & {} & 12.48 & 12.6 & 37.35\% & 47.29\% \\
         Copy$_{B5}$ & \pulrad{9.87} & 12.19 & 12.5 & 39.76\% & 47.13\% \\
         \bottomrule
+        \multicolumn{6}{l}{\footnotesize{Copy - Joint-Copy model}} \\
         \multicolumn{4}{l}{\footnotesize{$_{G}$ - Greedy Decoding}} \\
         \multicolumn{4}{l}{\footnotesize{$_{B5}$ - Beam search decoding, beam size $=5$}} \\
     \end{tabular}
@@ -261,7 +262,7 @@ The summaries produced by the model are richer in structure, as they mention mor
         \pulrad{\textbf{Model}} & \textbf{Perplexity} & \textbf{BLEU} & \textbf{BLEU} & \textbf{Recall} & \textbf{Facts} \\
         \midrule
         CopyCS$_G$ & {} & 13.53 & 13.62 & -- & -- \\
-        CopyCS$_{B5}$ & \pulrad{9.93} & 13.96 & 13.54 & 44.58\% & 42.22\% \\
+        CopyCS$_{B5}$ & \pulrad{9.93} & 13.54 & 13.96 & 44.58\% & 42.22\% \\
         \bottomrule
         \multicolumn{4}{l}{\footnotesize{CopyCS - Joint-Copy decoder $+$ Content Selection encoder}} \\
         \multicolumn{4}{l}{\footnotesize{$_{G}$ - Greedy Decoding}} \\
@@ -342,9 +343,9 @@ The other generation setting is to use the generated content plans. However this
         CS\&P$_G$ & {} & 13.07 & 13.08 & 44.58\% & 67.76\% \\
         CS\&P$_{G}^{*}$ & \pulrad{8.76} & 22.8$^{*}$ & -- & 71.43\%$^{*}$ & 54.69\%$^{*}$ \\
         \bottomrule
-        \multicolumn{6}{l}{\footnotesize{CS\&P Content Selection and Planning model}} \\
+        \multicolumn{6}{l}{\footnotesize{CS\&P - Content Selection and Planning model}} \\
         \multicolumn{6}{l}{\footnotesize{$_{G}$ - Greedy Decoding}} \\
-        \multicolumn{6}{l}{\footnotesize{$_1$ - Validation Perplexity of text decoding from gold content plans}} \\
+        \multicolumn{6}{l}{\footnotesize{$_1$ - Validation Perplexity of text decoded from gold content plans}} \\
         \multicolumn{6}{l}{\footnotesize{$^{*}$ - All the metrics are computed only on the validation part of the dataset, with \emph{gold content plans}}}
     \end{tabular}
     }
@@ -371,20 +372,20 @@ We trained only the Joint-Copy model on the ordered tables, and we cannot make a
     \begin{tabular}{lccccc}
         \toprule
         {} & \textbf{Validation} & \textbf{Validation} & \textbf{Test} & \textbf{Entity} & \textbf{Correct} \\
-        \pulrad{\textbf{Model}} & \textbf{Perplexity$_1$} & \textbf{BLEU} & \textbf{BLEU} & \textbf{Recall} & \textbf{Facts} \\
+        \pulrad{\textbf{Model}} & \textbf{Perplexity} & \textbf{BLEU} & \textbf{BLEU} & \textbf{Recall} & \textbf{Facts} \\
         \midrule
         Copy$_{orderedG}$ & {} & 12.98 & 13.32 & -- & -- \\
         Copy$_{orderedB5}$ & \pulrad{9.21} & 13.75 & 14.01 & 33.73\% & 46.84\% \\
         \bottomrule
-        \multicolumn{6}{l}{\footnotesize{Copy - Joint-Copy model}} \\
+        \multicolumn{6}{l}{\footnotesize{Copy$_ordered$ - Joint-Copy model operating on the ordered tables}} \\
         \multicolumn{6}{l}{\footnotesize{$_{G}$ - Greedy Decoding}} \\
-        \multicolumn{6}{l}{\footnotesize{$_B$ - Beam search decoding, beam size $ = 5 $}} \\
+        \multicolumn{6}{l}{\footnotesize{$_{B5}$ - Beam search decoding, beam size $ = 5 $}} \\
     \end{tabular}
     }
     \caption{Performance metrics on the Content Selection and Planning model.} \label{table:metrics_copy_ordered}
 \end{table}
 
-\section{Shortened Tables}
+\section{Shortened Tables} \label{section:shortened_tables}
 
 We took the second effort to make the input tables easier to understand for the network. We order the tables as in previous section. Next we keep all the information about both teams and top three players according to their point totals. The information about the other players is reduced to minutes they played, points and assists they scored, their team and their name. The length of the new sequence of input records is $130$.
 
@@ -437,8 +438,9 @@ This configuration (more sophisticated model, input table that is easier to unde
         Copy$_{prunnedG}$ & {} & 14.31 & 14.45 & -- & -- \\
         Copy$_{prunnedB5}$ & \pulrad{11.24} & 15.18 & 15.63 & 50.6\% & 49.87\% \\
         \bottomrule
+        \multicolumn{6}{l}{\footnotesize{Copy$_prunned$ - the model introduced in section \ref{section:shortened_tables}}} \\
         \multicolumn{6}{l}{\footnotesize{$_{G}$ - Greedy Decoding}} \\
-        \multicolumn{6}{l}{\footnotesize{$_B$ - Beam search decoding, beam size $ = 5 $}} \\
+        \multicolumn{6}{l}{\footnotesize{$_{B5}$ - Beam search decoding, beam size $ = 5 $}} \\
     \end{tabular}
     }
     \caption{Performance metrics on the Content Selection and Planning model.} \label{table:metrics_prunned}
@@ -461,7 +463,44 @@ This is our final experiment, using the most advanced preprocessing as well as t
 
 \section{Overall Comparison}
 
+We start with the Baseline model (section \ref{section:baseline_model}) which produces fairly good language but many hallucinated statements (only 8\% of the produced statements are correct).
 
+Next we experiment with the Joint-Copy model (section \ref{section:copy_mechanism_intro}). There we see the number of correct statements to increase to more than 40\% and the BLEU score to rise by more than 2 points.
+
+We move on to Joint-Copy model with Content Selection encoder ( section \ref{subsection:content_selection}). We see another improvement in the BLEU score (by 1 point) and the entity recall (by 5\%) however the number of correct facts decreases and the produced language contains many contradictions because we did not manage to find the right combination of the hyperparameters.
+
+The Content Selection and Planning model (section \ref{section:content_selection_and_planning}) is the last one we use for the task. We see that the model achieves great performance on reduced and reorganized tables (the BLEU score bigger than 22) although the part of the model creating the reduced tables does not cooperate well with the part generating text, therefore we do not see any improvement over the Joint-Copy model with Content Selection encoder.
+
+Our last experiments aim to make the sequence of input records more organized and shorter. We use a model introduced previously (Joint-Copy model) and another model with Content Selection encoder with bidirectional LSTM layer on the top and Joint-Copy decoder. On shortened and ordered tables we manage to increase the BLEU score by another point and all the manually evaluated metrics by at least 2 \%.
+
+\begin{table}[h]
+    \centering
+    \scalebox{0.8}{
+    \begin{tabular}{lccccc}
+        \toprule
+        {} & \textbf{Validation} & \textbf{Validation} & \textbf{Test} & \textbf{Entity} & \textbf{Correct} \\
+        \pulrad{\textbf{Model}} & \textbf{Perplexity} & \textbf{BLEU} & \textbf{BLEU} & \textbf{Recall} & \textbf{Facts} \\
+        \midrule
+        BR$_{B5}$ & 10.59 & 9.99 & 10.6 & 37.35\% & 8.03\% \\
+        Copy$_{B5}$ & 9.87 & 12.19 & 12.5 & 39.76\% & 47.13\% \\
+        CopyCS$_{B5}$ & 9.93 & 13.54 & 13.96 & 44.58\% & 42.22\% \\
+        CS\&P$_G$ & 8.76$^{*}$ & 13.07 & 13.08 & 44.58\% & 67.76\% \\
+        Copy$_{orderedB5}$ & 9.21 & 13.75 & 14.01 & 33.73\% & 46.84\% \\
+        Copy$_{prunnedB5}$ & 11.24 & 15.18 & 15.63 & 50.6\% & 49.87\% \\
+        \bottomrule
+        \multicolumn{6}{l}{\footnotesize{BR - Baseline, regularized}} \\
+        \multicolumn{6}{l}{\footnotesize{Copy - Joint-Copy model}} \\
+        \multicolumn{6}{l}{\footnotesize{CopyCS - Joint-Copy decoder $+$ Content Selection encoder}} \\
+        \multicolumn{6}{l}{\footnotesize{CS\&P - Content Selection and Planning model}} \\
+        \multicolumn{6}{l}{\footnotesize{Copy$_ordered$ - Joint-Copy model operating on the ordered tables}} \\
+        \multicolumn{6}{l}{\footnotesize{Copy$_prunned$ - the model introduced in section \ref{section:shortened_tables}}} \\
+        \multicolumn{6}{l}{\footnotesize{$_{G}$ - Greedy Decoding}} \\
+        \multicolumn{6}{l}{\footnotesize{$_{B5}$ - Beam search decoding, beam size $ = 5 $}} \\
+        \multicolumn{6}{l}{\footnotesize{$^{*}$ - Validation Perplexity of text decoded from gold content plans}} \\
+    \end{tabular}
+    }
+    \caption{Performance metrics on all the models and approaches discussed in this chapter.} \label{table:metrics_all}
+\end{table}
 
 \section{Implementation Details}
 

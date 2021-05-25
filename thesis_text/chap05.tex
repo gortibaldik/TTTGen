@@ -65,7 +65,7 @@ Therefore as the next step I incorporate the \emph{Joint Copy mechanism} \citep{
 
 The generational path is the same as in the baseline model. In the copy path I use the alignment vector from the newly added attention as weights, to compute the weighted sum of the value portion of input records. The visualization can be seen in the figure \ref{rotowire_joint_copy_vis}.
 
-\section{Content Selection and Planning}
+\section{Content Selection and Planning} \label{section:content_selection_and_planning}
 
 Rather than training end-to-end, \citep{puduppully2019datatotext} suggest to divide the task to \emph{content planning} and \emph{text generation}. The \emph{content plan} describes "what to say, and in what order". During the \emph{content planning} stage the model selects some records from the input table and organizes them to a \emph{content plan}. During the \emph{text generation} stage, the model generates the text based on the records pointed to by the \emph{content plan}.
 

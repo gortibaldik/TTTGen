@@ -124,7 +124,7 @@ In the standard Encoder-Decoder, the output is a distribution over the output vo
     \item Networks tend to \emph{hallucinate} the facts. E.g. from the record \emph{\{type:transfor\-mer; value:GPT\}} network generates a sentence "The famous example of transformer architecture is BERT." To put it simply, the network knows it should talk mention a transformer, therefore each word describing some kind of a transformer is somewhat probable, even if it wasn't seen in the actual input.
 \end{enumerate}
 
-I have already discussed how to increase the average frequency of a token to minimize the Rare-Word Problem through preprocessing (section \ref{bpeSection}). In the following sections I show the methods which handle hallucinations (section \ref{copy_mech_sec}).
+I have already discussed how to increase the average frequency of a token to minimize the Rare-Word Problem through preprocessing (section \ref{bpeSection}). In the following sections I show the methods which handle hallucinations (section \ref{section:copy_mechanism}).
 
 \section{Attention Mechanism}
 
@@ -174,7 +174,7 @@ The same author also states that the fact that the attentional decisions are mad
 \end{figure}
 
 
-\section{Copy mechanism} \label{copy_mech_sec}
+\section{Copy mechanism} \label{section:copy_mechanism}
 The copy mechanism is a further extension of the attention mechanism. In this section I discuss the Pointer networks \citep{vinyals2015pointer}, which are trained to \emph{point} to some position in the input sequence and the Copy Mechanisms \citep{gulcehre2016pointing}, \citep{gu2016incorporating}, \citep{yang2016referenceaware} which model the decision making (whether to copy from the pointed location or to generate from the actual context).
 
 \subsection{Pointer Networks}
