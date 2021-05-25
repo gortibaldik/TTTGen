@@ -21,11 +21,11 @@ The Encoder should process the input records (the formation of a record is expla
 
 I described in section \ref{trans_in_tb_rw} that each record $r$ consists of 4 different features: \emph{type}, \emph{value}, \emph{entity} and a \emph{home/away flag} depicting if the record belongs to home or away team.
 
-At first each feature is embedded to a fixed-dimensional space. Next the embeddings are concatenated. I choose the same approach as \citep{wiseman2017} (who was inspired by \citep{yang2016referenceaware}), and I pass the concatenation through a one layer feed-forward network (\emph{tf.keras.layers.Dense}) with ReLU activation\footnote{the Rectified Linear Unit activation function $f(x) = max(0, x)$}, to create the encoding $e$ of the record $r$. Consequently, the input sequence of records $\{r_i\}_{i=1}^m$ is transformed to $\mathbf{e} = \{ e_i \}_{i=1}^m$ .
+At first each feature is embedded to a fixed-dimensional space. Next the embeddings are concatenated. I choose the same approach as \citep{wiseman2017} (who was inspired by \citep{yang2016referenceaware}), and I pass the concatenation through a one layer feed-forward network (\emph{tf.keras.layers.Dense}) with ReLU activation\footnote{the Rectified Linear Unit activation function $f(x) = max(0, x)$}, to create the encoding $e$ of the record $r$. Consequently, the input sequence of records $\{r_i\}_{i=1}^m$ is transformed to $\boldsymbol{e} = \{ e_i \}_{i=1}^m$ .
 
 To create the initial state of the decoder, \citep{wiseman2017} calculated the mean of the records belonging to the particular entity and linearly transformed the concatenation of the means. (Simply, the concatenation is passed through \emph{tf.keras.la\-yers.Dense} without any activation function).
 
-To make the implementation simpler I observe that each player entity is represented by 22 records and each team entity by 15 records \ref{trans_in_tb_rw}.  Consequently I approximate the approach taken by \citep{wiseman2017} and mean pool over $\mathbf{e}$ with stride 22. (Which means that while means of players are exact, the means of team records are less than approximated) During my experiments I haven't seen any indication that this modification became the performance bottleneck of the model.
+To make the implementation simpler I observe that each player entity is represented by 22 records and each team entity by 15 records \ref{trans_in_tb_rw}.  Consequently I approximate the approach taken by \citep{wiseman2017} and mean pool over $\boldsymbol{e}$ with stride 22. (Which means that while means of players are exact, the means of team records are less than approximated) During my experiments I haven't seen any indication that this modification became the performance bottleneck of the model.
 
 \subsection{Decoder}
 
@@ -33,14 +33,14 @@ The Decoder is a 2-layer LSTM network with attention mechanism. The LSTMs are in
 
 \subsection{Training and Inference}
 
-The model is trained end-to-end to minimize the cross-entropy loss (negative-log likelihood) of the gold output summary $\mathbf{y}$ given the sequence of input records $\mathbf{s}$.
+The model is trained end-to-end to minimize the cross-entropy loss (negative-log likelihood) of the gold output summary $\boldsymbol{y}$ given the sequence of input records $\boldsymbol{s}$.
 \begin{equation}
-    \min \sum_{(\mathbf{s}, \mathbf{y}) \in \mathcal{D} }{-log\ p(\mathbf{y}|\mathbf{s})}
+    \min \sum_{(\boldsymbol{s}, \boldsymbol{y}) \in \mathcal{D} }{-log\ p(\boldsymbol{y}|\boldsymbol{s})}
 \end{equation}
 
 We use the \emph{teacher forcing} (as explained in section \ref{subsection:high_level_encoder_decoder}) during training and during the inference, we approximate the most probable output sequence (either greedily or by using beam-search, explained in chapter \ref{experiments_chapter}).
 \begin{equation}
-    \mathbf{\hat{y}} = \argmax_{\mathbf{y'}} p(\mathbf{y'} | \mathbf{s})
+    \boldsymbol{\hat{y}} = \argmax_{\boldsymbol{y'}} p(\boldsymbol{y'} | \boldsymbol{s})
 \end{equation}
 
 \begin{figure}[!h]
@@ -95,25 +95,23 @@ The Encoder thus creates a sequence of \emph{context aware} representations $\{\
 
 \citep{wiseman2017} experimented with conditional copy approach, in which the latent \emph{switch} probability isn't marginalized out. Hence, there exists pointer sequence for each summary in the train and validation dataset. The sequence corresponds to the order in which entities and values from the sequence of input records appear in the output summary. \citep{puduppully2019datatotext} suggested that instead of just modelling the switch probability, we can train a Decoder to extract these pointers from the original table.
 
-As suggested, the Content Plan Decoder is a one layer LSTM which operates on the \emph{context aware} representations $\hat{\mathbf{r}}^{cs}$. Its hidden states are initialized with $avg(\{\hat{r}_t^{cs}\}_{t=1}^m)$. \citep{puduppully2019datatotext} haven't elaborated on the exact approach, hence it is probable that I have diverged a little bit from the intentions of original authors.
+As suggested, the Content Plan Decoder is a one layer LSTM which operates on the \emph{context aware} representations $\hat{\boldsymbol{r}}^{cs}$. Its hidden states are initialized with $avg(\{\hat{r}_t^{cs}\}_{t=1}^m)$. \citep{puduppully2019datatotext} haven't elaborated on the exact approach, hence it is probable that I have diverged a little bit from the intentions of original authors.
 
-The Text Decoder is trained to start the generation when it sees the \emph{\textless BOS\textgreater} token. Since the Content Plan Decoder operates on $\hat{\mathbf{r}}^{cs}$ I've choosen to prepend a special \emph{\textless BOS\textgreater} record to the sequence of input records, and also a pointer to the \emph{\textless BOS\textgreater} record is prepended to each content plan. Therefore instead of teaching the Content Plan Decoder to start generating content plan when seeing a special value, I teach it to do so when seeing \emph{the encoded representation of the special value}. The same approach is taken at the end, with the \emph{\textless EOS\textgreater} record.
-
-\begin{table}
+\begin{table}[h]
     \centering \small
     \begin{tabular}{llll}
         \toprule
         \textbf{Type} & \textbf{Entity} & \textbf{Value} & \textbf{H/A flag} \\                  
         \midrule
         \textless{}\textless{}BOS\textgreater{}\textgreater{} & \textless{}\textless{}BOS\textgreater{}\textgreater{} & \textless{}\textless{}BOS\textgreater{}\textgreater{} & \textless{}\textless{}BOS\textgreater{}\textgreater{} \\
-        TEAM-CITY                                             & Raptors                                               & Toronto                                               & HOME                                                  \\
-        TEAM-NAME                                             & Raptors                                               & Raptors                                               & HOME                                                  \\
-        TEAM-PTS                                              & Raptors                                               & 122                                                   & HOME                                                  \\
-        TEAM-CITY                                             & 76ers                                                 & Philadelphia                                          & AWAY                                                  \\
-        TEAM-NAME                                             & 76ers                                                 & 76ers                                                 & AWAY                                                  \\
-        TEAM-NAME                                             & 76ers                                                 & 76ers                                                 & AWAY                                                  \\
-        TEAM-PTS                                              & 76ers                                                 & 95                                                    & AWAY                                                  \\
-        $\dots$                                               & $\dots$                                               & $\dots$                                               & $\dots$ \\                                        
+        TEAM-CITY    & Raptors      & Toronto      & HOME                                                  \\
+        TEAM-NAME    & Raptors      & Raptors      & HOME                                                  \\
+        TEAM-PTS     & Raptors      & 122          & HOME                                                  \\
+        TEAM-CITY    & 76ers        & Philadelphia & AWAY                                                  \\
+        TEAM-NAME    & 76ers        & 76ers        & AWAY                                                  \\
+        TEAM-NAME    & 76ers        & 76ers        & AWAY                                                  \\
+        TEAM-PTS     & 76ers        & 95           & AWAY                                                  \\
+        $\dots$      & $\dots$      & $\dots$      & $\dots$ \\                                        
         \bottomrule
         \multicolumn{4}{c}{\footnotesize \textit{Note:} The extract corresponds to sentence: "The host Toronto} \\
         \multicolumn{4}{c}{\footnotesize Raptors defeated the Philadelphia 76ers , 122 - 95\dots "}
@@ -121,11 +119,27 @@ The Text Decoder is trained to start the generation when it sees the \emph{\text
     \caption{An extract from the content plan corresponding to the summary from the figure \ref{figure:samplesummary}}
 \end{table}
 
+The Text Decoder is trained to start the generation when it sees the \emph{\textless BOS\textgreater} token. Since the Content Plan Decoder operates on $\hat{\boldsymbol{r}}^{cs}$ I've choosen to prepend a special \emph{\textless BOS\textgreater} record to the sequence of input records, and also a pointer to the \emph{\textless BOS\textgreater} record is prepended to each content plan. Therefore instead of teaching the Content Plan Decoder to start generating content plan when seeing a special value, I teach it to do so when seeing \emph{the encoded representation of the special value}. The same approach is taken at the end, with the \emph{\textless EOS\textgreater} record.
+
 Either baseline Decoder or Joint-Copy Decoder can operate on the generated content plan, to generate the output summary.
 
 \subsection{Training and Inference}
 
-As oposed to Baseline and Joint-Copy models, the Content Planning model has multiple outputs. Therefore we train the model to minimize the joint negative log-likelihood of the gold summary $\mathbf{y}$ and the gold content plan $\mathbf{z}$ conditioned on the sequence of input records $\mathbf{s}$. It deserves a note that we use the gold content plans as the inputs to the text generation part of the model.
-\begin{equation}
-    \argmin_{\mathbf{y}, \mathbf{z}}{p(\mathbf{y}|\mathbf{z}, \mathbf{s}) + p(\mathbf{z} | \mathbf{s})}
+At first let me elaborate on the training. The model consists of two parts which are trained jointly. According to notation in figure \ref{figure:overal_architecture_csap} we calculate the content planning loss and the text decoding loss. These are added together to form the overall loss which is minimized by the optimizer. During training the inputs to the Content Plan Encoder are the encoded records pointed by the \emph{gold content plan}. Equation \ref{equation:argmin_training_csap_model} shows the loss value we aim to minimize during training.
+
+\begin{equation} \label{equation:argmin_training_csap_model}
+    \sum_{(\boldsymbol{x}, \boldsymbol{y}, \boldsymbol{z}) \in \mathcal{D}} - \log{p(\boldsymbol{y}|\boldsymbol{z}, \boldsymbol{x})} - \log{p(\boldsymbol{z} | \boldsymbol{x})}
 \end{equation}
+
+There are many possibilities what to do during inference. In chapter \ref{experiments_chapter} we mention five options. The outputs of the Content Planning Decoder can be obtained using Greedy or Beam Search decoding, similarly for the Text Decoder. At last there is possibility to ignore the Content Planning Decoder and use the encoded records pointed to by the gold content plan. (if we have any gold content plan available). Equation \ref{equation:argmin_csap_model} shows the quantity we aim to maximize during the inference.
+
+\begin{equation} \label{equation:argmin_csap_model}
+    \argmin_{\boldsymbol{y'}, \boldsymbol{z'}}{p(\boldsymbol{y'}|\boldsymbol{z'}, \boldsymbol{s}) + p(\boldsymbol{z'} | \boldsymbol{s})}
+\end{equation}
+
+\begin{figure}[!h]
+    \centering
+    \includegraphics[scale=0.2]{img/content_selection_and_planning.jpg}
+    \footnotesize{\\ \textit{Note:} $p_1 = 15$ means that the first generated pointer points to $15$-th encoded record (therefore $e_{15}$ the first input to the Content Plan Encoder), similarly for $p_{m'}$}
+    \caption{Overall architecture of the Content Selection and Planning model with example outputs.} \label{figure:overal_architecture_csap}
+\end{figure}
