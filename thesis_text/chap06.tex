@@ -311,11 +311,27 @@ The second concept introduced by \citep{puduppully2019datatotext} is the Content
 
 Content Planning reduces the size of the table, and \emph{arranges} the records into the same order in which they appear in the gold summary. There are two aspects of this solution which should help the model to generate better summaries. Firstly, the input sequences of records become less complex (the maximal length of content plan is $92$ compared to more than $800$ for the original tables). Secondly, the records are ordered in the same way as they should appear in the summary. \citep{puduppully2019datatotext} show that this approach led them to really promising results (e.g. they obtained BLEU score of about $16$).
 
-\section{Results}
+\subsection{Results}
 
-We weren't able to develop sufficiently good models. The content planning part of the model overfitted in the first epoch. Since we weren't able to set up training with two optimizers (because of some implementation issues with \emph{persistent tf.GradientTape}), we tried to regularize the content planning part more (e.g. to apply bigger dropout than on the text generation part), train the content planning less (by using a similar algorithm to scheduled sampling, when we decide with probability $p$ for each batch whether to train the content planning part or not), use even lower learning rates. The shortness of time was the biggest issue we faced. The training of one epoch (one pass through the dataset) takes about 5 hours. Therefore we have to wait for about 3 days to see if the model generalizes well on the test set or not.
+During generation we applied two different settings. Firstly we ignore the outputs from the Content Planning Decoder and use the \emph{gold content plan}. (Since we have the gold content plans only for the training and validation parts of the dataset, the reported metrics are calculated only on the validation part) We can see that with gold content plans model mentions more than $70$\% of the entities that also appear in the gold summaries (we believe that the number would increase with better quality of the gold content plans\footnote{\citep{puduppully2019datatotext} extract the content plans with specialized information extraction system, and they claim that "strictly speaking, we cannot talk about gold content plans".}).
 
-The best model we managed to train was regularized using dropout rate $0.5$ on all the LSTM cells (in the content plan decoder, in text decoder). The generated summaries were of really low quality (e.g. one of generated sentences hallucinated a miraculous performance by Kemba Walker :  \emph{"Kemba Walker , who tallied 7 points , 7 assists , 1 rebound , 2 steals and 0 block , in 2 minutes"}). The performance metrics do not recognize how bad the model actually is, as it scored better than the Joint-Copy model (table \ref{table:metrics_csap}).
+Figure \ref{figure:gold_cp_generated} is a good example of the summaries which are generated from the \emph{gold content plans}. Gold summary mentions 13 entities, out of which 12 are mentionned in the generated one. The generated text contains 39 numerical values out of which 31 are correct. The model learned to place the information about the entites in right\footnote{The same order as in the gold summaries.} order, and to copy numbers related to entites. Although still many flaws persist. I.e. the model generated 3 times the same information about \emph{Richaun Holmes}\footnote{Let me note that there is a numerical value \emph{$11$ points} which is counted 3 times. (Therefore $3$ is added to both \emph{all the numerical values} and \emph{correct numerical values}. This causes wrong reduplicated information to decrease the manual metrics more.)} Another problem demonstrated in the summary is that model mixed up records about Toronto and about Philadelphia (e.g. model generates sentence : \emph{"Defense was key for Toronto , as they held Philadelphia to 55 percent from the field and 68 percent from three - point range ."}, however 55\% shooting for 2pt and 68\% shooting for 3pt are the statistics related to Toronto).
+
+\begin{figure}[h]
+    \scalebox{0.85}{
+    \begin{tikzpicture}
+    \node(summary) [rectangle, draw,thick,fill=blue!0,text width=39em, rounded corners, inner sep =8pt, minimum height=1em]{
+        \baselineskip=100pt
+        \small
+        The Toronto Raptors defeated the Philadelphia 76ers , 122 - 95 , at philips arena on saturday . The Raptors were able to prevail with a win , as they outscored the sixers by 17 in the second quarter to pull out the win . Defense was key for Toronto , as they held Philadelphia to 55 percent from the field and 68 percent from three - point range . The sixers also dominated the rebounding , winning that battle , 44 - 30 . The sixers ( 4 - 14 ) have now lost 5 of their last 6 games , as this marks their fifth win in their last 6 games . Robert Covington was the lone bright spot for the sixers , as he tallied 20 points , 5 rebounds , 2 assists and 2 steals on 7 - of - 11 shooting . Jahlil Okafor was the only other blazer to score double figures , as he totaled 15 points and 5 rebounds . Sergio Rodriguez and Ersan Ilyasova each scored 11 points off the bench . Nik Stauskas was the only other starter in double figures , as he dropped 11 points . Richaun Holmes was the only other starter in double figures , as he dropped 11 points . Richaun Holmes was the only other starter in double figures , as he dropped 11 points . Richaun Holmes was the only other starter in double figures , as he dropped 11 points . Toronto will look to bounce back on sunday in a road matchup against the Orlando Magic . Toronto ( 11 - 6 ) have been dominant all season , but a win like this was their best performance of the season . Kyle Lowry once again carried the load , as he accumulated 24 points , 4 rebounds and 8 assists . Terrence Ross was second on the team , as he dropped 22 points on 8 - of - 11 shooting . DeMar DeRozan was the only other starter in double figures , as he accumulated 14 points , 5 rebounds and 5 assists . Jonas Valanciunas recorded a double - double , totaling 12 points and 11 rebounds .
+    };
+    \end{tikzpicture} }
+    \caption{\centering A summary generated by the Content Selection and Planning model from the gold content plans. The corresponding gold summary and input table is shown in figure \ref{figure:samplesummary}.} \label{figure:gold_cp_generated}
+\end{figure}
+
+The other generation setting is to use the generated content plans. However this is where we failed to obtain the same results as \citep{puduppully2019datatotext}. We observed that the network fails to learn when to place \emph{\textless EOS\textgreater} token in the content plan and the generated content plans end with sequence of repetitions. Therefore the part of the model responsible for text generation (Content Plan Encoder and Text Decoder) fails to generate reasonable texts. (Reasonable in terms of the used language \ref{table:metrics_csap} shows that model still achieved reasonable entity recall (in fact better than any previous model) and the best correctness, although the correctness is due to large number of repetitions of the accurate information.)
+
+Since we do not implement the Beam Search decoder for the content plans (due to shortness of time) we try to artificially add \emph{\textless EOS\textgreater} token at some position in the generated content plan and mask everything after, however the results do not show any improvement. The same applies for using Beam Search in Text Decoder. 
 
 \begin{table}[h]
     \centering
@@ -325,12 +341,13 @@ The best model we managed to train was regularized using dropout rate $0.5$ on a
         {} & \textbf{Validation} & \textbf{Validation} & \textbf{Test} & \textbf{Entity} & \textbf{Correct} \\
         \pulrad{\textbf{Model}} & \textbf{Perplexity$_1$} & \textbf{BLEU} & \textbf{BLEU} & \textbf{Recall} & \textbf{Facts} \\
         \midrule
-        CS\&P$_G$ & 9.93 & 13.07 & 13.08 & 44.58\% & -- \\
+        CS\&P$_G$ & {} & 13.07 & 13.08 & 44.58\% & 67.76\% \\
+        CS\&P$_{G}^{*}$ & \pulrad{9.93} & 22.8$^{*}$ & -- & 71.43\%$^{*}$ & 54.69\%$^{*}$ \\
         \bottomrule
-        \multicolumn{4}{l}{\footnotesize{CS\&P Content Selection and Planning model}} \\
-        \multicolumn{4}{l}{\footnotesize{$_{G}$ - Greedy Decoding}} \\
-        \multicolumn{4}{l}{\footnotesize{$_{B5}$ - Beam search decoding, beam size $=5$}} \\
-        \multicolumn{4}{l}{\footnotesize{$_1$ - Validation Perplexity of text decoding from gold content plans}}
+        \multicolumn{6}{l}{\footnotesize{CS\&P Content Selection and Planning model}} \\
+        \multicolumn{6}{l}{\footnotesize{$_{G}$ - Greedy Decoding}} \\
+        \multicolumn{6}{l}{\footnotesize{$_1$ - Validation Perplexity of text decoding from gold content plans}} \\
+        \multicolumn{6}{l}{\footnotesize{$^{*}$ - All the metrics are computed only on the validation part of the dataset, with \emph{gold content plans}}}
     \end{tabular}
     }
     \caption{Performance metrics on the joint-copy model with content selection encoder.} \label{table:metrics_csap}
@@ -340,7 +357,11 @@ The best model we managed to train was regularized using dropout rate $0.5$ on a
 
 Since we haven't managed to obtain sufficient results using any of the previously proposed methods we try to make the task easier. Going through the gold content plans as well as the ones generated by Content Selection and Planning model we spotted that their structure follows a simple pattern. At first the teams are presented, then there is some information about the best players and about players who performed surprisingly well.
 
-Therefore we order the input records in a similar way. The first records in the ordered sequence belong to home and away teams. The remaining records contain information about all the players, who are ordered by their point-totals in the respective match. The size of the table remains the same 
+Therefore we order the input records in a similar way. The first records in the ordered sequence belong to home and away teams. The remaining records contain information about all the players, who are ordered by their point-totals in the respective match.
+
+\section{Results}
+
+Finally we are able to obtain another leap in the performance metrics. The BLEU score rises by $1$, the validation perplexity is reduced 
 
 \section{Shortened Tables}
 
