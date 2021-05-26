@@ -155,3 +155,7 @@ There are many possibilities what to do during inference. In section \ref{sectio
     \footnotesize{\\ \textit{Note:} $p_1 = 15$ means that the first generated pointer points to $15$-th encoded record (therefore $e_{15}$ the first input to the Content Plan Encoder), similarly for $p_{m'}$}
     \caption{Overall architecture of the Content Selection and Planning model with example outputs.} \label{figure:overal_architecture_csap}
 \end{figure}
+
+\section{Postprocessing}
+
+The models are trained to generate lowercased Byte Pair Encoded sequences. During the postprocessing we merge the tokens belonging to one word together (e.g. \emph{"contribu$\star$ tor"} $\rightarrow$ \emph{"contributor"}), split the tokens of named entities (e.g. \emph{"LeBron\_James"} $\rightarrow$ \emph{"LeBron James"}) and uppercase the first letter of a sentence. Since the vast majority of unique tokens (more than 98.6\%) from the validation and test sets (section \ref{section:stats_transformed_dataset}) is in the vocabulary collected from the training set, we opted to ommit 

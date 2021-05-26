@@ -4,10 +4,6 @@ In previous chapters we have presented the dataset (chapter \ref{chapter:data}),
 
 Let us recap the main challenges we face, and hypothesize about the ideal generation system. Firstly, the target summaries are really long. The ideal system should remember what has already been generated and shouldn't produce duplications. Secondly, the targets contain a lot of facts based on the input structured data. The ideal system should copy these facts from the input and reduce \emph{hallucinations}. Lastly, the generated text should be as close to English as possible \emph{while meeting the requirements described previously}.
 
-\section{Postprocessing}
-
-The models are trained to generate lowercased Byte Pair Encoded sequences. During the postprocessing I merge the tokens belonging to one word together (e.g. \emph{"contribu$\star$ tor"} $\rightarrow$ \emph{"contributor"}), split the tokens of named entities (e.g. \emph{"LeBron\_James"} $\rightarrow$ \emph{"LeBron James"}) and uppercase the first letter of a sentence.
-
 \section{Evaluation Methods}
 
 During evaluation I want to measure which model resembles the hypothetical ideal model the most. To do so, I report the BLEU score \citep{papineni2002} of the postprocessed generated summaries on the validation and test sets. Although it is the gold standard, there are many people arguing against its usage as a performance metric \citep{celikyilmaz2021evaluation}, and I found that the networks producing more factually correct statements doesn't score better. Therefore I also manually evaluate a subset of the generated summaries.
