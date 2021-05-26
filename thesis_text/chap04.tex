@@ -1,4 +1,4 @@
-\chapter{Neural Network Architectures} \label{neural_nets_chapter}
+\chapter{Neural Network Architectures} \label{chapter:neural_network_architectures}
 To generate text from structured data I make use of deep neural networks. In previous chapter (\ref{chapPreproc}) I've shown how to transform the structured tabular data into a sequence of records, therefore I've reduced the problem to an instance of the famous sequence to sequence problem. Now, I show how to create a system that transforms the input sequential data (structured records) to the output sequential data (natural language).
 
 The most common way to tackle the sequence to sequence problem is to use the Encoder-Decoder architecture proposed by \citep{sutskever2014sequence}. It is the main approach I used throughout this thesis. In this chapter I introduce the concepts behind the encoder-decoder architecture, its shortcomings (fixed vocabulary and thus problems with generation of words unseen during training, divergence and hallucinations) and ways to overcome these shortcomings (the attention mechanism, the copy mechanisms, the further transformations of input sequences). Since it is not the purpose of this work, only the basics of the concepts are presented, and I provide links to papers, books and tutorials which helped me on my path to understanding.
@@ -126,7 +126,7 @@ In the standard Encoder-Decoder, the output is a distribution over the output vo
 
 I have already discussed how to increase the average frequency of a token to minimize the Rare-Word Problem through preprocessing (section \ref{bpeSection}). In the following sections I show the methods which handle hallucinations (section \ref{section:copy_mechanism}).
 
-\section{Attention Mechanism}
+\section{Attention Mechanism} \label{section:attention_mechanism}
 
 The Attention mechanism should cope with the issue of fixed-dimensional representation of the input sequence \ref{fixed_repre_problem}. As stated by \citep{bahdanau2016neural} "The most important distinguishing feature of this approach from the basic encoder-decoder is that it does not attempt to encode a whole input sequence into a single fixed-length vector".
 
@@ -210,8 +210,8 @@ Consequently, the probability of the gold output $y_t$ at time-step $t$ is compu
     p(y_t|\boldsymbol{x}) = p^{gen}(y_t|\boldsymbol{x})*(1-p^{switch}(1|\boldsymbol{x})) + p^{copy}(y_t|\boldsymbol{x})*p^{switch}(1|\boldsymbol{x})
 \end{equation}
 
-\begin{figure}[hb]
-    \centering
-    \includegraphics[scale=0.65]{img/attention_alignment.pdf}
-    \caption{Excerpt from \textbf{Pointing the Unknown Words} paper by \citep{gulcehre2016pointing}, showing how the attention alignment can be utilized as a pointer information}
-\end{figure}
+% \begin{figure}[hb]
+%     \centering
+%     \includegraphics[scale=0.65]{img/attention_alignment.pdf}
+%     \caption{Excerpt from \textbf{Pointing the Unknown Words} paper by \citep{gulcehre2016pointing}, showing how the attention alignment can be utilized as a pointer information}
+% \end{figure}

@@ -1,4 +1,4 @@
-\chapter{Experimental Setup} \label{model_chapter}
+\chapter{Experimental Setup} \label{chapter:experimental_setup}
 In this chapter I aim to clarify how I set up the neural network models for the experiments (which will be discussed in the next chapter \ref{experiments_chapter}). At first I present a \emph{baseline model}. Model, which is sufficiently competitive to be able to generate reasonable texts. Then I present changes to the architecture, which aim to improve the generation.
 
 I follow the path set up by \citep{wiseman2017}. I begin with purely end-to-end approach (Encoder-Decoder with attention).Next I try to improve it with the copy mechanism \ref{copy_mech_sec}. Next I choose to divide the task to \emph{content planning} and \emph{text generation} as proposed by \citep{puduppully2019datatotext}.
@@ -15,7 +15,7 @@ To illustrate my implementation of the algorithm, I show how I process an output
 
 I use a non-recurrent Encoder and a two-layer LSTM decoder with Luong-style attention as the baseline model. At first I present how the encoding of input records works, then I talk about the text generation. I highlight all the differences between my approach and the one taken by \citep{wiseman2017}. The visualization of the model is shown in the figure \ref{rotowire_baseline_vis}.
 
-\subsection{Encoder}
+\subsection{Encoder} \label{subsection:baseline_model_encoder}
 
 The Encoder should process the input records (the formation of a record is explained in section \ref{table_to_record_trans}) to create the partial outputs at each time-step and the initial hidden state for the Decoder.
 

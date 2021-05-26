@@ -1,4 +1,4 @@
-\chapter{Preprocessing and Statistics of the Dataset} \label{chapPreproc}
+\chapter{Preprocessing and Statistics of the Dataset} \label{chapter:preprocessing_and_statistics_of_the_dataset}
 
 To generate text from structured data I choose the Deep Neural Networks and specifically the Encoder-Decoder (ED) neural architecture (section \ref{neural_nets_chapter}). The ED suited to process sequential one dimensional data, however we cope with two dimensional tables. In this chapter I present the statistics of the dataset \emph{before any preprocessing}. Next I elaborate about the methods of preprocessing and cleaning of the data. In the end I show the statistics of the dataset with all the transformations applied.
 
@@ -47,7 +47,7 @@ I believe that the challenges posed by the RotoWire dataset can be summarized in
 
 Firstly, the target summaries as well as the sequences of input records are really long compared to other datasets modelling the same task (e.g. WikiBIO \citep{lebret2016neural}, WeatherGOV \citep{liang-etal-2009-learning}, RoboCup \citep{chen2008robocup}).
 
-Secondly, many words occur rarely and the generation system cannot learn a good representation of them (it is known as a \emph{rare word problem}). It should be noted that the problem can be resolved by the means of clever preprocessing (section \ref{bpeSection}) or with help of advanced neural architectures (section \ref{copy_mech_sec}).
+Secondly, many words occur rarely and the generation system cannot learn a good representation of them (it is known as a \emph{rare word problem}). It should be noted that the problem can be resolved by the means of clever preprocessing (section \ref{section:byte_pair_encoding}) or with help of advanced neural architectures (section \ref{copy_mech_sec}).
 
 Thirdly, there are many values which represent facts, e.g. values that cannot be deduced from the context (e.g. points a player scored in a match etc.) but must be selected and copied from the table.
 
@@ -142,7 +142,7 @@ In table \ref{stats_overlap_rw} we can see how many of the unique tokens learned
     \caption{Overlap of train dataset summaries and valid/test dataset summaries} \label{stats_overlap_rw}
 \end{table}
 
-\section{Transformations of Input Tables} \label{trans_in_tb_rw}
+\section{Transformations of Input Tables} \label{section:transformations_of_input_tables}
 
 Firstly I want to present what kind of data is stored in the input tables, and how it is preprocessed. After that I show the final format of a record which is fed to the generation system.
 
@@ -248,7 +248,7 @@ During preprocessing we collect the vocabulary of all the words from the trainin
 
 We collect 3 different vocabularies, one for record types, one for home/away flags and one for all the entities, number values and tokens from the summaries.
 
-\section{Byte Pair Encoding} \label{bpeSection}
+\section{Byte Pair Encoding} \label{section:byte_pair_encoding}
 
 The Byte Pair Encoding (BPE) \citep{sennrich2016} is a method of preprocessing of a text. It was developed to enable the Neural Machine Translation models to operate on subword units. It allows them to generate and accept sequences of subwords and thus handle words unseen during training. (E.g. there are words 'high', 'low', 'lower' in the training dataset, therefore under regular setting the network couldn't be able to generate or process word 'higher'. When operating on subwords 'high', 'low', 'er' this isn't an issue anymore since the network can learn to chain subwords 'high', 'er' to form the word unseen during training.)
 
