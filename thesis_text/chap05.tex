@@ -52,34 +52,7 @@ As explained in section \ref{subsection:high_level_encoder_decoder}, during infe
     p_{model}(\boldsymbol{y} | \boldsymbol{x}) = \prod_{t=1}^N{p_{model}(y_t|y_1,\dots,y_{t-1}, \boldsymbol{x})}
 \end{equation}
 
-Since it is computationally  unfeasible to compute the probabilities of all the output sequences and to choose the best one we only approximate the optimal sequence.
 
-\subsubsection{Greedy Decoding}
-
-Greedy Decoding provides the simplest approximation of the optimal sequence. At each time-step we take the most probable token under the model distribution as the output. The process ends when the \emph{\textless EOS\textgreater} token is generated.
-\begin{align*}
-    \hat{y}_1 &= \argmax_{y'}{p_{model}(y' | \boldsymbol{x})} \\
-    \hat{y}_2 &= \argmax_{y'}{p_{model}(y' | \hat{y}_1, \boldsymbol{x})} \\
-    &\dots \\
-    <EOS> &= \argmax_{y'}{p_{model}(y' | \hat{y}_1,\dots,\hat{y}_{n'}, \boldsymbol{x})}
-\end{align*}
-
-The suboptimality of the algorithm can be seen on a simple example. E.g. let's say that we have a training corpus consisting of sentences describing my eating habits. The corpus consists of sentences "I eat a banana", "I eat a peach", "I eat a goulash" and two repetitions of sentence "I eat an apple". Starting from the state after generating subsequence "I eat", the greedy decoder would pick ``a'' as the most probable continuation of the sequence. However the optimal solution would have picked "an", because none of the possible continuations of subsequence "I eat a" is as probable as "I eat an apple" which is the most occuring sentence in the corpus.
-
-\subsubsection{Beam Search Decoding}
-
-Beam Search builds on the greedy decoding approach. We keep track of $k$ most promising \emph{hypotheses} (and associated hidden states). A hypothesis is a sequence of generated tokens $y_1,\dots,y_{n'}$. We compute its score (equation \ref{equation:hypothesis_score}).
-\begin{equation} \label{equation:hypothesis_score}
-    score(y_1,\dots,y_{n'}) = \sum_{i=1}^{n'}{\log{p(y_i | y_1, \dots, y_{i-1}, \boldsymbol{x})}}
-\end{equation}
-
-At each time-step we expand all the hypotheses (take $k$ most probable tokens under the respective hypothesis, which will result in $k^2$ possibilities), and choose $k$ with the highest score. $k$ is called the \emph{beam size}. An example of the approach can be seen in figure \ref{figure:beam_search}. There exist several options what to do when some hypothesis expands to \emph{\textless EOS \textgreater} token. The finished hypothesis can be put aside and the generation continues until $T$-th time-step ($T$ is another hyperparameter of the algorithm), or until at least $N$ hypotheses are finished. I choose yet another option, to end the generation right after the first \emph{\textless EOS\textgreater} is generated.
-
-\begin{figure}[!h]
-    \centering
-    \includegraphics[scale=0.2]{img/beam_search.png}
-    \caption{\centering Beam-Search decoding, excerpt from the slides to lecture about Machine Translation, Seq2Seq and Attention on Stanford \url{http://web.stanford.edu/class/cs224n/}} \label{figure:beam_search}
-\end{figure}
 
 \subsection{Regularization}
 
