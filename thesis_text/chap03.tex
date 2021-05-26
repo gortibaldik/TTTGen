@@ -280,7 +280,7 @@ As stated previously, the BPE should transform the output summaries to a sequenc
     \caption{\centering A part of transformed summary corresponding to the sample from figure \ref{figure:samplesummary}. $\star$ is used to mark that the following token formed the same word in the original text. Note that in the original implementation @@ is used instead.} \label{ex_sum_final}
 \end{figure}
 
-\section{Cleaning} \label{cleaning_section}
+\section{Cleaning} \label{section:cleaning}
 
 During implementation of the Content Planning approach (discussed in section \ref{subsection:content_planning}) I found out that the authors of the method, \citep{puduppully2019datatotext}, have used only subset of training and validation data. They removed all the pairs summary-table where the "gold" summary contained information which wasn't linked to the input table. Figure \ref{faulty_summary} shows an example of such a summary.
 
