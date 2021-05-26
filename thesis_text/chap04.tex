@@ -25,13 +25,13 @@ The Feed-Forward Neural Network
 \boldsymbol{y} = activation(W\boldsymbol{x} + b) \mbox{}
 \end{equation}
 \end{figure}
-On the contrary, the Recurrent Neural Network (RNN) \citep{rumelhart_rnn1988} (\emph{tf.keras.layers.SimpleRNN}) shares the same set of weights between time-steps and in addition it keeps a hidden state. At each time-step the hidden state is updated and used to calculate the output as in equation \ref{basic_rnn}. The computation can be visualized either as a loop, or as a feed-forward network with shared weights \ref{vis_rnn}.
+On the contrary, the Recurrent Neural Network (RNN) \citep{rumelhart_rnn1988} (\emph{tf.keras.layers.SimpleRNN}) shares the same set of weights between time-steps and in addition it keeps a hidden state. At each time-step the hidden state is updated and used to calculate the output as in equation \ref{equation:basic_rnn}. The computation can be visualized either as a loop, or as a feed-forward network with shared weights \ref{figure:visualization_rnn}.
 
 
 \begin{figure}[!h]
     \centering
     The Recurrent Neural Network
-    \begin{align} \label{basic_rnn}
+    \begin{align} \label{equation:basic_rnn}
     \begin{split}
         &h_t = f_h(x_t, h_{t-1}) \\
         &y_t = f_t(h_t)
@@ -39,7 +39,7 @@ On the contrary, the Recurrent Neural Network (RNN) \citep{rumelhart_rnn1988} (\
     \end{align}
     \footnotesize{\textit{Note:} $h_t$ is the hidden state; $y_t$ is the output at $t$-th timestep; tf.keras.layers.SimpleRNN uses $f_t \cong id$ and $f_h \cong tanh$ as default.}
     \includegraphics[width=121.41mm, height=41.4mm]{img/simple_rnn.jpg}
-    \caption{Visualizations of the RNN} \label{vis_rnn}
+    \caption{Visualizations of the RNN} \label{figure:visualization_rnn}
 \end{figure}
 
 The network is trained by back-propagation through time (BPPT) \citep{bpptWerbos1990}. It has been shown that the RNN suffers from vanishing / exploding gradient problems \citep{hochreiter1997}.\footnote{We believe that discussion about BPPT and exploding/vanishing gradient problems is beyond the scope of this work. Therefore we refer the reader craving for further explanation to \citep{Goodfellow-et-al-2016} and to referenced papers.} Which cause that either the RNN cannot learn anything or it is really unstable. These difficulties are adressed by more sophisticated architectures such as Gated Recurrent Unit\footnote{Although it is one of the most known architectures we used only LSTM for my experiments. } \citep{cho2014learning} or Long Short-Term Memory \citep{hochreiter1997}.
@@ -47,7 +47,7 @@ The network is trained by back-propagation through time (BPPT) \citep{bpptWerbos
 
 \subsection{Long Short-Term Memory}
 
-The Long Short-Term Memory (\emph{tf.ke\-ras.lay\-ers.LSTM}) addresses the vanishing gradient problem. It does so by adding a special cell state for capturing long range context and series of gating mechanisms. The latter update the cell state and regulate the flow of gradient through the network (as shown in figure \ref{lstm}). The more in-depth explanation can be found in \citep{Olah2015}.
+The Long Short-Term Memory (\emph{tf.ke\-ras.lay\-ers.LSTM}) addresses the vanishing gradient problem. It does so by adding a special cell state for capturing long range context and series of gating mechanisms. The latter update the cell state and regulate the flow of gradient through the network (as shown in figure \ref{figure:visualization_lstm}). The more in-depth explanation can be found in \citep{Olah2015}.
 
 \begin{figure}[!ht]
     \begin{gather}
@@ -62,7 +62,7 @@ The Long Short-Term Memory (\emph{tf.ke\-ras.lay\-ers.LSTM}) addresses the vanis
 \begin{figure}[!ht]
     \centering
     \includegraphics[width=113.44mm, height=42.64mm]{img/LSTM3-chain.png}
-    \caption{Visualization of LSTM \citep{Olah2015}} \label{lstm}
+    \caption{Visualization of LSTM \citep{Olah2015}} \label{figure:visualization_lstm}
 \end{figure}
 
 \subsection{High-level Overview of Encoder-Decoder Architecture} \label{subsection:high_level_encoder_decoder}
@@ -83,7 +83,7 @@ The dimensionality of the output of the Decoder at time-step $t$ is the same as 
 
 The Decoder is trained under the \emph{teacher-forcing} regime. The main gist of this approach is to feed the gold output $y_{t-1}$ as the input at time-step $t$. Since there is no zeroth gold output we use a special \emph{\textless BOS \textgreater} (\emph{beginning of sequence}) token as the first input to the Decoder.
 
-Another special token, the \emph{\textless EOS \textgreater} (\emph{end of sequence}) token is appended at the end of each target sequence. This way we train the model to explicitly show when the generation is over (therefore the produced sequences can be of variable length). The visualization of the approach is shown in figure \ref{enc_dec_visualization}.
+Another special token, the \emph{\textless EOS \textgreater} (\emph{end of sequence}) token is appended at the end of each target sequence. This way we train the model to explicitly show when the generation is over (therefore the produced sequences can be of variable length). The visualization of the approach is shown in figure \ref{figure:visualization_ED}.
 
 \begin{figure}[!h]
     \centering
@@ -91,7 +91,7 @@ Another special token, the \emph{\textless EOS \textgreater} (\emph{end of seque
 
     \footnotesize{\textit{Note:} Encoder is red, Decoder is blue \\ }
     \footnotesize{none of the Encoder's outputs is used}
-    \caption{\centering Visualization of the training of the Encoder-Decoder Architecture with \emph{teacher forcing}.} \label{enc_dec_visualization}
+    \caption{\centering Visualization of the training of the Encoder-Decoder Architecture with \emph{teacher forcing}.} \label{figure:visualization_ED}
 \end{figure}
 
 \subsubsection{Inference}
@@ -136,11 +136,11 @@ At each time-step we expand all the hypotheses (take $k$ most probable tokens un
 
 Despite having many advantages (variable length of the input and output sequence, possibility of extending the number of recurrent layers in the encoder and the decoder) there are some major flaws that need to be overcome in order to generate text from structured data.
 
-\subsubsection{Fixed-dimensional Representation of the Input Sequence} \label{fixed_repre_problem}
+\subsubsection{Fixed-dimensional Representation of the Input Sequence} \label{subsubsection:fixed_dimensional_repre_problem}
 
 It has been shown by \citet{cho2014properties} that the performance of the Encoder-Decoder architecture "suffers significantly from the length of sentences". \citet{bahdanau2016neural} hypothesize that it may be because all of the information from the source sequence is encoded to the fixed-dimensional vector. Both mentioned papers understand word \emph{"long"} as \emph{longer than 30 tokens}. From the chapter about the preprocessing \ref{chapter:preprocessing_and_statistics_of_the_dataset}, we know that there are more than 300 records in the average input from the RotoWire dataset. Consequently this particular problem should be seen in our task. 
 
-\subsubsection{Rare-word Problem and Hallucinations} \label{rare_word_problem}
+\subsubsection{Rare-word Problem and Hallucinations} \label{subsubsection:rare_word_problem}
 
 In the standard Encoder-Decoder, the output is a distribution over the output vocabulary. At the start of the training each word is equally probable in any given context (assuming reasonable weights initialization). During training, model learns the language model on the training data. There are several flaws in the design:
 
@@ -154,9 +154,9 @@ We have already discussed how to increase the average frequency of a token to mi
 
 \section{Attention Mechanism} \label{section:attention_mechanism}
 
-The Attention mechanism should cope with the issue of fixed-dimensional representation of the input sequence \ref{fixed_repre_problem}. As stated by \citep{bahdanau2016neural} "The most important distinguishing feature of this approach from the basic encoder-decoder is that it does not attempt to encode a whole input sequence into a single fixed-length vector".
+The Attention mechanism should cope with the issue of fixed-dimensional representation of the input sequence \ref{subsubsection:fixed_dimensional_repre_problem}. As stated by \citep{bahdanau2016neural} "The most important distinguishing feature of this approach from the basic encoder-decoder is that it does not attempt to encode a whole input sequence into a single fixed-length vector".
 
-The encoder is a recurrent neural network\footnote{From now on, I'll stick to refer to \emph{recurrent neural network} as to the neural network consisting of at least one \emph{tf.keras.layers.RNN} or relatives.}. From the overall architecture (figure \ref{enc_dec_visualization}) we can see that only the last hidden state of the encoder is used, although there are encoder outputs for each time-step. \citep{bahdanau2016neural} propose an architecture which takes advantage of this simple observation. In our work we use a little refinement, proposed by \citep{luong2015effective}.\footnote{Since we do not experiment with the original Bahdanau attention, we only show the Luong's approach. \citep{luong2015effective} shows all the differences between his and Bahdanau's approach in section 3.1 of the paper.}
+The encoder is a recurrent neural network\footnote{From now on, I'll stick to refer to \emph{recurrent neural network} as to the neural network consisting of at least one \emph{tf.keras.layers.RNN} or relatives.}. From the overall architecture (figure \ref{figure:visualization_ED}) we can see that only the last hidden state of the encoder is used, although there are encoder outputs for each time-step. \citep{bahdanau2016neural} propose an architecture which takes advantage of this simple observation. In our work we use a little refinement, proposed by \citep{luong2015effective}.\footnote{Since we do not experiment with the original Bahdanau attention, we only show the Luong's approach. \citep{luong2015effective} shows all the differences between his and Bahdanau's approach in section 3.1 of the paper.}
 
 \subsection{Computation}
 
@@ -164,7 +164,7 @@ Let's start with the description of the computation that produces the attention 
 
 As stated previously, the Encoder encodes the input sequence to \emph{encoder outputs} $\boldsymbol{e} = (e_1, \dots, e_m)$ and the Decoder RNN is initialized with the last hidden state of the Encoder.
 
-Let $d_t$ be the output of the Decoder RNN at $t$-th time-step. At first we calculate the \emph{score vector} $\boldsymbol{s_t} = (s_{t,1},\dots,s_{t,m})$. Its elements are computed using \emph{a score function} (which we will talk about below \ref{score_input_feeding}):
+Let $d_t$ be the output of the Decoder RNN at $t$-th time-step. At first we calculate the \emph{score vector} $\boldsymbol{s_t} = (s_{t,1},\dots,s_{t,m})$. Its elements are computed using \emph{a score function} (which we will talk about below \ref{subsection:score_input_feeding}):
 \begin{equation}
     s_{t,i} = score(e_i, d_t)
 \end{equation}
@@ -182,7 +182,7 @@ Unlike in the standard Encoder-Decoder architecture, the output of the decoder a
     p(y_t | y_{<t}, x)= softmax(W_y att_t)
 \end{gather}
 
-\subsection{Score Functions and Input Feeding} \label{score_input_feeding}
+\subsection{Score Functions and Input Feeding} \label{subsection:score_input_feeding}
 \citep{luong2015effective} experimented with three different types of score functions. We adopted two of them, the \emph{dot} and \emph{concat} ones. (The following equations are directly extracted from the Luong's paper)
 \begin{equation*}
 score(e_i, d_t)\!=\!\begin{cases}
@@ -191,12 +191,12 @@ score(e_i, d_t)\!=\!\begin{cases}
 \end{cases}
 \end{equation*}
 
-The same author also states that the fact that the attentional decisions are made independently is \emph{suboptimal}. Hence the \emph{Input Feeding} approach is proposed to allow the model to take into acount its previous decisions. It simply means that the next input is the concatenation $[y_t, att_t]$ (as shown in figure \ref{input_feeding_attention}).
+The same author also states that the fact that the attentional decisions are made independently is \emph{suboptimal}. Hence the \emph{Input Feeding} approach is proposed to allow the model to take into acount its previous decisions. It simply means that the next input is the concatenation $[y_t, att_t]$ (as shown in figure \ref{figure:input_feeding_attention}).
 
 \begin{figure}[!h]
     \centering
     \includegraphics[width=89.92mm, height=104.65mm]{img/att_luong.jpg}
-    \caption{\centering The Attention mechanism at the second time-step. Dotted line represents the input feeding approach.} \label{input_feeding_attention}
+    \caption{\centering The Attention mechanism at the second time-step. Dotted line represents the input feeding approach.} \label{figure:input_feeding_attention}
 \end{figure}
 
 
