@@ -1,35 +1,35 @@
 \chapter{Experimental Setup} \label{chapter:experimental_setup}
-In this chapter I aim to clarify how I set up the neural network models for the experiments (which will be discussed in the next chapter \ref{experiments_chapter}). At first I present a \emph{baseline model}. Model, which is sufficiently competitive to be able to generate reasonable texts. Then I present changes to the architecture, which aim to improve the generation.
+In this chapter we aim to clarify how we set up the neural network models for the experiments (which will be discussed in the next chapter \ref{chapter:experiments}). At first we present a \emph{baseline model}. Model, which is sufficiently competitive to be able to generate reasonable texts. Then we present changes to the architecture, which aim to improve the generation.
 
-I follow the path set up by \citep{wiseman2017}. I begin with purely end-to-end approach (Encoder-Decoder with attention).Next I try to improve it with the copy mechanism \ref{copy_mech_sec}. Next I choose to divide the task to \emph{content planning} and \emph{text generation} as proposed by \citep{puduppully2019datatotext}.
+We follow the path set up by \citet{wiseman2017}. We begin with purely end-to-end approach (Encoder-Decoder with attention). Next we try to improve it with the copy mechanism \ref{section:copy_mechanism}. Inspired by \citet{puduppully2019datatotext} we continue by dividing the task to \emph{content planning} and \emph{text generation}.
 
 \section{Truncated Backpropagation Through Time} \label{section:truncated_backpropagation}
 
 It was really challenging to set up even the baseline model. Since the input sequences are about 600 records long and output sequences are more than 300 tokens in average (and the outputs are padded with \emph{\textless PAD\textgreater} token to approximately 800 tokens), it wasn't possible to fit the model into the GPU memory. (The GPUs at \url{https://aic.ufal.mff.cuni.cz} have about 8GBs of memory\footnote{The exact GPU used on AIC cluster is NVIDIA GeForce GTX 1080})
 
-Computing and updating gradient for each time-step of a sequence of 800 tokens has approximately the same cost as forward and backward pass in a feed-forward network that has 800 layers. \citep{williamsTBPTT} propose a less expensive method. Truncated Backpropagation Through Time (TBPTT) processes one time-step at a time, and every $t_1$ timesteps it runs BPTT for $t_2$ timesteps.
+Computing and updating gradient for each time-step of a sequence of 800 tokens has approximately the same cost as forward and backward pass in a feed-forward network that has 800 layers. \citet{williamsTBPTT} propose a less expensive method. Truncated Backpropagation Through Time (TBPTT) processes one time-step at a time, and every $t_1$ timesteps it runs BPTT for $t_2$ timesteps.
 
-To illustrate my implementation of the algorithm, I show how I process an output sequence which is longer than 150 tokens. Let $t_1 = 50$, $t_2 = 100$. At first I let the network predict the first $100$ outputs and run the BPTT. I keep aside the $50$-th hidden state of the decoder. Next the network (initialized with the hidden state from the $50$-th time-step) predicts positions $51$ to $150$, and again the BPTT is run. Similarly afterwards.
+To illustrate our implementation of the algorithm, we show how we process an output sequence which is longer than 150 tokens. Let $t_1 = 50$, $t_2 = 100$. At first we let the network predict the first $100$ outputs and run the BPTT. We keep aside the $50$-th hidden state of the decoder. Next the network (initialized with the hidden state from the $50$-th time-step) predicts positions $51$ to $150$, and again the BPTT is run. Similarly afterwards.
 
 \section{Baseline model} \label{section:baseline_model}
 
-I use a non-recurrent Encoder and a two-layer LSTM decoder with Luong-style attention as the baseline model. At first I present how the encoding of input records works, then I talk about the text generation. I highlight all the differences between my approach and the one taken by \citep{wiseman2017}. The visualization of the model is shown in the figure \ref{rotowire_baseline_vis}.
+We use a non-recurrent Encoder and a two-layer LSTM decoder with Luong-style attention as the baseline model. At first we present how the encoding of input records works, then we discuss the text generation. We highlight all the differences between our approach and the one taken by \citet{wiseman2017}. The visualization of the model is shown in the figure \ref{figure:basline_model_visualization}.
 
 \subsection{Encoder} \label{subsection:baseline_model_encoder}
 
-The Encoder should process the input records (the formation of a record is explained in section \ref{table_to_record_trans}) to create the partial outputs at each time-step and the initial hidden state for the Decoder.
+The Encoder should process the input records (the formation of a record is explained in section \ref{subsection:table_text_transformations}) to create the partial outputs at each time-step and the initial hidden state for the Decoder.
 
-I described in section \ref{trans_in_tb_rw} that each record $r$ consists of 4 different features: \emph{type}, \emph{value}, \emph{entity} and a \emph{home/away flag} depicting if the record belongs to home or away team.
+We described in section \ref{subsection:record_format} that each record $r$ consists of 4 different features: \emph{type}, \emph{value}, \emph{entity} and a \emph{home/away flag} depicting if the record belongs to home or away team.
 
-At first each feature is embedded to a fixed-dimensional space. Next the embeddings are concatenated. I choose the same approach as \citep{wiseman2017} (who was inspired by \citep{yang2016referenceaware}), and I pass the concatenation through a one layer feed-forward network (\emph{tf.keras.layers.Dense}) with ReLU activation\footnote{the Rectified Linear Unit activation function $f(x) = max(0, x)$}, to create the encoding $e$ of the record $r$. Consequently, the input sequence of records $\{r_i\}_{i=1}^m$ is transformed to $\boldsymbol{e} = \{ e_i \}_{i=1}^m$ .
+At first each feature is embedded to a fixed-dimensional space. Next the embeddings are concatenated. We choose the same approach as \citet{wiseman2017} (who was inspired by \citet{yang2016referenceaware}), and we pass the concatenation through a one layer feed-forward network (\emph{tf.keras.layers.Dense}) with ReLU activation\footnote{the Rectified Linear Unit activation function $f(x) = max(0, x)$}, to create the encoding $e$ of the record $r$. Consequently, the input sequence of records $\{r_i\}_{i=1}^m$ is transformed to $\boldsymbol{e} = \{ e_i \}_{i=1}^m$ .
 
-To create the initial state of the decoder, \citep{wiseman2017} calculated the mean of the records belonging to the particular entity and linearly transformed the concatenation of the means. (Simply, the concatenation is passed through \emph{tf.keras.la\-yers.Dense} without any activation function).
+To create the initial state of the decoder, \citet{wiseman2017} calculated the mean of the records belonging to the particular entity and linearly transformed the concatenation of the means. (Simply, the concatenation is passed through \emph{tf.keras.la\-yers.Dense} without any activation function).
 
-To make the implementation simpler I observe that each player entity is represented by 22 records and each team entity by 15 records \ref{trans_in_tb_rw}.  Consequently I approximate the approach taken by \citep{wiseman2017} and mean pool over $\boldsymbol{e}$ with stride 22. (Which means that while means of players are exact, the means of team records are less than approximated) During my experiments I haven't seen any indication that this modification became the performance bottleneck of the model.
+To make the implementation simpler we observe that each player entity is represented by 22 records and each team entity by 15 records \ref{subsection:table_text_transformations}.  Consequently we approximate the approach taken by \citet{wiseman2017} and mean pool over $\boldsymbol{e}$ with stride 22. During our experiments we haven't seen any indication that this modification became the performance bottleneck of the model.
 
 \subsection{Decoder}
 
-The Decoder is a 2-layer LSTM network with attention mechanism. The LSTMs are initialized with states prepared in the previous section. I opted to use the Luong style attention with input feeding \citep{luong2015effective}. I described in section \ref{score_input_feeding} that we use the concatenation of the last attentional decision and the last gold output as the actual input to the first layer of LSTMs. However at the first time-step, when the input is the \emph{\textless BOS\textgreater} token, there is no \emph{last attentional decision}. Hence for this purpose I use one of the initial states prepared by the Encoder.
+The Decoder is a 2-layer LSTM network with attention mechanism. The LSTMs are initialized with states prepared in the previous section. We opted to use the Luong style attention with input feeding \citep{luong2015effective}. We described in section \ref{subsection:score_input_feeding} that we use the concatenation of the last attentional decision and the last gold output as the actual input to the first layer of LSTMs. However at the first time-step, when the input is the \emph{\textless BOS\textgreater} token, there is no \emph{last attentional decision}. Hence for this purpose we use one of the initial states prepared by the Encoder.
 
 \subsection{Training}
 
@@ -43,16 +43,7 @@ As explained in section \ref{subsection:high_level_encoder_decoder} the training
 
 We report the loss value as well as the accuracy\footnote{the frequency with which the most probable token in the distribution generated by the model matches the gold token} of the model on the training set, to be able to detect \emph{underfitting} (this happens when a model is unable to achieve sufficiently low loss value on the training part of the dataset).
 
-The main challenge is to obtain good results on previously unseen data. Therefore we report the loss value, and the accuracy of the model on the validation part of the dataset (also collected under \emph{teacher-forcing} setting). We consider the model with the lowest loss value and accuracy on the validation set to be the best.
-
-\subsection{Inference} \label{section:inference}
-
-As explained in section \ref{subsection:high_level_encoder_decoder}, during inference we want to find a sequence of tokens $y_1,\dots,y_n$ which maximizes the probability
-\begin{equation}
-    p_{model}(\boldsymbol{y} | \boldsymbol{x}) = \prod_{t=1}^N{p_{model}(y_t|y_1,\dots,y_{t-1}, \boldsymbol{x})}
-\end{equation}
-
-
+The main challenge is to obtain good results on previously unseen data. Therefore we report the loss value, and the accuracy of the model on the validation part of the dataset (also collected under \emph{teacher-forcing} setting). We consider the model with the lowest loss value and accuracy on the validation set to be the best\footnote{We also report the BLEU score \citep{papineni2002} of the text generated from a subset of the validation dataset and if there are multiple epochs where the model achieved similar performance we pick the one which generated the best text according to BLEU.}.
 
 \subsection{Regularization}
 
@@ -60,13 +51,13 @@ Two regularization methods are used, Dropout and Scheduled Sampling \citep{bengi
 
 "The key idea of Dropout is to randomly drop units (along with their connections) from the neural network during training." \citep{srivastavaDropout2014}. A unit is dropped with probability $p$ that can be set as a hyperparameter. (e.g. $p = 0$ would mean no dropout)  We apply the dropout on the outputs of the LSTM cells.
 
-The Scheduled Sampling aims to minimize the difference between training and inference. \citep{bengio2015scheduled} note that using any of the two generation techniques described above (section \ref{section:inference}) the model can get to the "state space that is very different from those visited from the  training distribution and for which it doesn’t know what to do". They propose to "bridge the gap" by feeding either gold $y_{t-1}$ or the prediction of the model $\hat{y}_{t-1}$ as the input at $t$-th time-step. The decision whether to use gold is made independently for each input with probability $p'$ which is another hyperparameter of the training. They propose to decay $p'$ over time with similar strategies as used with learning rate.
+The Scheduled Sampling aims to minimize the difference between training and inference. \citet{bengio2015scheduled} note that using any of the two generation techniques described in sections \ref{subsubsection:greedy_decoding}, \ref{subsubsection:beam_search_decoding} the model can get to the "state space that is very different from those visited from the training distribution and for which it doesn’t know what to do". They propose to "bridge the gap" by feeding either gold $y_{t-1}$ or the prediction of the model $\hat{y}_{t-1}$ as the input at $t$-th time-step. The decision whether to use gold is made independently for each input with probability $p'$ which is another hyperparameter of the training. They propose to decay $p'$ over time with similar strategies as used with learning rate.
 
 \begin{figure}[!h]
     \centering
     \includegraphics[scale=0.195]{img/rotowire_baseline.jpg}
     \footnotesize{\\ \textit{Note:} green cells are embedding layers, orange cells are feed-forward networks}
-    \caption{\centering The Rotowire baseline model at the second time-step.} \label{rotowire_baseline_vis}
+    \caption{\centering The Rotowire baseline model at the second time-step.} \label{figure:basline_model_visualization}
 \end{figure}
 
 \begin{figure}[!h]
@@ -78,11 +69,11 @@ The Scheduled Sampling aims to minimize the difference between training and infe
 
 \section{Improving the Baseline with Copy Mechanisms} \label{section:copy_mechanism_intro}
 
-In the previous chapter \ref{rare_word_problem}, I underlined \emph{hallucinations} as one of the problems of the Encoder-Decoder architecture. In the task on RotoWire dataset it basically means that during training, the model learns that it should put \emph{some number} at a specific place in the sentence. We would like it to generate the \emph{exact value}.
+In section \ref{subsubsection:rare_word_problem} we underlined \emph{hallucinations} as one of the problems of the Encoder-Decoder architecture. In the task on RotoWire dataset it basically means that during training, the model learns that it should put \emph{some number} at a specific place in the sentence. We would like it to generate the \emph{exact value}.
 
-Therefore as the next step I incorporate the \emph{Joint Copy mechanism} \citep{gu2016incorporating}, \citep{yang2016referenceaware} (already described in \ref{section:copy_mechanism}). The encoder rests intact, however in the decoder I use another attention module to point to specific record from the input table and a feed-forward network which models if the model should generate or copy.
+Therefore as the next step we incorporate the \emph{Joint Copy mechanism} \citep{gu2016incorporating}, \citep{yang2016referenceaware} (already described in \ref{section:copy_mechanism}). The encoder rests intact, however in the decoder we use another attention module to point to specific record from the input table and a feed-forward network which models if the model should generate or copy.
 
-The generational path is the same as in the baseline model. In the copy path I use the alignment vector from the newly added attention as weights, to compute the weighted sum of the value portion of input records. The visualization can be seen in the figure \ref{rotowire_joint_copy_vis}.
+The generational path is the same as in the baseline model. In the copy path we use the alignment vector from the newly added attention as weights to compute the weighted sum of the value portion of input records. The visualization can be seen in the figure \ref{rotowire_joint_copy_vis}.
 
 \section{Content Selection and Planning} \label{section:content_selection_and_planning}
 
@@ -103,18 +94,18 @@ Specifically, we compute
 \hat{r}_t^{cs}                   &= \hat{r}_t^{att} \bigodot \hat{r}_t                  &&\mbox{ \small \emph{the content selected representation}}
 \end{align*}
 
-The Encoder thus creates a sequence of \emph{context aware} representations $\{\hat{r}_t^{cs}\}_{t=1}^m$ (figure \ref{content_selection_pudupully}).
+The Content Selection Encoder thus creates a sequence of \emph{context aware} representations $\{\hat{r}_t^{cs}\}_{t=1}^m$ (figure \ref{figure:content_selection_pudupully}). We experiment with a model using Content Selection Encoder and Joint-Copy decoder ( we call it \emph{CopyCS}).
 
 \begin{figure}[!h]
     \includegraphics{img/cs_gate-cropped.pdf}
-    \caption{Content Selection mechanism (image is directly from \citep{puduppully2019datatotext})} \label{content_selection_pudupully}
+    \caption{Content Selection mechanism (image is directly from \citep{puduppully2019datatotext})} \label{figure:content_selection_pudupully}
 \end{figure}
 
 \subsection{Content Planning} \label{subsection:content_planning}
 
-\citep{wiseman2017} experimented with conditional copy approach, in which the latent \emph{switch} probability isn't marginalized out. Hence, there exists pointer sequence for each summary in the train and validation dataset. The sequence corresponds to the order in which entities and values from the sequence of input records appear in the output summary. \citep{puduppully2019datatotext} suggested that instead of just modelling the switch probability, we can train a Decoder to extract these pointers from the original table.
+\citet{wiseman2017} experimented with conditional copy approach, in which the latent \emph{switch} probability isn't marginalized out. Hence, there exists pointer sequence for each summary in the train and validation dataset. The sequence corresponds to the order in which entities and values from the sequence of input records appear in the output summary. \citet{puduppully2019datatotext} suggested that instead of just modelling the switch probability, we can train a Decoder to extract these pointers from the original table.
 
-As suggested, the Content Plan Decoder is a one layer LSTM which operates on the \emph{context aware} representations $\hat{\boldsymbol{r}}^{cs}$. Its hidden states are initialized with $avg(\{\hat{r}_t^{cs}\}_{t=1}^m)$. \citep{puduppully2019datatotext} haven't elaborated on the exact approach, hence it is probable that I have diverged a little bit from the intentions of original authors.
+As suggested, the Content Plan Decoder is a one layer LSTM which operates on the \emph{context aware} representations $\hat{\boldsymbol{r}}^{cs}$. Its hidden states are initialized with $avg(\{\hat{r}_t^{cs}\}_{t=1}^m)$. \citep{puduppully2019datatotext} haven't elaborated on the exact approach, hence it is probable that we have diverged a little bit from the intentions of original authors.
 
 \begin{table}[h]
     \centering \small
@@ -138,9 +129,11 @@ As suggested, the Content Plan Decoder is a one layer LSTM which operates on the
     \caption{An extract from the content plan corresponding to the summary from the figure \ref{figure:samplesummary}}
 \end{table}
 
-The Text Decoder is trained to start the generation when it sees the \emph{\textless BOS\textgreater} token. Since the Content Plan Decoder operates on $\hat{\boldsymbol{r}}^{cs}$ I've choosen to prepend a special \emph{\textless BOS\textgreater} record to the sequence of input records, and also a pointer to the \emph{\textless BOS\textgreater} record is prepended to each content plan. Therefore instead of teaching the Content Plan Decoder to start generating content plan when seeing a special value, I teach it to do so when seeing \emph{the encoded representation of the special value}. The same approach is taken at the end, with the \emph{\textless EOS\textgreater} record.
+The Text Decoder is trained to start the generation when it sees the \emph{\textless BOS\textgreater} token. Since the Content Planning Decoder operates on $\hat{\boldsymbol{r}}^{cs}$ we have chosen to prepend a special \emph{\textless BOS\textgreater} record to the sequence of input records, and also a pointer to the \emph{\textless BOS\textgreater} record is prepended to each content plan. Therefore instead of teaching the Content Plan Decoder to start generating content plan when seeing a special value, we teach it to do so when seeing \emph{the encoded representation of the special value}. The same approach is taken at the end, with the \emph{\textless EOS\textgreater} record.
 
-Either baseline Decoder or Joint-Copy Decoder can operate on the generated content plan, to generate the output summary.
+\citet{puduppully2019datatotext} use a one layer bidirectional LSTM on top of the generated content plans as shown in figure \ref{figure:overal_architecture_csap}.
+
+Either baseline Decoder or Joint-Copy Decoder can operate as the Text Decoder to generate the output summary.
 
 \subsection{Training and Inference}
 
@@ -150,7 +143,7 @@ At first let me elaborate on the training. The model consists of two parts which
     \sum_{(\boldsymbol{x}, \boldsymbol{y}, \boldsymbol{z}) \in \mathcal{D}} - \log{p(\boldsymbol{y}|\boldsymbol{z}, \boldsymbol{x})} - \log{p(\boldsymbol{z} | \boldsymbol{x})}
 \end{equation}
 
-There are many possibilities what to do during inference. In chapter \ref{experiments_chapter} we mention five options. The outputs of the Content Planning Decoder can be obtained using Greedy or Beam Search decoding, similarly for the Text Decoder. At last there is possibility to ignore the Content Planning Decoder and use the encoded records pointed to by the gold content plan. (if we have any gold content plan available). Equation \ref{equation:argmin_csap_model} shows the quantity we aim to maximize during the inference.
+There are many possibilities what to do during inference. In section \ref{section:experiments_csap} we mention five options. The outputs of the Content Planning Decoder can be obtained using Greedy or Beam Search decoding, similarly for the Text Decoder. At last there is possibility to ignore the Content Planning Decoder and use the encoded records pointed to by the gold content plan. (if we have any gold content plan available). Equation \ref{equation:argmin_csap_model} shows the quantity we aim to maximize during the inference.
 
 \begin{equation} \label{equation:argmin_csap_model}
     \argmin_{\boldsymbol{y'}, \boldsymbol{z'}}{p(\boldsymbol{y'}|\boldsymbol{z'}, \boldsymbol{s}) + p(\boldsymbol{z'} | \boldsymbol{s})}

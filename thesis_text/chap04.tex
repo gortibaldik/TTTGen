@@ -1,7 +1,7 @@
 \chapter{Neural Network Architectures} \label{chapter:neural_network_architectures}
 In previous chapter (\ref{chapter:preprocessing_and_statistics_of_the_dataset}) we have shown how to transform the structured tabular data into a sequence of records, therefore we have reduced the problem to an instance of the famous sequence to sequence problem. Now, we show how to create a system that transforms the input sequential data (structured records) to the output sequential data (natural language).
 
-The most common way to tackle the sequence to sequence problem is to use the Encoder-Decoder architecture proposed by \citep{sutskever2014sequence}. It is the main approach we used throughout this thesis. In this chapter we introduce the concepts behind the encoder-decoder architecture, its shortcomings (fixed vocabulary and thus problems with generation of words unseen during training, divergence and hallucinations) and ways to overcome these shortcomings (the attention mechanism, the copy mechanisms, the further transformations of input sequences). Since it is not the purpose of this work, only the basics of the concepts are presented, and we provide links to papers, books and tutorials which helped me on my path to understanding.
+The most common way to tackle the sequence to sequence problem is to use the Encoder-Decoder architecture proposed by \citep{sutskever2014sequence}. It is the main approach we used throughout this thesis. In this chapter we introduce the concepts behind the encoder-decoder architecture, its shortcomings (fixed vocabulary and thus problems with generation of words unseen during training, divergence and hallucinations) and ways to overcome these shortcomings (the attention mechanism, the copy mechanisms, the further transformations of input sequences). Since it is not the purpose of this work, only the basics of the concepts are presented, and we provide links to papers, books and tutorials which helped the author on his path to understanding.
 
 \subsubsection{Notation}
 Many papers diverge on the notation and naming conventions of the architectures. Therefore we choosed to adopt the notation used in \emph{Tensorflow Keras API, version 2.x} \citep{tensorflow2015-whitepaper}. Specifically in the field of recurrencies it is discutable if the paper refers to \emph{tf.keras.layers.RNNCell} or to \emph{tf.keras.layers.RNN}. we believe that they can be used interchangeably in the context of this chapter, hence we (rather deliberately) choose the latter notation (\emph{without 'Cell'}).
@@ -42,7 +42,7 @@ On the contrary, the Recurrent Neural Network (RNN) \citep{rumelhart_rnn1988} (\
     \caption{Visualizations of the RNN} \label{figure:visualization_rnn}
 \end{figure}
 
-The network is trained by back-propagation through time (BPPT) \citep{bpptWerbos1990}. It has been shown that the RNN suffers from vanishing / exploding gradient problems \citep{hochreiter1997}.\footnote{We believe that discussion about BPPT and exploding/vanishing gradient problems is beyond the scope of this work. Therefore we refer the reader craving for further explanation to \citep{Goodfellow-et-al-2016} and to referenced papers.} Which cause that either the RNN cannot learn anything or it is really unstable. These difficulties are adressed by more sophisticated architectures such as Gated Recurrent Unit\footnote{Although it is one of the most known architectures we used only LSTM for my experiments. } \citep{cho2014learning} or Long Short-Term Memory \citep{hochreiter1997}.
+The network is trained by back-propagation through time (BPPT) \citep{bpptWerbos1990}. It has been shown that the RNN suffers from vanishing / exploding gradient problems \citep{hochreiter1997}.\footnote{We believe that discussion about BPPT and exploding/vanishing gradient problems is beyond the scope of this work. Therefore we refer the reader craving for further explanation to \citep{Goodfellow-et-al-2016} and to referenced papers.} Which cause that either the RNN cannot learn anything or it is really unstable. These difficulties are adressed by more sophisticated architectures such as Gated Recurrent Unit\footnote{Although it is one of the most known architectures we used only LSTM for our experiments. } \citep{cho2014learning} or Long Short-Term Memory \citep{hochreiter1997}.
 
 
 \subsection{Long Short-Term Memory}
@@ -104,7 +104,7 @@ In the inference phase, we want to find a sequence of tokens $y_1,\dots,y_n$ whi
 
 Calculating all $\mathcal{O}(N^{|V|})$ sequences and choosing the maximal is surely the most accurate option, although computationaly infeasible. Therefore we only approximate the optimal solution.
 
-\subsubsection{Greedy Decoding}
+\subsubsection{Greedy Decoding} \label{subsubsection:greedy_decoding}
 
 Greedy Decoding provides the simplest approximation of the optimal sequence. At each time-step we take the most probable token under the model distribution as the output. The process ends when the \emph{\textless EOS\textgreater} token is generated.
 \begin{align*}
@@ -116,7 +116,7 @@ Greedy Decoding provides the simplest approximation of the optimal sequence. At 
 
 The suboptimality of the algorithm can be seen on a simple example. E.g. let's say that we have a training corpus consisting of sentences describing the eating habits of the author of this text. The corpus consists of sentences "I eat a banana", "I eat a peach", "I eat a goulash" and two repetitions of sentence "I eat an apple". Starting from the state after generating subsequence "I eat", the greedy decoder would pick ``a'' as the most probable continuation of the sequence. However the optimal solution would have picked "an", because none of the possible continuations of subsequence "I eat a" is as probable as "I eat an apple" which is the most occuring sentence in the corpus.
 
-\subsubsection{Beam Search Decoding}
+\subsubsection{Beam Search Decoding} \label{subsubsection:beam_search_decoding}
 
 Beam Search builds on the greedy decoding approach. We keep track of $k$ most promising \emph{hypotheses} (and associated hidden states). A hypothesis is a sequence of generated tokens $y_1,\dots,y_{n'}$. We compute its score (equation \ref{equation:hypothesis_score}).
 \begin{equation} \label{equation:hypothesis_score}
