@@ -1,18 +1,18 @@
 \chapter{Neural Network Architectures} \label{chapter:neural_network_architectures}
 In previous chapter (\ref{chapter:preprocessing_and_statistics_of_the_dataset}) we have shown how to transform the structured tabular data into a sequence of records, therefore we have reduced the problem to an instance of the famous sequence to sequence problem. Now, we show how to create a system that transforms the input sequential data (structured records) to the output sequential data (natural language).
 
-The most common way to tackle the sequence to sequence problem is to use the Encoder-Decoder architecture proposed by \citep{sutskever2014sequence}. It is the main approach we used throughout this thesis. In this chapter we introduce the concepts behind the encoder-decoder architecture, its shortcomings (fixed vocabulary and thus problems with generation of words unseen during training, divergence and hallucinations) and ways to overcome these shortcomings (the attention mechanism, the copy mechanisms, the further transformations of input sequences). Since it is not the purpose of this work, only the basics of the concepts are presented, and we provide links to papers, books and tutorials which helped the author on his path to understanding.
+The most common way to tackle the sequence to sequence problem is to use the Encoder-Decoder architecture proposed by \citet{sutskever2014sequence}. It is the main approach we used throughout this thesis. In this chapter we introduce the concepts behind the encoder-decoder architecture, its shortcomings (fixed vocabulary and thus problems with generation of words unseen during training, divergence and hallucinations) and ways to overcome these shortcomings (the attention mechanism, the copy mechanisms, the further transformations of input sequences). Since it is not the purpose of this work, only the basics of the concepts are presented, and we provide links to papers, books and tutorials which helped the author on his path to understanding.
 
 \subsubsection{Notation}
 Many papers diverge on the notation and naming conventions of the architectures. Therefore we choosed to adopt the notation used in \emph{Tensorflow Keras API, version 2.x} \citep{tensorflow2015-whitepaper}. Specifically in the field of recurrencies it is discutable if the paper refers to \emph{tf.keras.layers.RNNCell} or to \emph{tf.keras.layers.RNN}. we believe that they can be used interchangeably in the context of this chapter, hence we (rather deliberately) choose the latter notation (\emph{without 'Cell'}).
 
 \subsubsection{A Note About Embeddings} \label{subsection:embeddings}
 
-"[A]n embedding is a low-dimensional, learned continuous vector representation of discrete variables into which you can translate high-dimensional vectors." \citep{embeddingDefinition}. In this work we do not experiment with pretrained word embeddings, and we tune only the embedding-dimension hyperparameter of \emph{tf.keras.layers.Em\-bedding} layer.
+"An embedding is a low-dimensional, learned continuous vector representation of discrete variables into which you can translate high-dimensional vectors." \citep{embeddingDefinition}. In this work we do not experiment with pretrained word embeddings, and we tune only the embedding-dimension hyperparameter of \emph{tf.keras.layers.Em\-bedding} layer.
 
 \section {The Encoder-Decoder Architecture}
 
-Proposed by \citep{sutskever2014sequence} the Encoder-Decoder is composed of 2 recurrent units, called Encoder and Decoder. In this section we briefly introduce the Recurrent Neural Network (\emph{tf.keras.layers.SimpleRNN}), its modification, the Long Short-Term Memory (\emph{tf.keras.layers.LSTM}) \citep{hochreiter1997} and the high-level overview of the Encoder-Decoder architecture.
+Proposed by \citet{sutskever2014sequence} the Encoder-Decoder is composed of 2 recurrent units, called Encoder and Decoder. In this section we briefly introduce the Recurrent Neural Network (\emph{tf.keras.layers.SimpleRNN}), its modification, the Long Short-Term Memory (\emph{tf.keras.layers.LSTM}) \citep{hochreiter1997} and the high-level overview of the Encoder-Decoder architecture.
 
 \subsection{Recurrent Neural Network}
 
@@ -67,7 +67,7 @@ The Long Short-Term Memory (\emph{tf.ke\-ras.lay\-ers.LSTM}) addresses the vanis
 
 \subsection{High-level Overview of Encoder-Decoder Architecture} \label{subsection:high_level_encoder_decoder}
 
-As stated by \citep{sutskever2014sequence}, the main goal of the encoder-decoder architecture is to estimate the conditional probability $p(y_1,\dots,y_n | x_1,\dots,x_m)$ of the output sequence $y_1,\dots,y_n$ conditioned on the input sequence $x_1,\dots,x_m$. It uses two separate \emph{recurrent networks}\footnote{Here we refer to \emph{recurrent network} as to a complex consisting of at least one RNN/LSTM/GRU/\dots rather than to a single recurrent layer.}. The first, called the Encoder, processes the input sequence. Its last hidden state represents a fixed-dimensional representation $r$ of the input. $r$ is then used to initialize the hidden state of the second recurrent network, called the Decoder, which models the conditional probability of the output sequence (equation \ref{equation:enc_dec_lm}).
+As stated by \citet{sutskever2014sequence}, the main goal of the encoder-decoder architecture is to estimate the conditional probability $p(y_1,\dots,y_n | x_1,\dots,x_m)$ of the output sequence $y_1,\dots,y_n$ conditioned on the input sequence $x_1,\dots,x_m$. It uses two separate \emph{recurrent networks}\footnote{Here we refer to \emph{recurrent network} as to a complex consisting of at least one RNN/LSTM/GRU/\dots rather than to a single recurrent layer.}. The first, called the Encoder, processes the input sequence. Its last hidden state represents a fixed-dimensional representation $r$ of the input. $r$ is then used to initialize the hidden state of the second recurrent network, called the Decoder, which models the conditional probability of the output sequence (equation \ref{equation:enc_dec_lm}).
 
 \begin{equation} \label{equation:enc_dec_lm}
     p(y_1,\dots, y_n | x_1,\dots, x_m) = \prod_{t=1}^n{p(y_t | r, y_1, \dots, y_{t-1})}
@@ -146,7 +146,7 @@ In the standard Encoder-Decoder, the output is a distribution over the output vo
 
 \begin{enumerate}
     \item It essentially means that e.g. words 'the' and 'Roberta' compete against each other, although one depends purely on the language skill (perhaps the next token after 'the' would be superlative) and the other one on the input sequence (which probably mentions some AI research).
-    \item As pointed out by e.g. \citep{gulcehre2016pointing}, (although not on this particular example) word 'Roberta' occurs less frequently in the training data than the word 'the', thus it is "difficult to learn a good representation of the word, which results in poor performance"\footnote{The problem is called \emph{The Rare-Word Problem.}}
+    \item As pointed out by e.g. \citet{gulcehre2016pointing}, (although not on this particular example) word 'Roberta' occurs less frequently in the training data than the word 'the', thus it is "difficult to learn a good representation of the word, which results in poor performance"\footnote{The problem is called \emph{The Rare-Word Problem.}}
     \item Networks tend to \emph{hallucinate} the facts. E.g. from the record \emph{\{type:transfor\-mer; value:GPT\}} network generates a sentence "The famous example of transformer architecture is BERT." To put it simply, the network knows it should talk mention a transformer, therefore each word describing some kind of a transformer is somewhat probable, even if it wasn't seen in the actual input.
 \end{enumerate}
 
@@ -154,9 +154,9 @@ We have already discussed how to increase the average frequency of a token to mi
 
 \section{Attention Mechanism} \label{section:attention_mechanism}
 
-The Attention mechanism should cope with the issue of fixed-dimensional representation of the input sequence \ref{subsubsection:fixed_dimensional_repre_problem}. As stated by \citep{bahdanau2016neural} "The most important distinguishing feature of this approach from the basic encoder-decoder is that it does not attempt to encode a whole input sequence into a single fixed-length vector".
+The Attention mechanism should cope with the issue of fixed-dimensional representation of the input sequence \ref{subsubsection:fixed_dimensional_repre_problem}. As stated by \citet{bahdanau2016neural} "The most important distinguishing feature of this approach from the basic encoder-decoder is that it does not attempt to encode a whole input sequence into a single fixed-length vector".
 
-The encoder is a recurrent neural network\footnote{From now on, I'll stick to refer to \emph{recurrent neural network} as to the neural network consisting of at least one \emph{tf.keras.layers.RNN} or relatives.}. From the overall architecture (figure \ref{figure:visualization_ED}) we can see that only the last hidden state of the encoder is used, although there are encoder outputs for each time-step. \citep{bahdanau2016neural} propose an architecture which takes advantage of this simple observation. In our work we use a little refinement, proposed by \citep{luong2015effective}.\footnote{Since we do not experiment with the original Bahdanau attention, we only show the Luong's approach. \citep{luong2015effective} shows all the differences between his and Bahdanau's approach in section 3.1 of the paper.}
+The encoder is a recurrent neural network\footnote{From now on, I'll stick to refer to \emph{recurrent neural network} as to the neural network consisting of at least one \emph{tf.keras.layers.RNN} or relatives.}. From the overall architecture (figure \ref{figure:visualization_ED}) we can see that only the last hidden state of the encoder is used, although there are encoder outputs for each time-step. \citet{bahdanau2016neural} propose an architecture which takes advantage of this simple observation. In our work we use a little refinement, proposed by \citet{luong2015effective}.\footnote{Since we do not experiment with the original Bahdanau attention, we only show the Luong's approach. \citet{luong2015effective} show all the differences between his and Bahdanau's approach in section 3.1 of the paper.}
 
 \subsection{Computation}
 
@@ -168,7 +168,7 @@ Let $d_t$ be the output of the Decoder RNN at $t$-th time-step. At first we calc
 \begin{equation}
     s_{t,i} = score(e_i, d_t)
 \end{equation}
-According to \citep{bahdanau2016neural}, the alignment vector $\boldsymbol{a_t}$
+According to \citet{bahdanau2016neural}, the alignment vector $\boldsymbol{a_t}$
 \begin{equation}
     \boldsymbol{a_t} = softmax(\boldsymbol{s_t})
 \end{equation}
@@ -183,7 +183,7 @@ Unlike in the standard Encoder-Decoder architecture, the output of the decoder a
 \end{gather}
 
 \subsection{Score Functions and Input Feeding} \label{subsection:score_input_feeding}
-\citep{luong2015effective} experimented with three different types of score functions. We adopted two of them, the \emph{dot} and \emph{concat} ones. (The following equations are directly extracted from the Luong's paper)
+\citet{luong2015effective} experimented with three different types of score functions. We adopted two of them, the \emph{dot} and \emph{concat} ones. (The following equations are directly extracted from the Luong's paper)
 \begin{equation*}
 score(e_i, d_t)\!=\!\begin{cases}
     e_i^\top d_t & \mbox{{\it dot}}\\
@@ -209,7 +209,7 @@ The Pointer networks \citep{vinyals2015pointer} leverage the fact that the align
 
 \subsection{Approaches to Copying}
 
-\citep{gulcehre2016pointing} note that the ability to point is useless in the generation task if the network is always forced to point. Therefore they introduce a new switching network that outputs a binary variable $z_t$ , which models the probability of the required action being pointing or generating.
+\citet{gulcehre2016pointing} note that the ability to point is useless in the generation task if the network is always forced to point. Therefore they introduce a new switching network that outputs a binary variable $z_t$ , which models the probability of the required action being pointing or generating.
 
 Let $\boldsymbol{e} = (e_1, \dots, e_m)$ be the encoder outputs, $\boldsymbol{x} = (x_1, \dots, x_m)$ the input sequence, $d_t$ the output of the Decoder RNN at the actual time-step, and $ATTN$ the Attention as presented in the previous section.
 
@@ -222,7 +222,7 @@ The probability of gold output $y_t$ and gold switch decision $z_t$ is decompose
     p^{gen}(y_t | \boldsymbol{s}) = softmax(W_{gen}[\boldsymbol{c_t}, d_t])
 \end{gather}
 
-\citep{gulcehre2016pointing} explicitly model each of these probabilities (therefore the targets contain 3 values for each time-step). \citep{yang2016referenceaware} marginalize out the switch probability $z_t$, and they model $p = p^{copy} * p^{switch} + p^{gen} * (1 - p^{switch})$.
+\citet{gulcehre2016pointing} explicitly model each of these probabilities (therefore the targets contain 3 values for each time-step). \citet{yang2016referenceaware} marginalize out the switch probability $z_t$, and they model $p = p^{copy} * p^{switch} + p^{gen} * (1 - p^{switch})$.
 
 To be able to follow their path, we take the one-hot encoding of each input and compute the weighted sum:
 \begin{equation}
@@ -239,5 +239,5 @@ Consequently, the probability of the gold output $y_t$ at time-step $t$ is compu
 \begin{figure}[hb]
     \centering
     \includegraphics[scale=0.55]{img/attention_alignment-page-001.jpg}
-    \caption{Excerpt from \textbf{Pointing the Unknown Words} paper by \citep{gulcehre2016pointing}, showing how the attention alignment can be utilized as a pointer information}
+    \caption{Excerpt from \textbf{Pointing the Unknown Words} paper by \citet{gulcehre2016pointing}, showing how the attention alignment can be utilized as a pointer information}
 \end{figure}
