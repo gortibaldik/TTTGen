@@ -228,7 +228,7 @@ def extract_summaries_from_json( json_file_path
         lowercase:                      lowercase all the tokens with exception of the player names
         exception_cities:               add city names to the same set as player names (e.g. excluded from lowercasing etc.)
         exception_teams:                add team names to the same set as player names (e.g. excluded from lowercasing etc. )
-        word_limit:                     prun all the sentences from a summary that cause it to exceed the word_limit
+        words_limit:                     prun all the sentences from a summary that cause it to exceed the words_limit
         all_named_entities:             store all named entities from the tables and summaries to the all_named_entities dict if provided
         cell_dict_overall:              save all the values from the records to the all_named_entities dict if provided
         order_records:                  order records so that first are team records followed by player records ordered by their point-total
