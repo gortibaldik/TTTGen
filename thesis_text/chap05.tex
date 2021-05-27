@@ -146,7 +146,7 @@ At first let me elaborate on the training of \emph{CS\&P}. The model consists of
 There are many possibilities what to do during inference. In section \ref{section:experiments_csap} we mention five options. The outputs of the Content Planning Decoder can be obtained using Greedy or Beam Search decoding, similarly for the Text Decoder. At last there is possibility to ignore the Content Planning Decoder and use the encoded records pointed to by the gold content plan. (if we have any gold content plan available). Equation \ref{equation:argmin_csap_model} shows the quantity we aim to maximize during the inference.
 
 \begin{equation} \label{equation:argmin_csap_model}
-    \argmin_{\boldsymbol{y'}, \boldsymbol{z'}}{p(\boldsymbol{y'}|\boldsymbol{z'}, \boldsymbol{x}) + p(\boldsymbol{z'} | \boldsymbol{x})}
+    \argmin_{\boldsymbol{y'}, \boldsymbol{z'}}{\log{p(\boldsymbol{y'}|\boldsymbol{z'}, \boldsymbol{x})} + \log{p(\boldsymbol{z'} | \boldsymbol{x})}}
 \end{equation}
 
 \begin{figure}[!h]
