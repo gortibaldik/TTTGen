@@ -1,16 +1,24 @@
 from neural_nets.layers import DecoderRNNCellJointCopy
 from neural_nets.cp_model import ContentPlanDecoder, EncoderDecoderContentSelection
 
-import numpy as np
 import tensorflow as tf
 
 
 class BeamSearchAdapter(tf.keras.Model):
+    """Adapter for the EncoderDecoderContentSelection and EncoderDecoderBasic, providing Beam Search Decoding"""
     def __init__( self
                 , encoder_decoder
                 , beam_size
                 , eos
                 , max_cp_size):
+        """ Initialize BeamSearchAdapter
+
+        Args:
+            encoder_decoder:    trained model, from which we steal its internals
+            beam_size:          the number of hypotheses to expand on
+            eos:                vocabulary index of the eos token
+            max_cp_size:        maximal size of the generated content_plan
+        """
         super(BeamSearchAdapter, self).__init__()
         if isinstance(encoder_decoder, EncoderDecoderContentSelection):
             self._encoder = ContentPlanDecoder(encoder_decoder, max_cp_size)
@@ -22,6 +30,7 @@ class BeamSearchAdapter(tf.keras.Model):
         self._eos = eos
 
     def compile(self):
+        """ Enable eager execution """
         super(BeamSearchAdapter, self).compile(run_eagerly=True)
 
     def call(self, batch_data):
@@ -66,8 +75,12 @@ class BeamSearchAdapter(tf.keras.Model):
             initial_states = []
             masks = []
             siix = 0
+
+            # traverse all the hypotheses
             for h in range(len(hypotheses)):
                 dec_in, mask, nlogsum, initial_state = hypotheses.pop(0)
+                # if the last generated token is <<EOS>> mask everything after
+                # it effectively causes the generation to stop
                 mask = tf.math.logical_not(tf.math.logical_or(tf.math.logical_not(mask) , dec_in == self._eos))
                 pred, (hatt, h1, c1, h2, c2) = self._decoder_cell( (dec_in, *aux_inputs)
                                                                  , initial_state
@@ -85,6 +98,7 @@ class BeamSearchAdapter(tf.keras.Model):
                 initial_states.append(batch_states)
                 masks.append(mm)
 
+                # collect scores and associated indices of the decoded tokens
                 for top in range(ixs.shape[1]):
                     scores = scores.write(siix, vals[:, top] + nlogsum)
                     indices = indices.write(siix, ixs[:, top])
@@ -94,6 +108,7 @@ class BeamSearchAdapter(tf.keras.Model):
             indices = tf.transpose(indices.stack(), [1, 0])
             prdcsrs = tf.transpose(prdcsrs.stack(), [1, 0])
 
+            # keep only k best scores with associated indices, states and predecessors
             top_k_scores = tf.math.top_k(scores, k=actual_beam_size)
             top_k_indices = tf.gather(indices, top_k_scores.indices, batch_dims=-1) # pylint: disable=no-value-for-parameter
             out_sentence = out_sentence.write(t, top_k_indices)
@@ -121,4 +136,5 @@ class BeamSearchAdapter(tf.keras.Model):
         out_sentence = tf.transpose(out_sentence, [1, 0, 2])
         out_predecessors = tf.transpose(out_predecessors, [1, 0, 2])
 
+        # return sequence of indices and predecessors that enable decoding of the sequence
         return out_sentence, out_predecessors
