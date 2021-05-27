@@ -23,10 +23,16 @@ rotowire_dir=$3
 out_dir=$2
 num_merges=$1
 
-if [ $1 = "-h" ]; then
+if [ "$1" = "-h" ]; then
   echo "$0 <num_merges> <out_dir> <rotowire_dir> [--tfrecord, --npy, --txt, --adv, --content_plan, --order_records, --prun_records]"
   exit
 fi
+
+if [ $# -lt 3 ]; then
+  echo "not enough arguments!"
+  echo "$0 <num_merges> <out_dir> <rotowire_dir> [--tfrecord, --npy, --txt, --adv, --content_plan, --order_records, --prun_records]"
+  exit
+fi 
 
 
 # parse optional arguments
