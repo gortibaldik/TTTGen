@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 import os
 
 def _create_parser():
-    parser = ArgumentParser()
+    parser = ArgumentParser(description="Create or load a model and train it on the dataset")
     parser.add_argument( '--path'
                        , type=str
                        , help="Path to prepared dataset files"
