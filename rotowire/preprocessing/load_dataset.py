@@ -4,6 +4,11 @@ from preprocessing.utils import OccurrenceDict, create_ha_vocab, create_tp_vocab
 
 def load_values_from_config( config_path
                            , load_cp : bool = False):
+    """ load values, which define dataset, max_table_size, max_summary_size and max_cp_size
+    
+    Args:
+        config_path: path to config file
+        load_cp:     whether to expect max_cp_size information to be in the config"""
     with open(config_path, 'r') as f:
         contents = f.read().strip().split('\n')
     if (load_cp and len(contents) != 3) or (not load_cp and len(contents) != 2):
@@ -24,6 +29,11 @@ def load_tf_record_dataset( path
                           , preprocess_summary_size : int
                           , preprocess_cp_size : int = None
                           , with_content_plans : bool = False):
+    """ load dataset from path, vocabulary from vocab_path
+    
+    Returns:
+        dataset, n_batches_in_dataset, tk_to_ix, tp_to_ix, ha_to_ix, pad_token, bos_token, eos_token
+    """
     bound_1 = preprocess_summary_size
     bound_2 = bound_1 + preprocess_table_size
     bound_3 = bound_2 + preprocess_table_size
@@ -60,7 +70,6 @@ def load_tf_record_dataset( path
     else:
         data = tf.data.TFRecordDataset(path).map(read_map_fn_cp)
         # filtering out batch, where there is too big table
-        # TODO: make preprocessing better !
         def filter_fn(summaries, cp, *tables):
             return not tf.reduce_any(cp == tf.cast(tf.ones(cp.shape) * 692, tf.int16)) # pylint: disable=no-value-for-parameter
         data = data.filter(filter_fn)
