@@ -12,54 +12,40 @@ import tensorflow as tf
 _create_dataset_descr = "create_dataset"
 
 def create_dataset_parser(subparsers):
+    """ create subparser providing all the arguments needed for creation of the dataset"""
     create_dataset_parser = subparsers.add_parser(_create_dataset_descr)
-    create_dataset_parser.add_argument(
-        "--preproc_summaries_dir",
-        type=str,
-        help="path to directory with output of create_dataset.sh",
-        required=True
-    )
-    create_dataset_parser.add_argument(
-        '--output_dir',
-        type=str,
-        help="directory where the outputs will be saved",
-        required=True
-    )
-    create_dataset_parser.add_argument(
-        '--order_records',
-        action='store_true',
-        help="If true, the input tables will contain teams in the first records and players" +\
-                " sorted by their point totals"
-    )
-    create_dataset_parser.add_argument(
-        '--prun_records',
-        action='store_true',
-        help="The input tables will contain the advanced stats of 3 most productive players and only mins, " +\
-                "pts, ast of the remaining ones, APPLIES ONLY WHEN order_records is set"
-    )
-    create_dataset_parser.add_argument(
-        '--content_plans_dir',
-        help="path to directory with content plans created by Puduppully et al. 2019",
-        type=str,
-        default=None
-    )
-    create_dataset_parser.add_argument(
-        "--to_npy",
-        help="save the output to .npy format (indices in npy arrays)",
-        action="store_true"
-    )
-    create_dataset_parser.add_argument(
-        "--to_txt",
-        help="save the output to .txt format (indices in txt)",
-        action="store_true"
-    )
-    create_dataset_parser.add_argument(
-        "--to_tfrecord",
-        help="save the output to .tfrecord format",
-        action="store_true"
-    )
+    create_dataset_parser.add_argument( "--preproc_summaries_dir"
+                                      , type=str
+                                      , help="path to directory with output of create_dataset.sh"
+                                      , required=True)
+    create_dataset_parser.add_argument( '--output_dir'
+                                      , type=str
+                                      , help="directory where the outputs will be saved"
+                                      , required=True)
+    create_dataset_parser.add_argument( '--order_records'
+                                      , action='store_true'
+                                      , help="If true, the input tables will contain teams in the first records and players" +\
+                                        " sorted by their point totals")
+    create_dataset_parser.add_argument( '--prun_records'
+                                      , action='store_true'
+                                      , help="The input tables will contain the advanced stats of 3 most productive players and only mins, " +\
+                                        "pts, ast of the remaining ones, APPLIES ONLY WHEN order_records is set")
+    create_dataset_parser.add_argument( '--content_plans_dir'
+                                      , help="path to directory with content plans created by Puduppully et al. 2019"
+                                      , type=str
+                                      , default=None)
+    create_dataset_parser.add_argument( "--to_npy"
+                                      , help="save the output to .npy format (indices in npy arrays)"
+                                      , action="store_true")
+    create_dataset_parser.add_argument( "--to_txt"
+                                      , help="save the output to .txt format (indices in txt)"
+                                      , action="store_true")
+    create_dataset_parser.add_argument( "--to_tfrecord"
+                                      , help="save the output to .tfrecord format"
+                                      , action="store_true")
 
 def create_prepare(args, set_names, input_paths):
+    """ prepare values and information needed for dataset creation"""
     suffix = ""
     if not args.to_npy and not args.to_txt and not args.to_tfrecord:
         raise RuntimeError("Exactly one from --to_npy --to_txt --to_tfrecord should be specified")
@@ -125,6 +111,16 @@ def create_content_plan_ids( content_plan_path
                            , pad_value
                            , tables
                            , logger):
+    """ Extract content plan from the content_plan_path, create sequence of pointers to the input records
+    Args:
+        content_plan_path:  path to file containing content plans
+        mlcp:               maximal length of a content plan
+        pad_value:          value which will be used for padding
+        tables:             sequences of input records
+        logger:             callable, for logging important information
+    
+    Returns:
+        content plan ids (pointers to tables)"""
     plan_ids = np.full(shape=(len(tables), mlcp), fill_value=pad_value, dtype=np.int16)
     with open(content_plan_path, 'r', encoding='utf8') as f:
         logger(f"Working with {content_plan_path}")
@@ -157,6 +153,17 @@ def save_np_to_txt( _np_in: np.ndarray
                   , _logger
                   , summary_path
                   , json_path):
+    """ save numpy array to txt 
+    Args:
+        _np_in:         the input sequences of records
+        _np_target:     the target summaries
+        cplan_ids:      the content plan indices
+        _out_paths:     paths to files where to save the txt representations of
+                        numpy arrays
+        _logger:        callable, for logging important information
+        summary_path:   path to input summary (just for logging purposes)
+        json_path:      path to input .json dataset (just for logging purposes)
+    """
     _out_in_path = _out_paths[0]
     _out_target_path = _out_paths[1]
     _out_cp_path = _out_paths[2]
@@ -193,6 +200,17 @@ def save_np_to_tfrecord( _np_in: np.ndarray
                        , _logger
                        , summary_path
                        , json_path):
+    """ save numpy array to tfrecord file
+    Args:
+        _np_in:         the input sequences of records
+        _np_target:     the target summaries
+        cplan_ids:      the content plan indices
+        _out_paths:     paths to files where to save the txt representations of
+                        numpy arrays
+        _logger:        callable, for logging important information
+        summary_path:   path to input summary (just for logging purposes)
+        json_path:      path to input .json dataset (just for logging purposes)
+    """
     if cplan_ids is not None:
         _logger(f"content plans -> {_out_path}")
     _logger(f"summaries {summary_path} -> {_out_path}")
@@ -231,6 +249,7 @@ def save_np_to_tfrecord( _np_in: np.ndarray
 
 
 def assign_ix_or_unk(dct, key, unk_stat):
+    """ if key isnt present in the dct return UNK and increase count"""
     if key in dct:
         return dct[key]
     else:
@@ -239,6 +258,7 @@ def assign_ix_or_unk(dct, key, unk_stat):
 
 
 class UnkStat:
+    """ UnkStat keeps internal counter monitoring how many times we need to assign UNK token"""
     def __init__(self, tk_vocab):
         self._unk_stat = 0
         self._unk_token = tk_vocab.get_unk()
@@ -262,6 +282,19 @@ def create_dataset( input_paths
                   , order_records
                   , prun_records
                   , logger):
+    """ Create dataset from json file and preprocessed summary 
+    Args:
+        input_paths:    summary_path, json_path, content_plan_path
+        output_paths:   show where to save the outputs
+        tk_vocab:       token vocab
+        mlcp:           maximum length content plan
+        mls:            maximum length summary
+        mlt:            maximum length table
+        order_records:  order records so that first are team records followed by player records ordered by their point-total
+        prun_record:    order records so that first are team records followed by player records of the top 10 players according
+                        to their point total, which are further filtered
+        logger:         callable, for logging important information
+    """
     summary_path, json_path, cplan_path = input_paths
 
     tables = [ m.records for m in extract_matches_from_json( json_path
@@ -269,6 +302,7 @@ def create_dataset( input_paths
                                                            , process_summary=False
                                                            , order_records=order_records
                                                            , prun_records=prun_records)]
+    # collect some statistics about sequences of records
     sum_length = 0
     max_length = None
     min_length = None
@@ -284,9 +318,9 @@ def create_dataset( input_paths
     print(f"min table length: {min_length}")
     print(f"average table length: {sum_length / len(tables)}")
 
+    # read the summaries
     with open(summary_path, 'r') as f:
         file_content = f.read().strip().split('\n')
-
 
     summaries = []
     for line in file_content:
@@ -304,6 +338,7 @@ def create_dataset( input_paths
     if pad_value != tp_to_ix[tp_vocab.get_pad()] or pad_value != ha_to_ix[ha_vocab.get_pad()]:
         raise RuntimeError("Different padding values in type and token vocabs!")
     
+    # extract content plan
     cplan_ids = None
     if cplan_path is not None:
         cplan_ids = create_content_plan_ids( cplan_path
@@ -317,6 +352,7 @@ def create_dataset( input_paths
     np_target = np.full(shape=[len(tables), mls + 2], fill_value=pad_value, dtype=np.int16)
     unk_stat = UnkStat(tk_vocab)
 
+    # transform input tables and output summaries to np array
     for m_ix, (table, summary) in enumerate(zip(tables, summaries)):
         for t_ix, record in enumerate(table):
             np_in[m_ix, 0, t_ix] = tp_to_ix[record.type] 
@@ -337,6 +373,7 @@ def create_dataset( input_paths
     
     logger(f"{output_paths[0]} : {unk_stat.get_unk_stat()} tokens assigned for OOV words")
 
+    # save the np arrays in described format
     extension = os.path.splitext(output_paths[0])[1]
     if extension == ".txt":
         save_np_to_txt( np_in
