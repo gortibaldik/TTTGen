@@ -10,6 +10,8 @@ else:
   from .constants import BoxScoreEntries
 
 def resolve_record(record):
+  """ resolve faults in player names if it is entity record
+  and transform LA to Los_Angeles if it is team record"""
   val, ent, tp, ha = record.split(chr(65512))
   try:
     _ = BoxScoreEntries(tp)
@@ -35,11 +37,14 @@ def main(s, to_be_left, args):
     for ix, line in enumerate(lines):
       # jumping over one content plan which is connected to wrong data
       if ix in to_be_left:
-        print(line+"\n")
+        # print(line+"\n")
         continue
       records = line.strip().split()
       new_records = [ f"{chr(65512)}".join([bos for _ in range(4)]) ]
       ixr = 0
+
+      # we need to merge FIRST_NAME and SECOND_NAME records into one
+      # record with PLAYER_NAME
       while ixr < len(records):
         record = records[ixr]
         val, ent, tp, ha = resolve_record(record)
