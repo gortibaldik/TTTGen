@@ -1,4 +1,5 @@
 set -e
+# this script uses subword-nmt to learn BytePairEncoding on training summaries from RotoWire dataset.
 
 prun_records=$5
 advanced_transformations=$4
