@@ -26,9 +26,11 @@ class EnumDict:
         return iter(self._dict)
 
     def map(self, key, fn):
+        """ Apply function fn on entry in the internal dictionary indexed by key """
         self[key] = fn(self[key])
 
     def mapmap(self, key1, key2, fn):
+        """ Apply function fn on entry indexed by key2 in dictionary indexed by key1 """
         self[key1][key2] = fn(self[key1][key2])
 
     def pop(self, key):
@@ -41,9 +43,16 @@ class EnumDict:
 
 
 class OccurrenceDict:
+    """ Dictionary wrapper that collects counts of its entries """
     @total_ordering
     class Unit:
+        """ Element stored in the dictionary """
         def __init__(self, index, occurrences=1):
+            """ Initialize Unit
+            Args:
+                index : index in the dictionary
+                occurrences: actual number of counted occurrences (by default 1)
+            """
             self._occurrences = occurrences
             self._index = index
 
@@ -82,6 +91,11 @@ class OccurrenceDict:
     __EOS_TOKEN="<<EOS>>"
 
     def __init__(self, initialize_special_tokens : bool = True):
+        """ Initialize OccurrenceDict
+        Args:
+            initialize_special_tokens: if True then PAD, UNK, BOS and EOS tokens are
+                                       inserted at the beginning of the dictionary
+        """
         self._dict = {
             self.__PAD_TOKEN : self.Unit(0),
             self.__UNK_TOKEN : self.Unit(1),
@@ -92,6 +106,7 @@ class OccurrenceDict:
         self._initialize_special_tokens = initialize_special_tokens
 
     def __getitem__(self, item):
+        """ If item is not in the OccurrenceDict, special UNK token is returned"""
         if item in self._dict:
             return self._dict[item]
         else:
@@ -137,6 +152,7 @@ class OccurrenceDict:
         return None
 
     def add(self, word, occurrences=1):
+        """ Adds the word to the OccurreceDict or increments its count if it is already in"""
         token = str(word)
         if token in self._dict:
             self._dict[word].update_occurrences(occurrences)
@@ -146,10 +162,13 @@ class OccurrenceDict:
     def sort(self, prunning : int = None, prun_occurrences : int = None):
         """
         Sorts the occurrence dict and returns it, NOT IN PLACE
-        :param prunning: only leave prunning elements in the resulting dict
-        :param prun_occurrences: all elements with less than prun_occurrences
-                                occurrences will be removed from the resulting dict
-        :return: sorted dict
+
+        Args:
+            prunning:         only leave prunning elements in the resulting dict
+            prun_occurrences: all elements with less than prun_occurrences
+                              occurrences will be removed from the resulting dict
+        Returns:
+            sorted dict
         """
 
         # do not sort special tokens, leave them out, they need to be on first positions
@@ -180,11 +199,16 @@ class OccurrenceDict:
         return self._dict.keys()
 
     def save(self, file_path):
+        """ Save the textual representation of the dict to a file"""
         with open(file_path, 'w') as f:
             for key in self.keys():
                 print(f"{key}\t{self[key]}", file=f)
 
     def update(self, other, basic_dict : bool = False):
+        """Update the OccurrenceDict with other dictionary
+
+        Copies the keys along with their occurrence counts
+        """
         for key in other.keys():
             if basic_dict:
                 self.add(key, other[key])
@@ -194,16 +218,24 @@ class OccurrenceDict:
 
     @classmethod
     def load(cls, file_path, basic_dict : bool = False):
+        """ Load the OccurrenceDict from the file_path
+        Args:
+            file_path  (str):  path to file with saved dictionary
+            basic_dict (bool): whether the saved dict is the OccurrenceDict or not
+        Returns:
+            new OccurrenceDict loaded from the file_path"""
         with open(file_path, 'r', encoding='utf8') as f:
             file_content = f.read().strip().split('\n')
         result = cls()
         for _, line in enumerate(file_content):
             if basic_dict:
+                # basic dict is saved in pairs "token occurrences"
                 tokens = line.strip().split()
                 word = tokens[0]
                 occurrences = int(tokens[1])
                 result.add(word, occurrences)
             else:
+                # OccurrenceDict is saved in triples "token index occurrences"
                 tokens = line.strip().split('\t')
                 word = tokens[0]
                 result._dict[word] = cls.Unit.from_str("\t".join(tokens[1:]))
@@ -231,6 +263,7 @@ def join_strings(first, second, *args, delimiter=" "):
 
 
 class Logger:
+    """ class that directly calls print() but allows to define if the call has the effect or not"""
     def __init__(self, log=True):
         self._log = log
 
@@ -264,12 +297,12 @@ def transform_city_name(city_name):
 
 player_transform_dict = { "T.J. McConnell" : "TJ McConnell"}
 
-# def transform_player_name(player_name):
-#     if player_name in player_transform_dict:
-#         return player_transform_dict[player_name]
-#     return player_name
-
 def resolve_player_name_faults(player_name):
+    """Applies name_transformations on all the tokens in the player names
+    
+    This is specifically aimed at cases like "J.J. Barea" where sometimes Barea
+    is mentioned as "J.J." and sometimes as "JJ"
+    """
     player_name_transformed = ""
     for token in player_name.strip().split():
         if token in name_transformations:
@@ -279,6 +312,7 @@ def resolve_player_name_faults(player_name):
     return player_name_transformed
 
 def create_tp_vocab():
+    """ Returns vocab of different types present in RotoWire tables"""
     type_dict = OccurrenceDict()
 
     for tp in BoxScoreEntries:
@@ -288,6 +322,7 @@ def create_tp_vocab():
     return type_dict
 
 def create_ha_vocab():
+    """ Returns vocab consisting of tokens PAD, UNK, EOS, BOS, HOME and AWAY"""
     _vocab = OccurrenceDict()
     _vocab.add("HOME")
     _vocab.add("AWAY")
