@@ -85,7 +85,7 @@ def _create_parser():
                        , help="load last saved model from ${args.path}/training_checkpoints" 
                        , action='store_true')
     parser.add_argument( '--with_cs'
-                       , help="create EncoderDecoderBaseline with Content Selection Encoder (CopyCS model)" 
+                       , help="create EncoderDecoderBaseline with Content Selection Encoder (CopyCS model)"
                        , action='store_true')
     parser.add_argument( '--with_csbidir'
                        , help="create EncoderDecoderBaseline with Content Selection Encoder and " +\

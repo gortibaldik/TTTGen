@@ -222,7 +222,7 @@ def train( train_dataset
         val_dataset             (dataset):  dataset that can be provided to tf.keras.Model.evaluate as an argument (more in tf documentation)
         load_last               (bool):     whether to create new model or load last saved model from the checkpoint_dir
         use_content_selection   (bool):     whether to train EncoderDecoderContentSelection (when true) or EncoderDecoderBasic
-        cp_training_time        (bool):     number between 0 and 1, fraction of batches where we also train the content planning decoder
+        cp_training_rate        (bool):     number between 0 and 1, fraction of batches where we also train the content planning decoder
         max_table_size          (int):      maximal length of a table from the dataset
         manual_training         (bool):     instead of training using tf.keras.Model.fit() use manual loops
         encoder_cs_flag         (bool):     whether to create EncoderDecoderBaseline with Content Selection Encoder (CopyCS model)
