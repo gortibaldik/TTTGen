@@ -14,6 +14,7 @@ except:
     from .record_class import Record
 
 class MatchStat:
+    """ MatchStat holds all the records connected to a particular match"""
     _placeholder_dict = OccurrenceDict()
 
     def __init__( self
@@ -27,6 +28,20 @@ class MatchStat:
                 , words_limit : int = None
                 , order_records : bool = False
                 , prun_records : bool = False):
+        """ Initialize MatchStat
+
+        match_dict:         the dictionary containing all the json objects connected to one match
+        player_dict:        all the players mentioned in the boxscore are added to player_dict
+        city_dict:          all the city names are appended to city_dict
+        team_name_dict:     all team names are appended to team_name_dict
+        cell_dict:          all the values in the cells from BoxScore, and both LineScores are appended
+        word_dict:          all the tokens from the summary are added to word_dict
+        process_summary:    whether to extract summary or not
+        words_limit:        prun all the sentences from a summary that cause it to exceed the words_limit
+        order_records:      order records so that first are team records followed by player records ordered by their point-total
+        prun_record:        order records so that first are team records followed by player records of the top 10 players according
+                            to their point total, which are further filtered
+        """
         dct = EnumDict(match_dict)
         if not self._is_summary_valid(dct):
             return
@@ -70,6 +85,7 @@ class MatchStat:
                                   , words_limit=words_limit)
 
     def _is_summary_valid(self, dct):
+        """ invalidates lorem ipsum summary"""
         if "Lorem" in dct[MatchStatEntries.summary]:
             for attr in ["box_score", "home_line", "vis_line", "home_name", "vis_name", "records", "summary"]:
                 super().__setattr__(attr, None)
