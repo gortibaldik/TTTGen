@@ -1,4 +1,5 @@
 class Record:
+    """ Records holds together tuples (type, entity, value, ha) and allows simple stringification of the tuple"""
     def __init__( self
                 , type
                 , entity
