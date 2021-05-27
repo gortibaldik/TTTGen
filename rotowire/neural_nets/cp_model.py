@@ -4,11 +4,24 @@ import os
 from .layers import DecoderRNNCellJointCopy
 
 class EncoderDecoderContentSelection(tf.keras.Model):
+    """ CS&P model from the thesis.
+
+    Processes the input records, generates a content plan, which filters and organizes
+    the input records and decodes output text from the contetnt planned sequence
+    """
     def __init__( self
                 , encoder_content_selection
                 , encoder_content_planner
                 , encoder_from_cp
                 , text_decoder):
+        """ Initialize EncoderDecoderContentSelection model
+
+        Args:
+            encoder_content_selection (model):                  one of Encoder, EncoderCS and EncoderCSBi
+            encoder_content_planner   (ContentPlanDecoderCell): content_planning_decoder in the notation from thesis
+            encoder_from_cp           (bidirectional lstm):     content plan encoder in the notation from thesis
+            text_decoder              (model):                  one of DecoderRNNCell and DecoderRNNCellJointCopy
+        """
         super().__init__()
         self._encoder_content_selection = encoder_content_selection
         self._encoder_content_planner = encoder_content_planner
@@ -24,16 +37,37 @@ class EncoderDecoderContentSelection(tf.keras.Model):
                , truncation_size
                , truncation_skip_step
                , cp_training_rate = 0.1):
+        """ Prepare the model for training, evaluation and prediction
+
+        Assigns optimizers, losses, initiates training hyperparameters, sets up eager execution,
+        which enables us to use different settings for training (we use graph execution during training)
+        and evaluation and prediction (where we use eager execution)
+
+            Args:
+            optimizer_cp            (optimizer):    currently unused variable
+            optimizer_txt           (optimizer):    optimizer used to minimize both the cp loss and the txt loss
+            loss_fn_cp              (loss):         loss used on the content planning decoder outputs
+            loss_fn_decoder         (loss):         loss used on the text decoder outputs
+            scheduled_sampling_rate (float):        frequency at which the gold outputs from the previous time-steps are fed into the network
+                                                    (number between 0 and 1, 1 means regular training)
+            truncation_size         (int):          t_2 argument of TBPTT (explained in section 4.1 of the thesis)
+            truncation_skip_step    (int):          t_1 argument of TBPTT (should be lower than or equal to t_2)
+            cp_training_rate        (float):        number between 0 and 1, fraction of batches where we also train the content planning decoder
+        """
         super().compile(run_eagerly=True)
         self._optimizer_cp = optimizer_cp
         self._optimizer_txt = optimizer_txt
         self._loss_fn_cp = loss_fn_cp
         self._loss_fn_decoder = loss_fn_decoder
+
+        # prepare metrics reported during training
         self._train_metrics = { "accuracy_decoder" : tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy_decoder')
                               , "accuracy_cp" :tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy_cp')
                               , "loss_decoder" :tf.keras.metrics.SparseCategoricalCrossentropy(name='loss_decoder')
                               , "loss_cp": tf.keras.metrics.SparseCategoricalCrossentropy( name='loss_cp'
                                                                                          , from_logits=True)}
+
+        # prepare metrics reported during evaluation
         self._val_metrics = { "val_accuracy_decoder" : tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy_decoder')
                             , "val_accuracy_cp" : tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy_cp')
                             , "val_loss_decoder" : tf.keras.metrics.SparseCategoricalCrossentropy(name='loss_decoder')
@@ -47,7 +81,7 @@ class EncoderDecoderContentSelection(tf.keras.Model):
 
     
     def _calc_loss( self, x, y, loss_object, selected_metrics):
-        """ use only the non-pad values """
+        """ use only the non-pad values to calculate loss"""
         mask = tf.math.logical_not(tf.math.equal(y, 0))
         loss_ = loss_object(y, x)
         mask = tf.cast(mask, loss_.dtype)
@@ -62,6 +96,22 @@ class EncoderDecoderContentSelection(tf.keras.Model):
                  , batch_data
                  , last_out
                  , initial_state=None):
+        """ performs one forward and backward pass
+
+        the first pass with given arguments creates a computational graph which 
+        is used in the other passes
+
+        Args:
+            batch_data:     inputs and targets for the text decoder, content plan decoder, input tables, and
+                            generated probabilities whether for scheduled sampling and training of content planning decoder
+                            (dec_in, dec_targets, gen_or_teach, train_cp_loss, cp_in, cp_targets, tables)
+            last_out:       last output of the text decoder
+            initial_state:  initial state for the text decoder
+        
+        Returns:
+            self._truncation_skip_step-th hidden state
+            argmax of self._truncation_skip_step-th prediction of the network
+        """
         loss_cp = 0
         loss_txt = 0
         dec_in, targets, gen_or_teach, train_cp_loss, cp_in, cp_targets, *tables = batch_data
@@ -138,10 +188,12 @@ class EncoderDecoderContentSelection(tf.keras.Model):
                 last_out, states = self._text_decoder( (_input, *aux_inputs)
                                                      , states=states
                                                      , training=True)
+                # calculate txt loss and collect metrics
                 loss_txt += self._calc_loss( last_out
                                            , targets[:, t]
                                            , self._loss_fn_decoder
                                            , ["loss_decoder", "accuracy_decoder"])
+                # prepare new input for the decoder (used with (1 - scheduled_sampling_rate) probability)
                 last_out = tf.expand_dims(tf.cast(tf.argmax(last_out, axis=1), tf.int16), -1)
             loss = loss_txt
             if train_cp_loss > self._cp_training_rate:
@@ -173,23 +225,42 @@ class EncoderDecoderContentSelection(tf.keras.Model):
 
     @property
     def metrics(self):
+        """returns the list of metrics that should be reset at the start and end of training epoch and evaluation"""
         return list(self._train_metrics.values()) + list(self._val_metrics.values())
 
 
     def train_step(self, batch_data):
+        """ perform one train_step during model.fit
+
+        Args:
+            batch_data: data to train on in format (summaries, content_plan, *tables)
+        """
         summaries, content_plan, *tables = batch_data
+
+        # prepare inputs for the text decoder
         sums = tf.expand_dims(summaries, axis=-1)
+
+        # scheduled sampling may force the text decoder to generate
+        # from its last prediction even at the first step
+        # by setting last_out = sums[:, 0] we erase differences between
+        # scheduled sampling and teacher forcing at the first timestep
         last_out = sums[:, 0]
         start = 0
         length = summaries.shape[1]
         cp_length = content_plan.shape[1]
         state = None
+
+        # train_cp_loss decides whether to train the cp decoder or not during the actual batch
         train_cp_loss = self._generator.uniform(shape=(), maxval=1.0)
         for end in range(self._truncation_size, length-1, self._truncation_skip_step):
+            # gen_or_teach is the [0,1] vector which contains value for each time-step
+            # if the value for the timestep is higher than self.scheduled_sampling_rate
+            # the text decoder is forced to generate from its last prediction
             gen_or_teach = np.zeros(shape=(end-start))
             for i in range(len(gen_or_teach)):
                 gen_or_teach[i] = self._generator.uniform(shape=(), maxval=1.0)
-            # create data for teacher forcing
+
+            # prepare data for teacher forcing, scheduled sampling, cp training etc.
             truncated_data = ( sums[:, start:end, :]
                              , summaries[:, start+1:end+1]
                              , tf.convert_to_tensor(gen_or_teach)
@@ -197,6 +268,8 @@ class EncoderDecoderContentSelection(tf.keras.Model):
                              , content_plan[:, :cp_length - 1]
                              , content_plan[:, 1:cp_length]
                              , *tables)
+            
+            # run the backpropagation on truncated sequence
             state, last_out =  self.bppt_step( truncated_data
                                              , last_out
                                              , initial_state=state)
@@ -204,9 +277,14 @@ class EncoderDecoderContentSelection(tf.keras.Model):
         # finish the truncated bppt if the truncation_size cannot divide properly
         # the length of sequence
         if (length - self._truncation_size) % self._truncation_skip_step != 0:
+            # gen_or_teach is the [0,1] vector which contains value for each time-step
+            # if the value for the timestep is higher than self.scheduled_sampling_rate
+            # the text decoder is forced to generate from its last prediction
             gen_or_teach = np.zeros(shape=(length-1-start))
             for i in range(len(gen_or_teach)):
                 gen_or_teach[i] = self._generator.uniform(shape=(), maxval=1.0)
+            
+            # prepare data for teacher forcing, scheduled sampling, cp training etc.
             truncated_data = ( sums[:, start:length-1, :]
                              , summaries[:, start+1:length]
                              , tf.convert_to_tensor(gen_or_teach)
@@ -214,12 +292,18 @@ class EncoderDecoderContentSelection(tf.keras.Model):
                              , content_plan[:, :cp_length - 1]
                              , content_plan[:, 1:cp_length]
                              , *tables)
+            # run the backpropagation on truncated sequence
             state, last_out = self.bppt_step( truncated_data
                                             , last_out
                                             , initial_state=state)
         return dict([(metric.name, metric.result()) for metric in self._train_metrics.values()])
 
     def test_step(self, batch_data):
+        """ perform one test_step during model.evaluate
+
+        Args:
+            batch_data: data to train on in format (summaries, content_plan, *tables)
+        """
         summaries, content_plan, *tables = batch_data
         # prepare summaries
         max_sum_size = summaries.shape[1] - 1
@@ -245,6 +329,7 @@ class EncoderDecoderContentSelection(tf.keras.Model):
                                                                   , states=states
                                                                   , training=False)
             
+            # calculate the metrics on the generated content plans
             mask = tf.math.logical_not(tf.math.equal(cp_targets[:, t], 0))
             for metric in self._val_metrics.values():
                 if metric.name in ["accuracy_cp", "loss_cp"]:
@@ -297,6 +382,11 @@ class EncoderDecoderContentSelection(tf.keras.Model):
         return dict([(metric.name, metric.result()) for metric in self._val_metrics.values()])
 
     def predict_step(self, batch_data):
+        """ perform one predict_step during model.predict
+
+        Args:
+            batch_data: data to train on in format (summaries, content_plan, *tables)
+        """
         summaries, content_plan, *tables = batch_data
         # prepare summaries
         max_sum_size = summaries.shape[1] - 1
@@ -375,10 +465,27 @@ from neural_nets.layers import DecoderRNNCellJointCopy
 import numpy as np
 
 class GreedyAdapter(tf.keras.Model):
+    """ GreedyAdapter for the EncoderDecoderContentSelection
+
+    since we save models to tf.train.checkpoints, we do not want to experiment
+    whether the checkpoint would load the saved model into its changed counterpart or not
+
+    Therefore for experiments with masking the content plans (described in section 5.5.1) we
+    create new adapter which steals the internals of the EncoderDecoderContentSelection
+    and greedily generates the outputs
+    """
     def __init__( self
                 , encoder_decoder : EncoderDecoderContentSelection
                 , max_cp_size
                 , from_gold_cp):
+        """ Initialize GreedyAdapter on the EncoderDecoderContentSelection
+
+        Args:
+            encoder_decoder:    trained model, from which we steal its internals
+            max_cp_size:        maximal size of the generated content_plan
+            from_gold_cp:       whether to generate content plans and decode text from the generated
+                                content plans or decode text from the gold content plans
+        """
         super().__init__()
         self._encoder = ContentPlanDecoder(encoder_decoder, max_cp_size)
         self._text_decoder = encoder_decoder._text_decoder
@@ -451,9 +558,19 @@ class GreedyAdapter(tf.keras.Model):
         return result_preds
 
 class ContentPlanDecoder(tf.keras.Model):
+    """ Wrapper around Content Planning part of the EncoderDecoderContentSelection
+    
+    Greedily generates content plan.
+    """
     def __init__( self
                 , encoder_decoder : EncoderDecoderContentSelection
                 , max_cp_size):
+        """ Initialize GreedyAdapter on the EncoderDecoderContentSelection
+
+        Args:
+            encoder_decoder:    trained model, from which we steal its internals
+            max_cp_size:        maximal size of the generated content_plan
+        """
         super(ContentPlanDecoder, self).__init__()
         self._encoder_content_selection = encoder_decoder._encoder_content_selection
         self._encoder_content_planner = encoder_decoder._encoder_content_planner
@@ -461,6 +578,7 @@ class ContentPlanDecoder(tf.keras.Model):
         self._max_cp_size = max_cp_size
 
     def compile(self):
+        """ we compile the model to enable eager execution """
         super(ContentPlanDecoder, self).compile(run_eagerly=True)
     
     def call(self, tables):
