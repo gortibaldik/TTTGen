@@ -14,13 +14,7 @@ else:
     from .create_dataset import create_prepare, create_dataset, \
         create_dataset_parser, _create_dataset_descr
 
-
-import nltk.tokenize as nltk_tok
-import numpy as np
 import os
-os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3") # Report only TF errors by default
-import tensorflow as tf
-import json
 import argparse
 
 
@@ -34,6 +28,21 @@ def extract_players_from_summaries( matches
                                   , lowercase=False
                                   , exception_cities=False
                                   , exception_teams=False):
+    """ Traverse all the summaries in matches and collect player_dict, the vocabulary of all the unique players mentioned in the dataset summaries
+    
+    Args:
+        matches:                        list of matches extracted from RotoWire dataset
+        player_dict:                    OccurrenceDict of player names
+        logger:                         callable for logging important events during the extraction
+        transform_player_names:         transform each all the mentions of a unique player to a single token
+        prepare_for_bpe_training:       remove all the player names from the summaries, so that BPE won't learn
+                                        to divide player names
+        prepare_for_bpe_application:    transform and enclose the player names to special <<<>>> brackets to allow easy regexp
+                                        extraction from BPE application
+        lowercase:                      lowercase all the tokens with exception of the player names
+        exception_cities:               add city names to the same set as player names (e.g. excluded from lowercasing etc.)
+        exception_teams:                add team names to the same set as player names (e.g. excluded from lowercasing etc. )
+    """
     def dict_to_set(dct):
         not_names = ["IV", "II", "III", "Jr.", "Jr"]
         result = set(dct.keys())
@@ -64,11 +73,9 @@ def extract_players_from_summaries( matches
         """
         Extends appropriate player names with modifiers
 
-        Parameters
-        ------
-        candidate: str
-            the name of the player such as "Kelly Oubre"
-            which should be extended to "Kelly Oubre Jr."
+        Args:
+            candidate:  the name of the player such as "Kelly Oubre"
+                        which should be extended to "Kelly Oubre Jr."
         """
         players_with_modifiers = [
             "Kelly Oubre Jr.",
@@ -174,6 +181,7 @@ def extract_players_from_summaries( matches
 
 
 def _prepare_for_extract(args, set_names):
+    """ Process all the args linked to extraction and prepare the values used during extraction """
     bpe_suffix = ""
     if args.prepare_for_bpe_training and args.prepare_for_bpe_application:
         print("Only one of --prepare_for_bpe_training --prepare_for_bpe_application can be used")
@@ -206,6 +214,29 @@ def extract_summaries_from_json( json_file_path
                                , cell_dict_overall: OccurrenceDict = None
                                , order_records : bool = False
                                , prun_records : bool = False):
+    """ Extract summaries from .json RotoWire dataset files and save them to output_path
+    
+    Args:
+        json_file_path:                 path to .json file with RotoWire dataset
+        output_path:                    path where to save the extracted summaries
+        logger:                         callable for logging important events during the extraction
+        transform_player_names:         transform each all the mentions of a unique player to a single token
+        prepare_for_bpe_training:       remove all the player names from the summaries, so that BPE won't learn
+                                        to divide player names
+        prepare_for_bpe_application:    transform and enclose the player names to special <<<>>> brackets to allow easy regexp
+                                        extraction from BPE application
+        lowercase:                      lowercase all the tokens with exception of the player names
+        exception_cities:               add city names to the same set as player names (e.g. excluded from lowercasing etc.)
+        exception_teams:                add team names to the same set as player names (e.g. excluded from lowercasing etc. )
+        word_limit:                     prun all the sentences from a summary that cause it to exceed the word_limit
+        all_named_entities:             store all named entities from the tables and summaries to the all_named_entities dict if provided
+        cell_dict_overall:              save all the values from the records to the all_named_entities dict if provided
+        order_records:                  order records so that first are team records followed by player records ordered by their point-total
+        prun_record:                    order records so that first are team records followed by player records of the top 10 players according
+                                        to their point total, which are further filtered
+    Returns:
+        max length of a sequence of records    
+    """
     word_dict = OccurrenceDict()
     player_dict = OccurrenceDict()
     team_name_dict = OccurrenceDict()
@@ -382,128 +413,92 @@ _gather_stats_descr = "gather_stats"
 
 def _create_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "rotowire_dir",
-        type=str,
-        help="path to directory with original rotowire .json files \
-              they should be found in the ${rotowire_dir}/{train, valid, test}.json",
-        default="rotowire"
-    )
-    parser.add_argument(
-        "--only_set",
-        type=str,
-        help="specify the set to be processed",
-        default=None
-    )
-    parser.add_argument(
-        '--only_train',
-        help='use only train data',
-        action='store_true'
-    )
-    parser.add_argument(
-        '--log',
-        help='use extensive logging',
-        action='store_true'
-    )
-    subparsers = parser.add_subparsers(
-        title="activity",
-        dest='activity',
-        required=True,
-        help='what to do ? <gather_stats|extract_summaries>'
-    )
+    parser.add_argument( "rotowire_dir"
+                       , type=str
+                       , help="path to directory with original rotowire .json files " +\
+                              "they should be found in the ${rotowire_dir}/{train, valid, test}.json"
+                       , default="rotowire")
+    parser.add_argument( "--only_set"
+                       , type=str
+                       , help="specify the set to be processed"
+                       , default=None)
+    parser.add_argument( '--only_train'
+                       , help='use only train data'
+                       , action='store_true')
+    parser.add_argument( '--log'
+                       , help='use extensive logging'
+                       , action='store_true')
+
+
+    subparsers = parser.add_subparsers( title="activity"
+                                      , dest='activity'
+                                      , required=True
+                                      , help='what to do ? <gather_stats|extract_summaries|create_dataset>')
+
+    # define gather stats parser
     gather_stats = subparsers.add_parser(_gather_stats_descr)
-    gather_stats.add_argument(
-        "--five_occurrences",
-        help="After looking at training dataset, filter out all the tokens from the \
-            dataset which occur less than 5 times",
-        action='store_true'
-    )
-    gather_stats.add_argument(
-        "--transform_players",
-        help="Gather stats over transformed player names",
-        action='store_true'
-    )
+    gather_stats.add_argument( "--five_occurrences"
+                             , help="After looking at training dataset, filter out all the tokens from the "+\
+                                    " dataset which occur less than 5 times"
+                             , action='store_true')
+    gather_stats.add_argument( "--transform_players"
+                             , help="Gather stats over transformed player names"
+                             , action='store_true')
+
+    # define extract summaries parser
     extract_summaries_parser = subparsers.add_parser(_extract_activity_descr)
-    extract_summaries_parser.add_argument(
-        '--output_dir',
-        type=str,
-        help="directory where the outputs will be saved",
-        required=True
-    )
-    extract_summaries_parser.add_argument(
-        '--file_suffix',
-        type=str,
-        help="suffix appended after name of extracted summary\
-         (train summary would be extracted to \"train_suffix.txt\")",
-        default=""
-    )
-    extract_summaries_parser.add_argument(
-        '--transform_players',
-        help="transform names of players e.g. \"Stephen\" \"Curry\" to \"Stephen_Curry\"",
-        action='store_true'
-    )
-    extract_summaries_parser.add_argument(
-        "--prepare_for_bpe_training",
-        help="extract all the player names from the text so that bpe isn't going to learn merging player names",
-        action='store_true'
-    )
-    extract_summaries_parser.add_argument(
-        "--prepare_for_bpe_application",
-        help="prepare the input files for subword-nmt apply-bpe (change each player_token to <<<player_token>>> to be \
-            able to use --glossaries \"<<<[^>]*>>>\" and don't change any of the player tokens)",
-        action='store_true'
-    )
-    extract_summaries_parser.add_argument(
-        "--lowercase",
-        help="lowercase all the tokens in the summaries except for the special ones",
-        action='store_true'
-    )
-    extract_summaries_parser.add_argument(
-        "--exception_cities",
-        help="apply bpe-application or bpe-training transformations also to city names",
-        action='store_true'
-    )
-    extract_summaries_parser.add_argument(
-        "--exception_teams",
-        help="apply bpe-application or bpe-training transformations also to team names",
-        action='store_true'
-    )
-    extract_summaries_parser.add_argument(
-        "--words_limit",
-        help="limits the size of the extracted summaries",
-        default=None,
-        type=int
-    )
-    extract_summaries_parser.add_argument(
-        "--entity_vocab_path",
-        type=str,
-        help="where to save the list of all the players mentioned in the summaries",
-        default=None
-    )
-    extract_summaries_parser.add_argument(
-        "--cell_vocab_path",
-        type=str,
-        help="where to save the list of all the cell values from the tables",
-        default=None
-    )
-    extract_summaries_parser.add_argument(
-        "--config_path",
-        type=str,
-        help="where to save the max_table_length",
-        default=None
-    )
-    extract_summaries_parser.add_argument(
-        '--order_records',
-        action='store_true',
-        help="If true, the input tables will contain teams in the first records and players" +\
-                " sorted by their point totals"
-    )
-    extract_summaries_parser.add_argument(
-        '--prun_records',
-        action='store_true',
-        help="The input tables will contain the advanced stats of 3 most productive players and only mins, " +\
-                "pts, ast of the remaining ones, APPLIES ONLY WHEN order_records is set"
-    )
+    extract_summaries_parser.add_argument( '--output_dir'
+                                         , type=str
+                                         , help="directory where the outputs will be saved"
+                                         , required=True)
+    extract_summaries_parser.add_argument( '--file_suffix'
+                                         , type=str
+                                         , help="suffix appended after name of extracted summary " +\
+                                                "(train summary would be extracted to \"train_suffix.txt\")"
+                                         , default="")
+    extract_summaries_parser.add_argument( '--transform_players'
+                                         , help="transform names of players e.g. \"Stephen\" \"Curry\" to \"Stephen_Curry\""
+                                         , action='store_true')
+    extract_summaries_parser.add_argument( "--prepare_for_bpe_training"
+                                         , help="extract all the player names from the text so that bpe isn't going to learn merging player names"
+                                         , action='store_true')
+    extract_summaries_parser.add_argument( "--prepare_for_bpe_application"
+                                         , help="prepare the input files for subword-nmt apply-bpe (change each player_token to <<<player_token>>> to be " +\
+                                                "able to use --glossaries \"<<<[^>]*>>>\" and don't change any of the player tokens)"
+                                         , action='store_true')
+    extract_summaries_parser.add_argument( "--lowercase"
+                                         , help="lowercase all the tokens in the summaries except for the special ones"
+                                         , action='store_true')
+    extract_summaries_parser.add_argument( "--exception_cities"
+                                         , help="apply bpe-application or bpe-training transformations also to city names"
+                                         , action='store_true')
+    extract_summaries_parser.add_argument( "--exception_teams"
+                                         , help="apply bpe-application or bpe-training transformations also to team names"
+                                         , action='store_true')
+    extract_summaries_parser.add_argument( "--words_limit"
+                                         , help="limits the size of the extracted summaries"
+                                         , default=None
+                                         , type=int)
+    extract_summaries_parser.add_argument( "--entity_vocab_path"
+                                         , type=str
+                                         , help="where to save the list of all the players mentioned in the summaries"
+                                         , default=None)
+    extract_summaries_parser.add_argument( "--cell_vocab_path"
+                                         , type=str
+                                         , help="where to save the list of all the cell values from the tables"
+                                         , default=None)
+    extract_summaries_parser.add_argument( "--config_path"
+                                         , type=str
+                                         , help="where to save the max_table_length"
+                                         , default=None)
+    extract_summaries_parser.add_argument( '--order_records'
+                                         , action='store_true'
+                                         , help="If true, the input tables will contain teams in the first records and players" +\
+                                                " sorted by their point totals")
+    extract_summaries_parser.add_argument( '--prun_records'
+                                         , action='store_true'
+                                         , help="The input tables will contain the advanced stats of 3 most productive players and only mins, " +\
+                                                "pts, ast of the remaining ones, APPLIES ONLY WHEN order_records is set")
     create_dataset_parser(subparsers)
     return parser
 
@@ -512,12 +507,15 @@ def _main():
     parser = _create_parser()
     args = parser.parse_args()
     set_names = ["train", "valid", "test"]
+
+    # prepare the sets which will be processed
     if args.only_train:
         set_names = [set_names[0]]
     if args.only_set is not None:
         set_names = [args.only_set]
     input_paths = [ os.path.join(args.rotowire_dir, f + ".json") for f in set_names ]
 
+    # prepare output_paths where the processed sets will be saved
     if args.activity == _extract_activity_descr:
         output_paths, all_named_entities, cell_dict_overall, max_table_length = _prepare_for_extract(args, set_names)
     elif args.activity == _create_dataset_descr:
@@ -548,6 +546,7 @@ def _main():
                 prun_records=args.prun_records
             )
             if mtl > max_table_length: max_table_length = mtl
+
         elif args.activity == _gather_stats_descr:
             print(f"working with {input_path}")
             if os.path.basename(input_path) == "train.json":
@@ -556,12 +555,15 @@ def _main():
                     train_dict = train_dict.sort(prun_occurrences=5)
             else:
                 gather_json_stats(input_path, logger, train_dict, transform_player_names=args.transform_players)
+        
         elif args.activity == _create_dataset_descr:
             create_dataset( input_path
                           , output_path
                           , logger=logger
                           , **create_dataset_kwargs)
 
+    # at the end of extraction of summaries
+    # save the collected OccurrenceDicts and the maximal lenght of a table
     if args.activity == _extract_activity_descr and args.entity_vocab_path is not None:
         all_named_entities.sort().save(args.entity_vocab_path)
     if args.activity == _extract_activity_descr and args.cell_vocab_path is not None:
