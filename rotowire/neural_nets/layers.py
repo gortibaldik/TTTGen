@@ -21,7 +21,7 @@ class Embedding(tf.keras.layers.Layer):
             tp_vocab_size   (int): size of the vocabulary of types
             tp_emb_dim      (int): embedding dimensionality to which project the type part of input record
             ha_vocab_size   (int): size of the vocabulary of home/away flags
-            ha_embd_dim     (int): embedding dimensionality to which project the home/away flag part of input record
+            ha_emb_dim      (int): embedding dimensionality to which project the home/away flag part of input record
         """
         super(Embedding, self).__init__()
         # define embedding layers
@@ -137,7 +137,7 @@ class ContentPlanDecoderCell(tf.keras.layers.Layer):
             
             Args:
                 hidden_size     (int):      dimensionality of the hidden states
-                attention_type  (callable): method which initializes the attention mechanism used as the self attention
+                attention_type  (callable): method which initializes the attention mechanism
                 batch_size      (int):      size of batch
                 dropout_rate    (float):    rate at which to drop cells and corresponding connections at
                                             the outputs of the internal LSTM layer
@@ -282,7 +282,7 @@ class DecoderRNNCell(tf.keras.layers.Layer):
             word_emb_dim     (int):      embedding dimensionality to which project the word from the summary
             decoder_rnn_dim  (int):      the hidden dimensionality to which the inputs are transformed
             batch_size       (int):      size of batch
-            attention        (callable): method which initializes the attention mechanism used as the self attention
+            attention        (callable): method which initializes the attention mechanism
             dropout_rate     (float):    rate at which to drop cells and corresponding connections at
                                                      the outputs of the internal LSTM layer
         """
@@ -351,7 +351,7 @@ class DecoderRNNCellJointCopy(tf.keras.layers.Layer):
             word_emb_dim     (int):      embedding dimensionality to which project the word from the summary
             decoder_rnn_dim  (int):      the hidden dimensionality to which the inputs are transformed
             batch_size       (int):      size of batch
-            attention        (callable): method which initializes the attention mechanism used as the self attention
+            attention        (callable): method which initializes the attention mechanism
             dropout_rate     (float):    rate at which to drop cells and corresponding connections at
                                                      the outputs of the internal LSTM layer
         """
