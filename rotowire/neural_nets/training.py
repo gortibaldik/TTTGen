@@ -1,15 +1,11 @@
 from .encoders import Encoder, EncoderCS, EncoderCSBi
 from .baseline_model import EncoderDecoderBasic
 from .cp_model import EncoderDecoderContentSelection
-from .layers import DecoderRNNCell, DecoderRNNCellJointCopy, DotAttention, ConcatAttention, \
-                    ContentPlanDecoderCell
+from .layers import DecoderRNNCell, DotAttention, ContentPlanDecoderCell
 from .callbacks import CalcBLEUCallback, SaveOnlyModelCallback
 
-import numpy as np
 import tensorflow as tf
-import time
 import os
-import sys
 
 def create_basic_model( batch_size
                       , word_emb_dim
@@ -26,6 +22,31 @@ def create_basic_model( batch_size
                       , encoder_cs_flag : bool = False
                       , encoder_cs_bidir_flag : bool = False
                       , max_table_size : int = None):
+    """ Create EncoderDecoderBasic model
+
+    Creates a neural network model according to hyperparameters.
+
+    Args:
+        batch_size              (int):      the size of batches in the dataset
+        word_emb_dim            (int):      embedding dimensionality to which project the words from the summary and value and entity
+                                            part of the input records
+        word_vocab_size         (int):      size of the vocabulary of words
+        tp_emb_dim              (int):      embedding dimensionality to which project the type part of input record
+        tp_vocab_size           (int):      size of the vocabulary of types
+        ha_emb_dim              (int):      embedding dimensionality to which project the home/away flag part of input record
+        ha_vocab_size           (int):      size of the vocabulary of home/away flags
+        entity_span             (int):      number of records belonging to one player entity
+        hidden_size             (int):      dimensionality of the hidden states
+        attention_type          (callable): method which initializes the attention mechanism
+        decoderRNNInit          (callable): method which initializes the decoder part of the model
+        dropout_rate            (float):    rate at which to drop cells and corresponding connections at
+                                            the outputs of the internal LSTM layers of the model (number
+                                            between 0 and 1, 0 means no dropout)
+        encoder_cs_flag         (bool):     whether to create EncoderDecoderBaseline with Content Selection Encoder (CopyCS model)
+        encoder_cs_bidir_flag   (bool):     whether to create EncoderDecoderBaseline with Content Selection Encoder and
+                                            bidirectional LSTM over it (CopyCSBidir model)
+        max_table_size          (int):      maximal length of a table from the dataset
+    """
     if encoder_cs_flag and encoder_cs_bidir_flag :
         raise RuntimeError("Cannot choose both EncoderCS and EncoderCSBi as the encoder!")
     if encoder_cs_flag:
@@ -83,6 +104,27 @@ def create_cs_model( batch_size
                    , attention_type
                    , decoderRNNInit
                    , dropout_rate):
+    """ Create EncoderDecoderContentSelection model
+
+    Creates a neural network model according to hyperparameters
+
+    Args:
+        batch_size              (int):      the size of batches in the dataset
+        max_table_size          (int):      maximal length of a table from the dataset
+        word_emb_dim            (int):      embedding dimensionality to which project the words from the summary and value and entity
+                                            part of the input records
+        word_vocab_size         (int):      size of the vocabulary of words
+        tp_emb_dim              (int):      embedding dimensionality to which project the type part of input record
+        tp_vocab_size           (int):      size of the vocabulary of types
+        ha_emb_dim              (int):      embedding dimensionality to which project the home/away flag part of input record
+        ha_vocab_size           (int):      size of the vocabulary of home/away flags
+        hidden_size             (int):      dimensionality of the hidden states
+        attention_type          (callable): method which initializes the attention mechanism
+        decoderRNNInit          (callable): method which initializes the decoder part of the model
+        dropout_rate            (float):    rate at which to drop cells and corresponding connections at
+                                            the outputs of the internal LSTM layers of the model (number
+                                            between 0 and 1, 0 means no dropout)
+    """
     encoder = EncoderCS( word_vocab_size
                        , word_emb_dim
                        , tp_vocab_size
@@ -137,7 +179,6 @@ def train( train_dataset
          , truncation_skip_step
          , attention_type=DotAttention
          , decoderRNNInit=DecoderRNNCell
-         , val_save_path : str = None
          , ix_to_tk : dict = None
          , val_dataset = None
          , load_last : bool = False
@@ -147,6 +188,46 @@ def train( train_dataset
          , manual_training : bool = True
          , encoder_cs_flag : bool = False
          , encoder_cs_bidir_flag : bool = False):
+    """ Training script of the neural networks
+
+    Creates a neural network model according to hyperparameters, trains it on the train_dataset
+    and validates its performance on the validation dataset
+
+    Args:
+        train_dataset:          (dataset):  dataset that can be provided to tf.keras.Model.fit as an argument (more in tf documentation)
+        checkpoint_dir:         (str):      path to directory where to save the checkpointed models
+        batch_size              (int):      the size of batches in the dataset
+        word_emb_dim            (int):      embedding dimensionality to which project the words from the summary and value and entity
+                                            part of the input records
+        word_vocab_size         (int):      size of the vocabulary of words
+        tp_emb_dim              (int):      embedding dimensionality to which project the type part of input record
+        tp_vocab_size           (int):      size of the vocabulary of types
+        ha_emb_dim              (int):      embedding dimensionality to which project the home/away flag part of input record
+        ha_vocab_size           (int):      size of the vocabulary of home/away flags
+        entity_span             (int):      number of records belonging to one player entity
+        hidden_size             (int):      dimensionality of the hidden states
+        learning_rate           (float):    learning_rate argument for the Adam optimizer
+        epochs                  (int):      number of training epochs
+        eos                     (int):      index of the eos token in the word vocabulary
+        dropout_rate            (float):    rate at which to drop cells and corresponding connections at
+                                            the outputs of the internal LSTM layers of the model (number
+                                            between 0 and 1, 0 means no dropout)
+        scheduled_sampling_rate (float):    frequency at which the gold outputs from the previous time-steps are fed into the network
+                                            (number between 0 and 1, 1 means regular training)
+        truncation_size         (int):      t_2 argument of TBPTT (explained in section 4.1 of the thesis)
+        truncation_skip_step    (int):      t_1 argument of TBPTT (should be lower than or equal to t_2)
+        attention_type          (callable): method which initializes the attention mechanism
+        decoderRNNInit          (callable): method which initializes the decoder part of the model
+        ix_to_tk                (dict):     dictionary mapping indices to tokens
+        val_dataset             (dataset):  dataset that can be provided to tf.keras.Model.evaluate as an argument (more in tf documentation)
+        load_last               (bool):     whether to create new model or load last saved model from the checkpoint_dir
+        use_content_selection   (bool):     whether to train EncoderDecoderContentSelection (when true) or EncoderDecoderBasic
+        cp_training_time        (bool):     number between 0 and 1, fraction of batches where we also train the content planning decoder
+        max_table_size          (int):      maximal length of a table from the dataset
+        manual_training         (bool):     instead of training using tf.keras.Model.fit() use manual loops
+        encoder_cs_flag         (bool):     whether to create EncoderDecoderBaseline with Content Selection Encoder (CopyCS model)
+        encoder_cs_bidir_flag   (bool):     whether to create EncoderDecoderBaseline with Content Selection Encoder and bidirectional LSTM over it (CopyCSBidir model)
+    """
 
     if truncation_skip_step > truncation_size:
         raise RuntimeError(f"truncation_skip_step ({truncation_skip_step}) shouldn't be bigger"+
@@ -191,6 +272,7 @@ def train( train_dataset
         status = checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
         print(status.assert_existing_objects_matched())
 
+    # compile the models, since there are two types, one or more optimizers, losses etc.
     if not use_content_selection:
         model.compile( optimizer_1
                      , tf.keras.losses.SparseCategoricalCrossentropy( from_logits=False
