@@ -18,10 +18,17 @@ class BoxScore:
                 , cell_dict
                 , order_records=False
                 , prun_records=False):
-        """
-        Creates the records from the BoxScore
-        BoxScore contains information about all the players, their stats, which team they're part of
-        - the information about one player is grouped in succeeding records
+        """ Initialize BoxScore
+
+        box_score_dict:     the dictionary containing all the json objects connected to players participating
+                            in the match
+        home_city:          name of the home city
+        away_city:          name of the away city
+        player_dict:        all the players mentioned in the boxscore are added to player_dict
+        cell_dict:          all the values in the cells from BoxScore, and both LineScores are appended
+        order_records:      order records so that first are team records followed by player records ordered by their point-total
+        prun_record:        order records so that first are team records followed by player records of the top 10 players according
+                            to their point total, which are further filtered
         """
         self._dct = EnumDict(box_score_dict)
         # in our task neither first name, nor second name is needed or used
@@ -30,6 +37,7 @@ class BoxScore:
         self._records = []
         pts_rec_pairs = []
 
+        # traverse all the players and collect records about them
         for player_number in self.get_player_numbers(self._dct):
             player_pts, player_records = self.extract_player_info( player_number
                                                                  , self._dct
@@ -57,6 +65,7 @@ class BoxScore:
     @staticmethod
     def filter_records( records
                       , advanced_stats : bool):
+        """ keep only those records that are relevant for the summary about the player"""
         to_be_kept = { BoxScoreEntries.ast
                      , BoxScoreEntries.min
                      , BoxScoreEntries.pts
@@ -89,6 +98,15 @@ class BoxScore:
                            , away_city : str
                            , entity_dict : OccurrenceDict
                            , cell_dict : OccurrenceDict):
+        """ Extract all the records connected to a particular player
+
+        box_score_dict:     the dictionary containing all the json objects connected to players participating
+                            in the match
+        home_city:          name of the home city
+        away_city:          name of the away city
+        entity_dict:        all the players mentioned in the boxscore are added to player_dict
+        cell_dict:          all the values in the cells from BoxScore, and both LineScores are appended
+        """
         records = []
         player_name = dct[BoxScoreEntries.player_name][player_number]
         player_name = resolve_player_name_faults(player_name)
