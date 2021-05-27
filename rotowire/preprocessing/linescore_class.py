@@ -8,6 +8,7 @@ except:
     from .record_class import Record
 
 class LineScore:
+    """ LineScore class holds records connected to a particular team"""
     def __init__( self
                 , line_score_dict
                 , home_city
@@ -25,6 +26,15 @@ class LineScore:
                       , city_dict
                       , team_name_dict
                       , cell_dict):
+        """ Initialize LineScore
+
+        dct:                the dictionary containing all the json objects connected to one team
+        home_city:          name of the home city
+        away_city:          name of the away city
+        city_dict:          all the city names are appended to city_dict
+        team_name_dict:     all team names are appended to team_name_dict
+        cell_dict:          all the values in the cells from BoxScore, and both LineScores are appended
+        """
         home_away = set_home_away(home_city, away_city, dct[LineScoreEntries.city])
 
         # transform Los Angeles to Los_Angeles -> done after setting home_away, because
