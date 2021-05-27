@@ -20,7 +20,7 @@ We used a pseudo random generator to pick 8 different data points, 4 from the va
 
 Due to massive preprocessing we have introduced, our results are not directly comparable to any related work. (E.g. the name transformations introduced in section \ref{subsection:player_name_transformations_summary} and lowercasing increase the BLEU score, while being practically irreversible\footnote{It is impossible to tell if the player should be called by his full name or only by his second name.})
 
-\section{Baseline Model}
+\section{Baseline Model} \label{section:experiments_baseline_model}
 
 At first we would like to summarize our expectations. \citet{wiseman2017} note that even models with explicit copy mechanisms tend to \emph{hallucinate} the facts. However they do not show the results of any baseline without copying. We expect the baseline to generate a fairly good English, even though the summaries should not be factually correct.
 
@@ -334,9 +334,9 @@ We cannot make any clear conclusions. We see a raise in terms of the BLEU score 
     \caption{Performance metrics on the Content Selection and Planning model.} \label{table:metrics_copy_ordered}
 \end{table}
 
-\section{Shortened Tables} \label{section:shortened_tables}
+\section{Shortened Tables} \label{section:experiments_shortened_tables}
 
-Our second effort to simplify the input tables is described in section \ref{section:shortened_tables}. Basically we order the records and remove the unsignificant ones to obtain \emph{a sequence of records similar to a content planned one}. We opted to train the \emph{CopyCSBidir} model (discussed in section \ref{subsection:content_planning}) as it is similar in architecture to \emph{CS\&P} model, which achieved promising results on the gold content plans. The hyperparameter configuration is shown in figure \ref{figure:hyperparameters_copy_prunned}.
+Our second effort to simplify the input tables is described in section \ref{subsubsection:shortened records}. Basically we order the records and remove the unsignificant ones to obtain \emph{a sequence of records similar to a content planned one}. We opted to train the \emph{CopyCSBidir} model (discussed in section \ref{subsection:content_planning}) as it is similar in architecture to \emph{CS\&P} model, which achieved promising results on the gold content plans. The hyperparameter configuration is shown in figure \ref{figure:hyperparameters_copy_prunned}.
 
 \begin{figure}[h]
     \scalebox{0.8}{

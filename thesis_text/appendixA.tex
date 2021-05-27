@@ -1,3 +1,58 @@
-\chapter{Implementation of the DNN Models} \label{chapter:appendix_a}
+\chapter{Implementation} \label{chapter:appendix_a}
 
-There will be documentation... surely
+We provide code implementing preprocessing methods as well as the neural network architectures. In this appendix we will shortly explain how to use attached code, and elaborate about the implementation.
+
+First, let us note that the code was implemented and tested only on linux machines (on AIC cluster, on my personal computer and on \url{https://colab.research.google.com/}). The sources depend on \emph{Tensorflow 2.x}, \emph{NLTK 3.6} and \emph{text2num 2.2}.
+
+\section{User Documentation}
+
+The attached .zip file contains 2 directories, \emph{preprocessing} and \emph{neural\_nets}. In this section we will discuss how to perform cleaning (section \ref{section:cleaning}), preparation of the dataset, training of the models and generation of the output summaries.
+
+RotoWire dataset can be downloaded from the original authors \citep{wiseman2017} (\url{https://github.com/harvardnlp/boxscore-data}), the content plans used for \emph{CS\&P} model (section \ref{section:content_selection_and_planning}) are available at google drive\footnote{\url{https://drive.google.\-com/drive/folders/1R_82ifGiybHKuXnVnC8JhBTW8BAkdwek} We use the content plans from the \emph{inter} directory.} provided by\linebreak\citet{puduppully2019datatotext}.
+
+\subsection{Cleaning}
+
+We documented in section \ref{section:cleaning} that the original dataset contains many summaries which are not closely related to the input tables. \emph{preprocessing/erase\_faults.py} traverses the .jsons in the dataset and erases all that we consider faulty, and saves them to new files.
+
+\subsection{Preparation of Content Plans}
+
+The content plans by \citet{puduppully2019datatotext} contain some data points which we consider faulty, and use different notation of entities, values etc. Therefore we provide script \emph{preprocessing/prepare\_content\_plans.py} which transforms the content plans by \citet{puduppully2019datatotext} to a form which we can use for creation of the Dataset.
+
+\subsection{Creation of the Dataset}
+
+We train our models on special tensorflow format of the datasets\footnote{\url{https://www.tensorflow.org/tutorials/load_data/tfrecord}}. Running script \emph{preprocessing/create\_bpe\_dataset.sh} from the \emph{preprocessing} directory we can create \emph{.tfrecord} datasets.
+
+The script accepts three positional command line arguments: number of merges in Byte Pair Encoding (discussed in section \ref{section:byte_pair_encoding}), directory where to save the dataset and directory with the original dataset. The optional arguments provide following options:
+\begin{itemize}
+    \item \emph{--adv} : lowercase the dataset
+    \item \emph{--content\_plan} : create the dataset with the content plans (for training of the \emph{CS\&P} model)
+    \item \emph{--order\_records} : order the records as explained in section \ref{subsubsection:ordered_records}
+    \item \emph{--prun\_records} : order the records and erase the unsignificant ones (section \ref{subsubsection:shortened records})
+    \item \emph{--tfrecord} : save the dataset to \emph{.tfrecord} format
+    \item \emph{--npy} and \emph{--txt} serve only debugging purposes
+\end{itemize}
+
+\subsection{Training of the Models}
+
+Having prepared the dataset, you can start training any of the models discussed in the thesis by running \emph{train.py} script. It accepts numerous command line arguments that are described after calling \emph{train.py --help}.
+
+We also show an example how to train the baseline model discussed in section \ref{section:experiments_baseline_model} :
+
+\begin{verbatim}
+python3 train.py --path=ni_tfrecord --batch_size=8 \
+    --word_emb_dim=600 --tp_emb_dim=300 --ha_emb_dim=300 \
+    --hidden_size=600 --attention_type=dot \
+    --decoder_type=baseline --truncation_size=100 \
+    --truncation_skip_step=25 --dropout_rate=0.3 \
+    --scheduled_sampling_rate=0.8 \
+\end{verbatim}
+
+\subsection{Generation with Trained Model}
+
+After having trained the model you can use \emph{generate.py} script to generate summaries of all the tables from the validation and test dataset. It is important to note that even a slight change in the dataset files may result in broken generation, therefore we advise the reader to use exactly the same dataset both for training and for generation.
+
+To allow you to generate with the models presented in this thesis we publish all the models along with datasets used for their training on google drive\footnote{\url{https://drive.google.com/drive/folders/1eRzAOaZ2SLHOiYm2xtazsb3XSc5ILgbv?usp=sharing}} along with exact instructions how to set up the hyperparameters.
+
+\section{Implementation Details}
+
+details details details
