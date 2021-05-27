@@ -55,9 +55,7 @@ To allow you to generate with the models presented in this thesis we publish all
 
 \section{Implementation Details}
 
-In this section we show where an interested reader may find our implementations of the models and architectures discussed in this thesis.
-
-\emph{Tensorflow} defines two modes of computation. One can either define a computational graph (\url{https://www.tensorflow.org/guide/intro_to_graphs}) or compute eagerly (\url{https://www.tensorflow.org/guide/eager}). We opted to use the best of both worlds. Since training in \emph{graph mode} is significantly faster and more memory efficient, we train our models in \emph{graph mode}. During evaluation and inference we use \emph{eager mode} which allows usage of external libraries and python code.
+\emph{Tensorflow} defines two modes of computation. One can either define a computational graph (\url{https://www.tensorflow.org/guide/intro_to_graphs}) or compute eagerly (\url{https://www.tensorflow.org/guide/eager}). We opted to use the best of both worlds. Since training in \emph{graph mode} is significantly faster and more memory efficient, we train our models in \emph{graph mode}. During evaluation and inference we use \emph{eager mode} which allows usage of external libraries and python code. In this section we show where an interested reader may find our implementations of the models and architectures discussed in this thesis.
 
 The implementation of training, inference and evaluation of all the models generating end-to-end can be found in file \emph{neural\_nets/baseline\_model.py}. CS\&P model is implemented in \emph{neural\_nets/cp\_model.py}. The following listing explains the contents of other scripts from the directory:
 \begin{itemize}
@@ -67,3 +65,4 @@ The implementation of training, inference and evaluation of all the models gener
     \item \emph{neural\_nets/callbacks.py} : two callbacks which are called at the end of each epoch of training, \emph{CalcBLEUCallback} which generates summaries from a subset of a dataset and reports the BLEU score, \emph{SaveOnlyModelCallback} which saves model without optimizer
     \item \emph{neural\_nets/beam\_search\_adapter.py} : our implementation of the Beam \linebreak Search
 \end{itemize}
+
