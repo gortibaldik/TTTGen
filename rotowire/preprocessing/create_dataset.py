@@ -269,6 +269,20 @@ def create_dataset( input_paths
                                                            , process_summary=False
                                                            , order_records=order_records
                                                            , prun_records=prun_records)]
+    sum_length = 0
+    max_length = None
+    min_length = None
+    for r in tables:
+        length = len(r)
+        if max_length is None:
+            max_length = length
+            min_length = length
+        if max_length < length: max_length = length
+        if min_length > length: min_length = length
+        sum_length += length
+    print(f"max table length: {max_length}")
+    print(f"min table length: {min_length}")
+    print(f"average table length: {sum_length / len(tables)}")
 
     with open(summary_path, 'r') as f:
         file_content = f.read().strip().split('\n')
