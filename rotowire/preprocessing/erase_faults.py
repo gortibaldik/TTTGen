@@ -1,5 +1,6 @@
 """
-This script is used to erase specific entries from the rotowire dataset. Cleaning needs to be performed as these entries harm the overall performance of the model on the dataset.
+This script is used to erase specific entries from the rotowire dataset. Cleaning needs to be
+performed as these entries harm the overall performance of the model on the dataset.
 
 // we expect the original dataset downloaded from https://github.com/harvardnlp/boxscore-data
 """
@@ -9,8 +10,8 @@ import json
 import os
 
 entries_numbers = { 'train.json': [
-    36, 84, 243, 280, 403, 603, 822, 1079, 1179, 1499, 1504, 1515, 1767, 1815, 1849, 1917, 2117, 2296, 2306,
-  2312, 2379, 2552, 2688, 2708, 2797, 2959, 3307, 3391
+    36, 84, 243, 280, 403, 603, 822, 1079, 1179, 1499, 1504, 1515, 1767, 1815, 1849, 1917, 2117,
+    2296, 2306, 2312, 2379, 2552, 2688, 2708, 2797, 2959, 3307, 3391
   ],
   'valid.json': [
     120, 177, 186, 356, 386, 597
