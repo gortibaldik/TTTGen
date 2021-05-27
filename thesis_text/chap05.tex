@@ -105,7 +105,7 @@ The Content Selection Encoder thus creates a sequence of \emph{context aware} re
 
 \citet{wiseman2017} experimented with conditional copy approach, in which the latent \emph{switch} probability isn't marginalized out. Hence, there exists pointer sequence for each summary in the train and validation dataset. The sequence corresponds to the order in which entities and values from the sequence of input records appear in the output summary. \citet{puduppully2019datatotext} suggested that instead of just modelling the switch probability, we can train a Decoder to extract these pointers from the original table.
 
-As suggested, the Content Plan Decoder is a one layer LSTM which operates on the \emph{context aware} representations $\boldsymbol{r}^{cs}$. Its hidden states are initialized with $avg(\{r_t^{cs}\}_{t=1}^m)$. \citet{puduppully2019datatotext} have not elaborated on the exact approach, hence it is probable that we have diverged a little bit from the intentions of original authors.
+As suggested, the Content Planning Decoder is a one layer LSTM which operates on the \emph{context aware} representations $\boldsymbol{r}^{cs}$. Its hidden states are initialized with $avg(\{r_t^{cs}\}_{t=1}^m)$. \citet{puduppully2019datatotext} have not elaborated on the exact approach, hence it is probable that we have diverged a little bit from the intentions of original authors.
 
 \begin{table}[h]
     \centering \small
@@ -137,7 +137,7 @@ Joint-Copy Decoder operates as the Text Decoder to generate the output summary. 
 
 \subsection{Training and Inference}
 
-At first let me elaborate on the training of \emph{CS\&P}. The model consists of two parts which are trained jointly. According to notation in figure \ref{figure:overal_architecture_csap} the model has two sets of outputs for which we calculate the content planning loss and the text decoding loss. These are added together to form the overall loss which is minimized by the optimizer. During training the inputs to the Content Plan Encoder are the encoded records pointed by the \emph{gold content plan}. Equation \ref{equation:argmin_training_csap_model} shows the loss value we aim to minimize during training.
+At first let me elaborate on the training of \emph{CS\&P}. The model consists of two parts which are trained jointly. According to notation in figure \ref{figure:overal_architecture_csap} the model has two sets of outputs for which we calculate the content planning loss and the text decoding loss. These are added together to form the overall loss which is minimized by the optimizer. During training the inputs to the Content Plan Encoder are the encoded records pointed by the \emph{gold content plan}. Equation \ref{equation:argmin_training_csap_model} shows the loss value we aim to minimize during training, given the input sequences $\boldsymbol{x}$, gold content plans $\boldsymbol{z}$ and gold summaries $\boldsymbol{y}$.
 
 \begin{equation} \label{equation:argmin_training_csap_model}
     \sum_{(\boldsymbol{x}, \boldsymbol{y}, \boldsymbol{z}) \in \mathcal{D}} - \log{p(\boldsymbol{y}|\boldsymbol{z}, \boldsymbol{x})} - \log{p(\boldsymbol{z} | \boldsymbol{x})}
