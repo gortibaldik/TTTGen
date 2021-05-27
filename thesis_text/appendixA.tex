@@ -2,41 +2,41 @@
 
 We provide code implementing preprocessing methods as well as the neural network architectures. In this appendix we will shortly explain how to use attached code, and elaborate about the implementation.
 
-First, let us note that the code was implemented and tested only on linux machines (on AIC cluster, on my personal computer and on \url{https://colab.research.google.com/}). The sources depend on \emph{Tensorflow 2.x}, \emph{NLTK 3.6}, \emph{numpy 1.18} and \emph{text2num 2.2}.
+First, let us note that the code was implemented and tested only on linux machines (on AIC cluster, on my personal computer and on \url{https://colab.research.google.com/}). The sources depend on \emph{Tensorflow 2.x}, \emph{NLTK 3.6}, \emph{numpy 1.18}, \emph{text2num 2.2}, and \emph{python 3.8}.
 
 \section{User Documentation}
 
 The attached .zip file contains 2 directories, \emph{preprocessing} and \emph{neural\_nets}. In this section we will discuss how to perform cleaning (section \ref{section:cleaning}), preparation of the dataset, training of the models and generation of the output summaries.
 
-RotoWire dataset can be downloaded from the original authors \citep{wiseman2017} (\url{https://github.com/harvardnlp/boxscore-data}), the content plans used for \emph{CS\&P} model (section \ref{section:content_selection_and_planning}) are available at google drive\footnote{\url{https://drive.google.\-com/drive/folders/1R_82ifGiybHKuXnVnC8JhBTW8BAkdwek} We use the content plans from the \emph{inter} directory.} provided by\linebreak\citet{puduppully2019datatotext}.
+RotoWire dataset can be downloaded from the original authors \citep{wiseman2017} (\url{https://github.com/harvardnlp/boxscore-data}), the content plans used for \emph{CS\&P} model (section \ref{section:content_selection_and_planning}) are available at google drive\footnote{\url{https://drive.google.com/drive/folders/1R_82ifGiybHKuXnVnC8JhBTW8BAkdwek} We use the content plans from the \emph{inter} directory.} provided by\linebreak\citet{puduppully2019datatotext}.
 
 \subsection{Cleaning}
 
-We documented in section \ref{section:cleaning} that the original dataset contains many summaries which are not closely related to the input tables. \emph{preprocessing/erase\_faults.py} traverses the .jsons in the dataset and erases all that we consider faulty, and save the cleaned dataset to new files.
+We documented in section \ref{section:cleaning} that the original dataset contains many summaries which are not closely related to the input tables. \texttt{preprocessing/erase\_faults.py} traverses the .jsons in the dataset and erases all that we consider faulty, and save the cleaned dataset to new files.
 
 \subsection{Preparation of Content Plans}
 
-The content plans by \citet{puduppully2019datatotext} contain some data points which we consider faulty, and use different notation of entities, values etc. Therefore we provide script \emph{preprocessing/prepare\_content\_plans.py} which transforms the content plans by \citet{puduppully2019datatotext} to a form which we can use for creation of the Dataset.
+The content plans by \citet{puduppully2019datatotext} contain some data points which we consider faulty, and use different notation of entities, values etc. Therefore we provide script \texttt{preprocessing/prepare\_content\_plans.py} which transforms the content plans by \citet{puduppully2019datatotext} to a form which we can use for creation of the Dataset.
 
 \subsection{Creation of the Dataset}
 
-We train our models on special tensorflow format of the datasets\footnote{\url{https://www.tensorflow.org/tutorials/load_data/tfrecord}}. Running script \emph{preprocessing/create\_bpe\_dataset.sh} from the \emph{preprocessing} directory we can create \emph{.tfrecord} datasets.
+We train our models on special tensorflow format of the datasets\footnote{\url{https://www.tensorflow.org/tutorials/load_data/tfrecord}}. Running script \texttt{preprocessing/create\_bpe\_dataset.sh} from the \emph{preprocessing} directory we can create \emph{.tfrecord} datasets.
 
 The script accepts three positional command line arguments: number of merges in Byte Pair Encoding (discussed in section \ref{section:byte_pair_encoding}), directory where to save the dataset and directory with the original dataset. The optional arguments provide following options:
 \begin{itemize}
-    \item \emph{--adv} : lowercase the dataset
-    \item \emph{--content\_plan} : create the dataset with the content plans (for training of the \emph{CS\&P} model)
-    \item \emph{--order\_records} : order the records as explained in section \ref{subsubsection:ordered_records}
-    \item \emph{--prun\_records} : order the records and erase the unsignificant ones (section \ref{subsubsection:shortened records})
-    \item \emph{--tfrecord} : save the dataset to \emph{.tfrecord} format
-    \item \emph{--npy} and \emph{--txt} serve only debugging purposes
+    \item \texttt{--adv} : lowercase the dataset
+    \item \texttt{--content\_plan} : create the dataset with the content plans (for training of the \emph{CS\&P} model)
+    \item \texttt{--order\_records} : order the records as explained in section \ref{subsubsection:ordered_records}
+    \item \texttt{--prun\_records} : order the records and erase the unsignificant ones (section \ref{subsubsection:shortened records})
+    \item \texttt{--tfrecord} : save the dataset to \emph{.tfrecord} format
+    \item \texttt{--npy} and \texttt{--txt} serve only debugging purposes
 \end{itemize}
 
 \subsection{Training of the Models}
 
-Having prepared the dataset, you can start training any of the models discussed in the thesis by running \emph{train.py} script. It accepts numerous command line arguments that are described after calling \emph{train.py --help}.
+Having prepared the dataset, we can start training any of the models discussed in the thesis by running \texttt{train.py} script. It accepts numerous command line arguments that are described after calling \texttt{train.py --help}.
 
-We also show an example how to train the baseline model discussed in section \ref{section:experiments_baseline_model} (assuming the prepared dataset is in directory \emph{ni\_tfrecord}):
+We also show an example how to train the baseline model discussed in section \ref{section:experiments_baseline_model} (assuming the prepared dataset is in directory \texttt{ni\_tfrecord}):
 
 \begin{verbatim}
 python3 train.py --path=ni_tfrecord --batch_size=8 \
@@ -44,25 +44,25 @@ python3 train.py --path=ni_tfrecord --batch_size=8 \
     --hidden_size=600 --attention_type=dot \
     --decoder_type=baseline --truncation_size=100 \
     --truncation_skip_step=25 --dropout_rate=0.3 \
-    --scheduled_sampling_rate=0.8 \
+    --scheduled_sampling_rate=0.8
 \end{verbatim}
 
 \subsection{Generation with Trained Model}
 
-After having trained the model you can use \emph{generate.py} script to generate summaries of all the tables from the validation and test dataset. It is important to note that even a slight change in the dataset files may result in broken generation, therefore we advise the reader to use exactly the same dataset both for training and for generation.
+After having trained the model we can use \texttt{generate.py} script to generate summaries of all the tables from the validation and test dataset. It is important to note that even a slight change in the dataset files may result in broken generation, therefore we advise the reader to use exactly the same dataset both for training and for generation.
 
-To allow you to generate with the models presented in this thesis we publish all the models along with datasets used for their training on google drive\footnote{\url{https://drive.google.com/drive/folders/1eRzAOaZ2SLHOiYm2xtazsb3XSc5ILgbv?usp=sharing}} along with exact instructions how to set up the hyperparameters.
+To allow generating with the models presented in this thesis we publish all the models along with datasets used for their training on google drive\footnote{\url{https://drive.google.com/drive/folders/1eRzAOaZ2SLHOiYm2xtazsb3XSc5ILgbv?usp=sharing}} along with exact instructions how to set up the hyperparameters.
 
 \section{Implementation Details}
 
 \emph{Tensorflow} defines two modes of computation. One can either define a computational graph (\url{https://www.tensorflow.org/guide/intro_to_graphs}) or compute eagerly (\url{https://www.tensorflow.org/guide/eager}). We opted to use the best of both worlds. Since training in \emph{graph mode} is significantly faster and more memory efficient, we train our models in \emph{graph mode}. During evaluation and inference we use \emph{eager mode} which allows usage of external libraries and python code. In this section we show where an interested reader may find our implementations of the models and architectures discussed in this thesis.
 
-The implementation of training, inference and evaluation of all the models generating end-to-end can be found in file \emph{neural\_nets/baseline\_model.py}. CS\&P model is implemented in \emph{neural\_nets/cp\_model.py}. The following listing explains the contents of other scripts from the directory:
+The implementation of training, inference and evaluation of all the models generating end-to-end can be found in file \texttt{neural\_nets/baseline\_model.py}. CS\&P model is implemented in \texttt{neural\_nets/cp\_model.py}. The following listing explains the contents of other scripts from the directory:
 \begin{itemize}
-    \item \emph{neural\_nets/encoders.py} : baseline Encoder, Encoder with Content Selection, Encoder with Content Selection and bidirectional LSTM
-    \item \emph{neural\_nets/layers.py} : feed-forward network processing the input records, both types of attention (dot, concat, discussed in section \ref{subsection:score_input_feeding}), Content Selection mechanism, Content Planning mechanism, baseline Decoder, Joint-Copy Decoder
-    \item \emph{neural\_nets/training.py} : a set up script that creates models and starts training
-    \item \emph{neural\_nets/callbacks.py} : two callbacks which are called at the end of each epoch of training, \emph{CalcBLEUCallback} which generates summaries from a subset of a dataset and reports the BLEU score, \emph{SaveOnlyModelCallback} which saves model without optimizer
-    \item \emph{neural\_nets/beam\_search\_adapter.py} : our implementation of the Beam \linebreak Search
+    \item \texttt{neural\_nets/encoders.py} : baseline Encoder, Encoder with Content Selection, Encoder with Content Selection and bidirectional LSTM
+    \item \texttt{neural\_nets/layers.py} : feed-forward network processing the input re\-cords, both types of attention (dot, concat, discussed in section \ref{subsection:score_input_feeding}), Content Selection mechanism, Content Planning mechanism, baseline Decoder, Joint-Copy Decoder
+    \item \texttt{neural\_nets/training.py} : a set up script that creates models and starts training
+    \item \texttt{neural\_nets/callbacks.py} : two callbacks which are called at the end of each epoch of training, \emph{CalcBLEUCallback} which generates summaries from a subset of a dataset and reports the BLEU score, \emph{SaveOnlyModelCallback} which saves model without optimizer
+    \item \texttt{neural\_nets/beam\_search\_adapter.py} : our implementation of the Beam \linebreak Search
 \end{itemize}
 
