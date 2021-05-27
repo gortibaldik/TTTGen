@@ -6,13 +6,13 @@ First, let us note that the code was implemented and tested only on linux machin
 
 \section{User Documentation}
 
-The attached .zip file contains 2 directories, \emph{preprocessing} and \emph{neural\_nets}. In this section we will discuss how to perform cleaning (section \ref{section:cleaning}), preparation of the dataset, training of the models and generation of the output summaries.
+The attached .zip file contains 2 directories, \texttt{preprocessing} and \texttt{neural\_nets}. In this section we will discuss how to perform cleaning (section \ref{section:cleaning}), preparation of the dataset, training of the models and generation of the output summaries.
 
-RotoWire dataset can be downloaded from the original authors \citep{wiseman2017} (\url{https://github.com/harvardnlp/boxscore-data}), the content plans used for \emph{CS\&P} model (section \ref{section:content_selection_and_planning}) are available at google drive\footnote{\url{https://drive.google.com/drive/folders/1R_82ifGiybHKuXnVnC8JhBTW8BAkdwek} We use the content plans from the \emph{inter} directory.} provided by\linebreak\citet{puduppully2019datatotext}.
+RotoWire dataset can be downloaded from the original authors \citep{wiseman2017} (\url{https://github.com/harvardnlp/boxscore-data}), the content plans used for \emph{CS\&P} model (section \ref{section:content_selection_and_planning}) are available at google drive\footnote{\url{https://drive.google.com/drive/folders/1R_82ifGiybHKuXnVnC8JhBTW8BAkdwek} We use the content plans from the \texttt{inter} directory.} provided by\linebreak\citet{puduppully2019datatotext}.
 
 \subsection{Cleaning}
 
-We documented in section \ref{section:cleaning} that the original dataset contains many summaries which are not closely related to the input tables. \texttt{preprocessing/erase\_faults.py} traverses the .jsons in the dataset and erases all that we consider faulty, and save the cleaned dataset to new files.
+We documented in section \ref{section:cleaning} that the original dataset contains \linebreak many summaries which are not closely related to the input tables. \linebreak \texttt{preprocessing/erase\_faults.py} traverses the .jsons in the dataset and erases all that we consider faulty, and save the cleaned dataset to new files.
 
 \subsection{Preparation of Content Plans}
 
@@ -20,7 +20,7 @@ The content plans by \citet{puduppully2019datatotext} contain some data points w
 
 \subsection{Creation of the Dataset}
 
-We train our models on special tensorflow format of the datasets\footnote{\url{https://www.tensorflow.org/tutorials/load_data/tfrecord}}. Running script \texttt{preprocessing/create\_bpe\_dataset.sh} from the \emph{preprocessing} directory we can create \emph{.tfrecord} datasets.
+We train our models on special tensorflow format of the datasets\footnote{\url{https://www.tensorflow.org/tutorials/load_data/tfrecord}}. Running script \texttt{preprocessing/create\_bpe\_dataset.sh} from the \texttt{preprocessing} directory we can create \emph{.tfrecord} datasets.
 
 The script accepts three positional command line arguments: number of merges in Byte Pair Encoding (discussed in section \ref{section:byte_pair_encoding}), directory where to save the dataset and directory with the original dataset. The optional arguments provide following options:
 \begin{itemize}
