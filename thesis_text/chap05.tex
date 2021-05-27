@@ -87,14 +87,14 @@ Both tasks are modelled with \emph{the same} Encoder and with \emph{separate} De
 
 Specifically, we compute
 \begin{align*}
-\forall k \neq t : \alpha_{t, k} &= score(\hat{r}_t, \hat{r}_k)                         &&\mbox{ \small \emph{the score vector}}\\
+\forall k \neq t : \alpha_{t, k} &= score(r_t, r_k)                         &&\mbox{ \small \emph{the score vector}}\\
 \boldsymbol{\beta_t}             &= softmax(\boldsymbol{\alpha_t})                      &&\mbox{ \small \emph{the alignment vector}}\\
-\boldsymbol{\gamma_t}            &= \sum_{i=1}^m{\beta_{t, i} * \hat{r}_i}               &&\mbox{ \small \emph{the context vector}}\\
-\hat{r}_t^{att}                  &= sigmoid( W_{cs} [\hat{r}_t, \boldsymbol{\gamma_t}] ) &&\mbox{ \small \emph{gating mechanism}}\\
-\hat{r}_t^{cs}                   &= \hat{r}_t^{att} \bigodot \hat{r}_t                  &&\mbox{ \small \emph{the content selected representation}}
+\boldsymbol{\gamma_t}            &= \sum_{i=1}^m{\beta_{t, i} * r_i}               &&\mbox{ \small \emph{the context vector}}\\
+r_t^{att}                  &= W_{cs} [r_t, \boldsymbol{\gamma_t}]             \\
+r_t^{cs}                   &= sigmoid(r_t^{att}) \bigodot r_t                  &&\mbox{ \small \emph{the content selected representation}}
 \end{align*}
 
-The Content Selection Encoder thus creates a sequence of \emph{context aware} representations $\{\hat{r}_t^{cs}\}_{t=1}^m$ (figure \ref{figure:content_selection_pudupully}). We experiment with a model using Content Selection Encoder and Joint-Copy decoder ( we call it \emph{CopyCS}).
+The Content Selection Encoder thus creates a sequence of \emph{context aware} representations $\{r_t^{cs}\}_{t=1}^m$ (figure \ref{figure:content_selection_pudupully}). We experiment with a model using Content Selection Encoder and Joint-Copy decoder ( we call it \emph{CopyCS}).
 
 \begin{figure}[!h]
     \includegraphics{img/cs_gate-cropped.pdf}
@@ -105,7 +105,7 @@ The Content Selection Encoder thus creates a sequence of \emph{context aware} re
 
 \citet{wiseman2017} experimented with conditional copy approach, in which the latent \emph{switch} probability isn't marginalized out. Hence, there exists pointer sequence for each summary in the train and validation dataset. The sequence corresponds to the order in which entities and values from the sequence of input records appear in the output summary. \citet{puduppully2019datatotext} suggested that instead of just modelling the switch probability, we can train a Decoder to extract these pointers from the original table.
 
-As suggested, the Content Plan Decoder is a one layer LSTM which operates on the \emph{context aware} representations $\hat{\boldsymbol{r}}^{cs}$. Its hidden states are initialized with $avg(\{\hat{r}_t^{cs}\}_{t=1}^m)$. \citet{puduppully2019datatotext} have not elaborated on the exact approach, hence it is probable that we have diverged a little bit from the intentions of original authors.
+As suggested, the Content Plan Decoder is a one layer LSTM which operates on the \emph{context aware} representations $\boldsymbol{r}^{cs}$. Its hidden states are initialized with $avg(\{r_t^{cs}\}_{t=1}^m)$. \citet{puduppully2019datatotext} have not elaborated on the exact approach, hence it is probable that we have diverged a little bit from the intentions of original authors.
 
 \begin{table}[h]
     \centering \small
@@ -129,11 +129,11 @@ As suggested, the Content Plan Decoder is a one layer LSTM which operates on the
     \caption{An extract from the content plan corresponding to the summary from the figure \ref{figure:samplesummary}}
 \end{table}
 
-The Text Decoder is trained to start the generation when it sees the \emph{\textless BOS\textgreater} token. Since the Content Planning Decoder operates on $\hat{\boldsymbol{r}}^{cs}$ we have chosen to prepend a special \emph{\textless BOS\textgreater} record to the sequence of input records, and also a pointer to the \emph{\textless BOS\textgreater} record is prepended to each content plan. Therefore instead of teaching the Content Plan Decoder to start generating content plan when seeing a special value, we teach it to do so when seeing \emph{the encoded representation of the special value}. The same approach is taken at the end, with the \emph{\textless EOS\textgreater} record.
+The Text Decoder is trained to start the generation when it sees the \emph{\textless BOS\textgreater} token. Since the Content Planning Decoder operates on $\boldsymbol{r}^{cs}$ we have chosen to prepend a special \emph{\textless BOS\textgreater} record to the sequence of input records, and also a pointer to the \emph{\textless BOS\textgreater} record is prepended to each content plan. Therefore instead of teaching the Content Plan Decoder to start generating content plan when seeing a special value, we teach it to do so when seeing \emph{the encoded representation of the special value}. The same approach is taken at the end, with the \emph{\textless EOS\textgreater} record.
 
-\citet{puduppully2019datatotext} use a one layer bidirectional LSTM on top of the generated content plans as shown in figure \ref{figure:overal_architecture_csap} (in the following text we call this part of the model \emph{Content Plan Decoder}).
+\citet{puduppully2019datatotext} use a one layer bidirectional LSTM on top of the generated content plans as shown in figure \ref{figure:overal_architecture_csap} (in the following text we call this part of the model \emph{Content Plan Encoder}).
 
-Either baseline Decoder or Joint-Copy Decoder can operate as the Text Decoder to generate the output summary. In the following chapter we experiment with two models inspired by this approach. Firstly, we train Content Selection and Planning model as visualized in figure \ref{figure:overal_architecture_csap} (the model is called \emph{CS\&P}). Secondly, we simplify the input tables and train the exact same model without the Content Planning Decoder (the model is called \emph{CopyCSBidir}).
+Joint-Copy Decoder operates as the Text Decoder to generate the output summary. In the following chapter we experiment with two models inspired by this approach. Firstly, we train Content Selection and Planning model as visualized in figure \ref{figure:overal_architecture_csap} (the model is called \emph{CS\&P}). Secondly, we simplify the input tables and train the exact same model without the Content Planning Decoder (the model is called \emph{CopyCSBidir}).
 
 \subsection{Training and Inference}
 
@@ -152,7 +152,7 @@ There are many possibilities what to do during inference. In section \ref{sectio
 \begin{figure}[!h]
     \centering
     \includegraphics[scale=0.2]{img/content_selection_and_planning.jpg}
-    \footnotesize{\\ \textit{Note:} $p_1 = 15$ means that the first generated pointer points to $15$-th encoded record (therefore $e_{15}$ the first input to the Content Plan Encoder), similarly for $p_{m'}$}
+    \footnotesize{\\ \textit{Note:} $p_1 = 15$ means that the first generated pointer points to $15$-th encoded record (therefore $r^{cs}_{15}$ the first input to the Content Plan Encoder), similarly for $p_{k}$}
     \caption{Overall architecture of the Content Selection and Planning model with example outputs.} \label{figure:overal_architecture_csap}
 \end{figure}
 
