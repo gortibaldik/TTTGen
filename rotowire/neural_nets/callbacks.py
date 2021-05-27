@@ -3,7 +3,21 @@ from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 import numpy as np
 
 class CalcBLEUCallback(tf.keras.callbacks.Callback):
+    """ Callback which calculates BLEU score of the summaries generated from the dataset.
+
+    Callback gets called at the end of each epoch
+    """
     def __init__(self, dataset, ix_to_tk, eos):
+        """ Initialize CalcBLEUCallback
+
+        process the dataset, save ix_to_tk, and index of the eos token
+
+        Args:
+            dataset:    dataset which will be used for generation of the summaries
+                        and calculation of the BLEU score
+            ix_to_tk:   vocabulary for transforming generated sequences of indices to words
+            eos:        index of the end of sequence token
+        """
         super(CalcBLEUCallback, self).__init__()
         targets = None
         for tgt in dataset.as_numpy_iterator():
@@ -18,6 +32,7 @@ class CalcBLEUCallback(tf.keras.callbacks.Callback):
         self._eos = eos
 
     def on_epoch_end(self, epoch, logs=None):
+        """ Calculate BLEU at the end of the epoch"""
         print("Predicting at the end of epoch")
         predictions = self.model.predict(self.dataset)
         print(predictions.shape)
@@ -42,10 +57,17 @@ class CalcBLEUCallback(tf.keras.callbacks.Callback):
         print(f"BLEU : {bleu}")
 
 class SaveOnlyModelCallback(tf.keras.callbacks.Callback):
+    """ Our take on the tf.keras.callbacks.ModelCheckpoint which saves model at the end of each epoch """
     def __init__(self, checkpoint, checkpoint_prefix):
+        """
+        Args:
+            checkpoint: tf.train.Checkpoint which manages the actual model
+            checkpoint_prefix: file_prefix argument of checkpoint.save()
+        """
         super(SaveOnlyModelCallback, self).__init__()
         self._checkpoint = checkpoint
         self._checkpoint_prefix = checkpoint_prefix
 
     def on_epoch_end(self, epoch, logs=None):
+        """ Save the model at the end of each epoch"""
         print(self._checkpoint.save(file_prefix=self._checkpoint_prefix))
