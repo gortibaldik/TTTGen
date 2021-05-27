@@ -1,0 +1,19 @@
+%%% Šablona pro jednoduchý soubor formátu PDF/A, jako treba samostatný abstrakt práce.
+
+\documentclass[12pt]{report}
+
+\usepackage[a4paper, hmargin=1in, vmargin=1in]{geometry}
+\usepackage[a-2u]{pdfx}
+\usepackage[czech]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{textcomp}
+
+\begin{document}
+
+%% Nezapomeňte upravit abstrakt.xmpdata.
+
+V tejto bakalárskej práci skúmame možnosti generovania textu v prirodzenom jazyku podmieneného štruktúrovanými vstupnými dátami. Konkrétne trénujeme hlboké neurónové siete na datasete RotoWire, ktorý obsahuje štatistické údaje o basketbalovom zápase spárované s ich súhrnmi. Najprv analyzujeme dataset a navrhneme niekoľko metód preprocessingu (napríklad Byte Pair Encoding). Následne trénujeme základný model založený na architektúre Encoder-Decoder na pripravenom datasete. Popíšeme niekoľko problémov základného modelu a skúmame niekoľko pokročilých neurónových architektúr, ktoré majú tieto problémy riešiť (Copy Attention, Content Selection, Content Planning). Naša analýza naznačuje, že modely nedokážu pochopiť štruktúru vstupných dát. Navrhujeme preto metódu na zjednodušenie jej zložitosti. Náš najlepší model vytrénovaný na zjednodušených dátach prekonáva základný model o viac ako 5 bodov BLEU.
+
+\end{document}
