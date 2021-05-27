@@ -103,7 +103,7 @@ class EncoderDecoderContentSelection(tf.keras.Model):
 
         Args:
             batch_data:     inputs and targets for the text decoder, content plan decoder, input tables, and
-                            generated probabilities whether for scheduled sampling and training of content planning decoder
+                            generated probabilities for scheduled sampling and training of content planning decoder
                             (dec_in, dec_targets, gen_or_teach, train_cp_loss, cp_in, cp_targets, tables)
             last_out:       last output of the text decoder
             initial_state:  initial state for the text decoder
