@@ -8,6 +8,9 @@ from text_to_num import text2num
 import nltk.tokenize as nltk_tok
 
 class Summary:
+    """Summary holds the summary part of the datapoint present in the RotoWire dataset.
+    
+    The class provides numerous preprocessing methods"""
     @staticmethod
     def traverse_span(span, entities_set):
         """
@@ -47,6 +50,7 @@ class Summary:
 
     @staticmethod
     def transform_numbers(sent):
+        """Traverse the tokens and collect all the number words and transform them into a numeral"""
         def has_to_be_ignored(__sent, __i):
             ignores = { 
               "three point",
@@ -103,11 +107,16 @@ class Summary:
         return " ".join(extracted_sentence)
 
     def collect_tokens(self, word_dict : OccurrenceDict):
+        """ Add all the tokens from the summary to the word_dict"""
         for token in self._list_of_words:
             word_dict.add(token)
 
     @staticmethod
     def _transform_words(list_of_words, words_limit=None):
+        """ Traverse through the summary and transform dataset faults
+        
+        E.g. we transform Barea’s to Barea ’s, all the version of name Luc Mbah A Moute to Moute, all the number
+        words to numerals etc. """
         summary = join_strings(*list_of_words)
         sentences = [Summary.transform_numbers(s) for s in nltk_tok.sent_tokenize(summary)]
         result = []
@@ -161,6 +170,7 @@ class Summary:
     def transform( self
                  , transformations
                  , lowercase=False):
+        """Traverse the summary and transform the longest subsequences of words present in the transformations dict"""
         new_list_of_words = []
         ix = 0
         length = len(self._list_of_words)
@@ -187,6 +197,7 @@ class Summary:
                 , list_of_words
                 , word_dict
                 , words_limit=None):
+        """ Initialize the summary, remove all the dataset faults, transform number words to numerals and collect tokens to word_dict"""
         self._list_of_words = self._transform_words(list_of_words, words_limit=words_limit)
         self.collect_tokens(word_dict)
 
