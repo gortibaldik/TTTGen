@@ -254,7 +254,7 @@ def _main(args):
                 , max_cp_size=max_cp_size
                 , csap_model=args.with_cp
                 , from_gold_cp=args.from_gold_cp
-                , add_cp=(file_prefix == "test_"))
+                , add_cp=(args.with_cp and (file_prefix == "test_")))
     
 
 if __name__ == "__main__":
